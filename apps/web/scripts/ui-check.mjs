@@ -122,7 +122,8 @@ try {
   await step('el panel ofrece los recientes sin escribir nada', async () => {
     await page.waitForSelector('.result', { timeout: 10_000 });
     assert.match(await page.locator('.result').first().innerText(), /Pechuga de pollo cocida/);
-    assert.match(await page.locator('.hint').innerText(), /registraste antes/);
+    // .first(): la tarjeta de peso también tiene un .hint.
+    assert.match(await page.locator('.hint').first().innerText(), /registraste antes/);
   });
 
   await step('editar porciones en la fila recalcula el total', async () => {
@@ -162,6 +163,43 @@ try {
     );
     assert.equal(await page.locator('.entry').count(), 0);
     await shot('07-tras-quitar');
+  });
+
+  // La UI solo registra el peso de hoy; la cadena EMA entre días la cubre el
+  // smoke, que sí puede cargar fechas pasadas.
+  async function registrarPeso(kg, esperado) {
+    await page.getByLabel('Peso de hoy en kilos').fill(kg);
+    await page.getByRole('button', { name: 'Registrar' }).click();
+    try {
+      await page.locator('.weight__ema').filter({ hasText: esperado }).waitFor({ timeout: 15_000 });
+    } catch {
+      // Un timeout mudo no dice nada: se reporta lo que la tarjeta muestra.
+      throw new Error(
+        `tras registrar ${kg} kg se esperaba "${esperado}"; la tarjeta dice:\n` +
+          (await page.locator('section[aria-labelledby="peso"]').innerText()),
+      );
+    }
+  }
+
+  await step('registrar el peso mueve el objetivo del día', async () => {
+    const objetivoAntes = await page.locator('.dial__unit').innerText();
+    // 90 y no 82: el usuario se registró con 82 kg, y el objetivo solo se
+    // reescribe cuando las calorías cambian de verdad.
+    await registrarPeso('90', '90.0 kg');
+    await page.waitForFunction(
+      (antes) => document.querySelector('.dial__unit')?.innerText !== antes,
+      objetivoAntes,
+      { timeout: 10_000 },
+    );
+    await shot('09-peso');
+  });
+
+  await step('volver a pesarse el mismo día corrige, no acumula', async () => {
+    await registrarPeso('81.4', '81.4 kg');
+    // Una sola medición por día: sin serie, ni gráfico ni leyenda.
+    assert.equal(await page.locator('.sparkline').count(), 0);
+    assert.equal(await page.locator('.weight__legend').count(), 0);
+    assert.match(await page.locator('.weight__figures').innerText(), /última pesada 81.4 kg/);
   });
 
   await step('el estado vacío de búsqueda es explícito', async () => {

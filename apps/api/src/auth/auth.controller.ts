@@ -5,8 +5,10 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
-// 5 intentos por 15 min en endpoints de credenciales.
-@Throttle({ default: { limit: 5, ttl: 900_000 } })
+// 5 intentos por 15 min en endpoints de credenciales. Configurable solo para
+// poder correr la suite end to end repetidas veces en local; en producción se
+// deja el valor por defecto.
+@Throttle({ default: { limit: Number(process.env.AUTH_RATE_LIMIT ?? 5), ttl: 900_000 } })
 @Controller('api/v1/auth')
 export class AuthController {
   constructor(private readonly auth: AuthService) {}

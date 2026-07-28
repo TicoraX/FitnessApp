@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import { api, today, type DaySummary, type Food } from './api';
+import { Weight } from './Weight';
 
 const MEALS = [
   ['breakfast', 'Desayuno'],
@@ -76,6 +77,7 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
           <div className="card" style={{ marginTop: 'var(--space-md)' }}>
             <AddFood date={date} onAdded={() => load(date)} />
           </div>
+          <Weight onGoalChanged={() => load(date)} />
         </section>
       </div>
     </div>

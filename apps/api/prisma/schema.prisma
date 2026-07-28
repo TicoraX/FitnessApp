@@ -36,6 +36,7 @@ model User {
   goals         UserGoal[]
   createdFoods  FoodItem[]
   dailyLogs     DailyLog[]
+  weights       WeightEntry[]
 
   @@map("users")
 }
@@ -102,6 +103,26 @@ model DailyLog {
 
   @@unique([userId, logDate])
   @@map("daily_logs")
+}
+
+/**
+ * No está en el DDL de §4, pero §3.3 define el suavizado EMA del peso y eso
+ * necesita una serie donde guardarlo. Una medición por usuario y día.
+ */
+model WeightEntry {
+  id       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId   String   @map("user_id") @db.Uuid
+  loggedOn DateTime @map("logged_on") @db.Date
+  weightKg Decimal  @map("weight_kg") @db.Decimal(5, 2)
+  /// EMA con alpha 0.10: el peso real oscila varios cientos de gramos por día
+  /// por agua y digestión, y la tendencia es lo que hay que mirar.
+  emaKg    Decimal  @map("ema_kg") @db.Decimal(6, 3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, loggedOn])
+  @@index([userId, loggedOn(sort: Desc)])
+  @@map("weight_entries")
 }
 
 model MealEntry {

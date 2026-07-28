@@ -1,3 +1,6 @@
+// Primero de todo: los decoradores @Throttle leen process.env al importarse,
+// antes de que ConfigModule llegue a cargar el .env.
+import 'dotenv/config';
 import 'reflect-metadata';
 import { BadRequestException, Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';

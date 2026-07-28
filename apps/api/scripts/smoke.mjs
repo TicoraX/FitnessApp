@@ -277,4 +277,55 @@ await check('id que no es UUID da 400', async () => {
   assert.equal(status, 400);
 });
 
+console.log('\nPeso y ajuste dinámico');
+
+const dayOffset = (n) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
+
+await check('la primera pesada siembra la EMA con su propio valor', async () => {
+  const { status, body } = await call('POST', '/weight', {
+    logged_on: dayOffset(-3),
+    weight_kg: 82,
+  });
+  assert.equal(status, 201);
+  assert.equal(body.data.at(-1).ema_kg, 82);
+});
+
+await check('la EMA suaviza: se mueve menos que la pesada', async () => {
+  const { body } = await call('POST', '/weight', { logged_on: dayOffset(-2), weight_kg: 84 });
+  const ultima = body.data.at(-1);
+  assert.equal(ultima.weight_kg, 84);
+  assert.equal(ultima.ema_kg, 82.2); // 84*0.1 + 82*0.9
+});
+
+await check('cargar una fecha pasada recalcula la cadena hacia adelante', async () => {
+  // Se mete un peso ENTRE los dos anteriores: la EMA del ultimo tiene que cambiar.
+  const { body } = await call('POST', '/weight', { logged_on: dayOffset(-4), weight_kg: 80 });
+  assert.deepEqual(
+    body.data.map((e) => e.ema_kg),
+    [80, 80.2, 80.58], // 80 · 82*0.1+80*0.9 · 84*0.1+80.2*0.9
+  );
+});
+
+await check('el objetivo se recalcula con el peso nuevo', async () => {
+  const antes = (await call('GET', '/auth/me')).status;
+  assert.equal(antes, 200);
+
+  const { body } = await call('POST', '/weight', { logged_on: dayOffset(0), weight_kg: 78 });
+  const ema = body.data.at(-1).ema_kg;
+
+  // El objetivo activo tiene que reflejar la EMA, no los 82 kg del registro.
+  const dia = (await call('GET', `/logs/${day}`)).body.data;
+  const objetivo = dia.totals.calories + dia.remaining.calories;
+  assert.notEqual(objetivo, goals.daily_calories, 'el objetivo no se movio con el peso');
+
+  const age = new Date().getUTCFullYear() - 1992 - (new Date() < new Date(`${new Date().getUTCFullYear()}-08-14`) ? 1 : 0);
+  const bmr = Math.round(10 * ema + 6.25 * 178.5 - 5 * age + 5);
+  assert.equal(objetivo, Math.round(bmr * 1.55) - 550);
+});
+
+await check('un peso fuera de rango se rechaza', async () => {
+  assert.equal((await call('POST', '/weight', { logged_on: day, weight_kg: 5 })).status, 400);
+  assert.equal((await call('POST', '/weight', { logged_on: 'ayer', weight_kg: 80 })).status, 400);
+});
+
 console.log('\nTodo verde.\n');

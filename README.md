@@ -56,6 +56,8 @@ cd apps/web && npm install && npm run dev    # http://localhost:5177
 | GET | `/api/v1/logs/:date` | JWT | Resumen del día: entradas, totales y restante vs. objetivo |
 | GET | `/api/v1/foods/search?q=` | JWT | Búsqueda difusa por nombre y marca |
 | GET | `/api/v1/foods/recent` | JWT | Últimos alimentos registrados, sin repetir |
+| POST | `/api/v1/weight` | JWT | Registra el peso del día, suaviza EMA y recalcula el objetivo |
+| GET | `/api/v1/weight?days=` | JWT | Serie de peso con su tendencia |
 | GET | `/api/v1/foods/barcode/:barcode` | JWT | Lookup exacto por EAN/UPC |
 | POST | `/api/v1/foods` | JWT | Alta de alimento (queda `verified: false`) |
 
@@ -66,7 +68,8 @@ cd apps/web && npm install && npm run dev    # http://localhost:5177
 | 1 | Setup, ORM (`users`, `user_goals`, `food_items`), auth + BMR/TDEE | listo |
 | 2 | `daily_logs`, `meal_entries`, `POST /api/v1/logs/meal` | listo |
 | 3 | Catálogo y búsqueda de alimentos (pg_trgm) | listo |
-| 4 | Sync offline-first, wearables, visión por IA | pendiente |
+| 4 | Peso con suavizado EMA y ajuste dinámico del objetivo | listo |
+| 5 | Sync offline-first, wearables, visión por IA | pendiente |
 
 Redis, Typesense, Kong y los microservicios de §2 no están: con un servicio y
 cero tráfico no aportan nada todavía. Entran cuando la latencia lo pida.
