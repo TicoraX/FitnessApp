@@ -63,6 +63,9 @@ export class LogsService {
           meal_type: e.mealType,
           servings_consumed: Number(e.servingsConsumed),
           logged_at: e.loggedAt,
+          // Calorías de la entrada ya escaladas: el cliente muestra subtotales
+          // por comida sin tener que replicar la aritmética.
+          calories: Math.round(e.foodItem.calories * Number(e.servingsConsumed)),
           food: {
             id: e.foodItem.id,
             name: e.foodItem.name,

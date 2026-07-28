@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import { api, today, type DaySummary, type Food } from './api';
 
 const MEALS = [
@@ -30,7 +30,7 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
     <div className="shell">
       <header className="topbar">
         <span className="topbar__mark">FitTrack</span>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+        <div className="topbar__tools">
           <label className="muted" htmlFor="date">
             Día
           </label>
@@ -57,20 +57,65 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
       <div className="columns">
         <section aria-labelledby="resumen">
           <h2 id="resumen">Resumen</h2>
-          {day ? <Summary day={day} /> : <p className="muted">Cargando el día.</p>}
-          {day && <Entries day={day} />}
+          {day ? (
+            <>
+              <div className="card card--raised" style={{ marginTop: 'var(--space-md)' }}>
+                <Dial day={day} />
+                <Macros day={day} />
+              </div>
+              <Meals day={day} />
+            </>
+          ) : (
+            <p className="muted">Cargando el día.</p>
+          )}
         </section>
 
         <section aria-labelledby="agregar">
           <h2 id="agregar">Agregar comida</h2>
-          <AddFood date={date} onAdded={() => load(date)} />
+          <div className="card" style={{ marginTop: 'var(--space-md)' }}>
+            <AddFood date={date} onAdded={() => load(date)} />
+          </div>
         </section>
       </div>
     </div>
   );
 }
 
-function Summary({ day }: { day: DaySummary }) {
+function Dial({ day }: { day: DaySummary }) {
+  const { totals, remaining } = day;
+  const goal = remaining ? totals.calories + remaining.calories : 0;
+  const pct = goal > 0 ? Math.min((totals.calories / goal) * 100, 100) : 0;
+  const over = remaining ? remaining.calories < 0 : false;
+
+  return (
+    <div className="dial">
+      <div
+        className="ring"
+        role="meter"
+        aria-label="Calorías del día"
+        aria-valuenow={totals.calories}
+        aria-valuemin={0}
+        aria-valuemax={goal || undefined}
+        style={
+          { '--pct': pct, '--ring-color': over ? 'var(--color-danger)' : undefined } as CSSProperties
+        }
+      />
+      <div className="dial__figures">
+        <span className="calories__value num">{totals.calories}</span>
+        <span className="dial__unit">kcal consumidas{goal > 0 && ` de ${goal}`}</span>
+        {remaining ? (
+          <span className="dial__left num" data-over={over}>
+            {over ? `${Math.abs(remaining.calories)} de más` : `${remaining.calories} restantes`}
+          </span>
+        ) : (
+          <span className="dial__left muted">Sin objetivo activo</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Macros({ day }: { day: DaySummary }) {
   const { totals, remaining } = day;
   const macros = [
     { key: 'protein', label: 'Proteína', eaten: totals.protein_g, left: remaining?.protein_g },
@@ -79,97 +124,67 @@ function Summary({ day }: { day: DaySummary }) {
   ];
 
   return (
-    <>
-      <div className="calories">
-        <span className="calories__value num">{totals.calories}</span>
-        <span className="muted">
-          kcal consumidas
-          {remaining && (
-            <>
-              {' · '}
-              <span className="num">{Math.abs(remaining.calories)}</span>
-              {remaining.calories >= 0 ? ' restantes' : ' de más'}
-            </>
-          )}
-        </span>
-      </div>
-
-      {!remaining && (
-        <p className="muted" style={{ marginTop: '0.5rem' }}>
-          Sin objetivo activo: se muestran los totales sin comparación.
-        </p>
-      )}
-
-      <div className="macros">
-        {macros.map((m) => {
-          const goal = m.left === undefined ? 0 : m.eaten + m.left;
-          const pct = goal > 0 ? Math.min((m.eaten / goal) * 100, 100) : 0;
-          return (
-            <div key={m.key}>
-              <div className="macro__head">
-                <span>{m.label}</span>
-                <span className="num muted">
-                  {m.eaten} g{goal > 0 && ` / ${Math.round(goal)} g`}
-                </span>
-              </div>
-              <div
-                className="macro__track"
-                role="meter"
-                aria-label={m.label}
-                aria-valuenow={m.eaten}
-                aria-valuemin={0}
-                aria-valuemax={goal || undefined}
-              >
-                <div
-                  className="macro__fill"
-                  data-over={goal > 0 && m.eaten > goal}
-                  style={
-                    {
-                      width: `${pct}%`,
-                      '--macro-color': `var(--color-${m.key})`,
-                    } as React.CSSProperties
-                  }
-                />
-              </div>
+    <div className="macros">
+      {macros.map((m) => {
+        const goal = m.left === undefined ? 0 : m.eaten + m.left;
+        const pct = goal > 0 ? Math.min((m.eaten / goal) * 100, 100) : 0;
+        const style = { '--macro-color': `var(--color-${m.key})` } as CSSProperties;
+        return (
+          <div className="macro" key={m.key} style={style}>
+            <div className="macro__head">
+              <span className="macro__name">
+                <span className="macro__chip" />
+                {m.label}
+              </span>
+              <span className="macro__value num">
+                {m.eaten} g{goal > 0 && ` / ${Math.round(goal)} g`}
+              </span>
             </div>
-          );
-        })}
-      </div>
-    </>
+            <div
+              className="macro__track"
+              role="meter"
+              aria-label={m.label}
+              aria-valuenow={m.eaten}
+              aria-valuemin={0}
+              aria-valuemax={goal || undefined}
+            >
+              <div className="macro__fill" data-over={goal > 0 && m.eaten > goal} style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
-function Entries({ day }: { day: DaySummary }) {
-  if (day.entries.length === 0) {
-    return (
-      <p className="muted" style={{ marginTop: '2rem' }}>
-        Todavía no registraste nada este día.
-      </p>
-    );
-  }
-
+function Meals({ day }: { day: DaySummary }) {
   return (
-    <div style={{ marginTop: '2.5rem' }}>
+    <div className="meals">
       {MEALS.map(([key, label]) => {
         const entries = day.entries.filter((e) => e.meal_type === key);
-        if (entries.length === 0) return null;
+        const subtotal = entries.reduce((sum, e) => sum + e.calories, 0);
         return (
-          <div key={key} style={{ marginBottom: '1.5rem' }}>
-            <p className="eyebrow">{label}</p>
-            <ul className="entries">
-              {entries.map((e) => (
-                <li className="entry" key={e.id}>
-                  <span>
-                    <span className="entry__name">{e.food.name}</span>
-                    {e.food.brand && <span className="muted"> · {e.food.brand}</span>}
-                  </span>
-                  <span className="muted num">
-                    {e.servings_consumed} × {e.food.serving_size_amount}
-                    {e.food.serving_size_unit}
-                  </span>
-                </li>
-              ))}
-            </ul>
+          <div key={key}>
+            <div className="meal__head">
+              <p className="eyebrow">{label}</p>
+              <span className="muted num">{subtotal > 0 ? `${subtotal} kcal` : '—'}</span>
+            </div>
+            {entries.length > 0 && (
+              <ul className="entries">
+                {entries.map((e) => (
+                  <li className="entry" key={e.id}>
+                    <span>
+                      <span className="entry__name">{e.food.name}</span>
+                      {e.food.brand && <span className="muted"> · {e.food.brand}</span>}
+                    </span>
+                    <span className="muted num">
+                      {e.servings_consumed} × {e.food.serving_size_amount}
+                      {e.food.serving_size_unit} · {e.calories} kcal
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         );
       })}
@@ -194,9 +209,7 @@ function AddFood({ date, onAdded }: { date: string; onAdded: () => void }) {
     }
     const id = setTimeout(async () => {
       try {
-        const res = await api.get<{ data: Food[] }>(
-          `/foods/search?q=${encodeURIComponent(query)}`,
-        );
+        const res = await api.get<{ data: Food[] }>(`/foods/search?q=${encodeURIComponent(query)}`);
         setResults(res.data);
       } catch {
         setResults([]);
@@ -229,25 +242,28 @@ function AddFood({ date, onAdded }: { date: string; onAdded: () => void }) {
 
   return (
     <div>
-      <div className="searchbar">
-        <input
-          type="search"
-          placeholder="Buscar alimento"
-          aria-label="Buscar alimento"
-          value={query}
-          onChange={(e) => {
-            // Solo al tipear: add() también limpia el query, y ahí la
-            // confirmación tiene que quedar visible.
-            setQuery(e.target.value);
-            setMessage(null);
-          }}
-        />
-      </div>
+      <input
+        type="search"
+        placeholder="Buscar alimento"
+        aria-label="Buscar alimento"
+        style={{ width: '100%' }}
+        value={query}
+        onChange={(e) => {
+          // Solo al tipear: add() también limpia el query, y ahí la
+          // confirmación tiene que quedar visible.
+          setQuery(e.target.value);
+          setMessage(null);
+        }}
+      />
+
+      {query.trim().length < 2 && !selected && (
+        <p className="hint">
+          Escribí al menos dos letras. La búsqueda tolera errores de tipeo y no distingue acentos.
+        </p>
+      )}
 
       {query.trim().length >= 2 && results.length === 0 && (
-        <p className="muted" style={{ marginTop: '0.75rem' }}>
-          Sin resultados para “{query}”.
-        </p>
+        <p className="hint">Sin resultados para “{query}”.</p>
       )}
 
       <ul className="results">
@@ -263,7 +279,7 @@ function AddFood({ date, onAdded }: { date: string; onAdded: () => void }) {
                 {f.name}
                 {f.brand && <span className="muted"> · {f.brand}</span>}
               </span>
-              <span className="muted num">
+              <span className="muted num result__kcal">
                 {f.calories} kcal / {f.serving_size_amount}
                 {f.serving_size_unit}
               </span>
@@ -302,7 +318,11 @@ function AddFood({ date, onAdded }: { date: string; onAdded: () => void }) {
       )}
 
       {message && (
-        <p className={message.ok ? 'alert alert--ok' : 'alert'} role="status" style={{ marginTop: '1rem' }}>
+        <p
+          className={message.ok ? 'alert alert--ok' : 'alert'}
+          role="status"
+          style={{ marginTop: 'var(--space-md)' }}
+        >
           {message.text}
         </p>
       )}

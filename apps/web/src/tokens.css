@@ -18,10 +18,14 @@
   --color-danger-soft: oklch(95% 0.03 27);
   --color-focus: oklch(52% 0.16 250);
 
-  /* Macros: un tono por macro, reutilizado en barras y leyendas */
-  --color-protein: oklch(55% 0.13 25);
-  --color-carbs: oklch(62% 0.12 75);
-  --color-fat: oklch(58% 0.09 260);
+  /* Macros: paleta categórica validada con scripts/validate_palette.js
+   * (banda de luminosidad, piso de croma, separación CVD con todos los pares,
+   * piso de visión normal y contraste contra el papel). La luminosidad está
+   * escalonada a propósito: en visión deutan el rojo y el ámbar solo se
+   * distinguen por luminosidad, no por tono. */
+  --color-protein: oklch(48% 0.19 18);
+  --color-carbs: oklch(62% 0.14 95);
+  --color-fat: oklch(56% 0.16 265);
 
   /* Tipografía */
   --font-display: 'Instrument Serif', Georgia, serif;
@@ -43,8 +47,10 @@
   --space-2xl: 4rem;
 
   --radius-sm: 4px;
-  --radius-md: 8px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
   --rule: 1px solid var(--color-rule);
+  --shadow-card: 0 1px 2px oklch(0% 0 0 / 0.04), 0 8px 24px -12px oklch(0% 0 0 / 0.12);
 
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
@@ -66,8 +72,10 @@
     --color-danger: oklch(70% 0.15 27);
     --color-danger-soft: oklch(30% 0.06 27);
     --color-focus: oklch(72% 0.14 250);
-    --color-protein: oklch(70% 0.13 25);
-    --color-carbs: oklch(76% 0.12 75);
-    --color-fat: oklch(72% 0.1 260);
+    --shadow-card: 0 1px 2px oklch(0% 0 0 / 0.3), 0 8px 24px -12px oklch(0% 0 0 / 0.5);
+    /* Revalidada contra la superficie oscura, no invertida automáticamente. */
+    --color-protein: oklch(55% 0.19 18);
+    --color-carbs: oklch(66% 0.14 95);
+    --color-fat: oklch(62% 0.16 265);
   }
 }

@@ -92,7 +92,12 @@ try {
       { timeout: 10_000 },
     );
     assert.equal(await page.locator('.calories__value').textContent(), '330'); // 165 × 2
-    assert.match(await page.locator('.entry').first().innerText(), /Pechuga de pollo cocida/);
+    const entrada = await page.locator('.entry').first().innerText();
+    assert.match(entrada, /Pechuga de pollo cocida/);
+    assert.match(entrada, /330 kcal/); // subtotal de la entrada, ya escalado
+    // El subtotal de Almuerzo; las comidas vacías muestran un guion.
+    assert.match(await page.locator('.meal__head').nth(1).innerText(), /330 kcal/);
+    assert.match(await page.locator('.meal__head').first().innerText(), /—/);
     await shot('04-diario-con-comida');
   });
 

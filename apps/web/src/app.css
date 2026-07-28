@@ -1,3 +1,8 @@
+/* Hallmark · redesign · genre: modern-minimal · designed-as-app
+ * paper: warm-neutral · display: classical-serif · accent: chromatic-green
+ * macros: paleta categórica validada (ver tokens.css)
+ */
+
 @import './tokens.css';
 
 *,
@@ -24,6 +29,7 @@ body {
 /* Todas las cifras en tabular para que no bailen al actualizarse. */
 .num {
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
 h1,
@@ -32,7 +38,8 @@ h3 {
   font-family: var(--font-display);
   font-style: normal;
   font-weight: 400;
-  line-height: 1.1;
+  line-height: 1.05;
+  letter-spacing: -0.015em;
   overflow-wrap: anywhere;
   min-width: 0;
   margin: 0;
@@ -55,10 +62,100 @@ a {
   border-radius: var(--radius-sm);
 }
 
-/* ---------- Layout ---------- */
+.muted {
+  color: var(--color-ink-2);
+  font-size: var(--text-sm);
+}
+
+.eyebrow {
+  font-size: var(--text-xs);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-ink-2);
+  margin: 0;
+}
+
+.stack {
+  display: grid;
+  gap: var(--space-md);
+}
+
+/* ---------- Auth: dos paneles ---------- */
+
+.auth {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1fr);
+}
+
+/* Sticky: sin esto el panel se estira con el alto del formulario de registro
+   y el texto queda flotando en el medio de una columna vacía. */
+.auth__aside {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  background: var(--color-paper-2);
+  border-right: var(--rule);
+  padding: var(--space-xl) var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+/* El pie va abajo; el resto se agrupa arriba. Con space-between el logotipo
+   quedaba solo, con media pantalla vacía debajo. */
+.auth__aside > :last-child {
+  margin-top: auto;
+}
+
+.auth__form {
+  padding: var(--space-xl) var(--space-lg);
+  display: grid;
+  align-content: start;
+  justify-items: stretch;
+}
+
+.auth__form > * {
+  width: min(100%, 26rem);
+}
+
+/* La ecuación como elemento gráfico: es lo que el producto realmente hace. */
+.formula {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  line-height: 1.7;
+  color: var(--color-ink-2);
+  border-left: 2px solid var(--color-accent);
+  padding-left: var(--space-md);
+}
+
+.formula b {
+  color: var(--color-ink);
+  font-weight: 400;
+}
+
+@media (max-width: 56rem) {
+  .auth {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .auth__aside {
+    position: static;
+    height: auto;
+    border-right: none;
+    border-bottom: var(--rule);
+    padding: var(--space-lg) var(--space-md);
+  }
+  .auth__form {
+    padding: var(--space-lg) var(--space-md);
+    justify-items: start;
+  }
+}
+
+/* ---------- Shell del diario ---------- */
 
 .shell {
-  max-width: 62rem;
+  max-width: 68rem;
   margin: 0 auto;
   padding: var(--space-lg) var(--space-md) var(--space-2xl);
 }
@@ -67,7 +164,7 @@ a {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-md);
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   padding-bottom: var(--space-md);
   border-bottom: var(--rule);
@@ -77,35 +174,273 @@ a {
 .topbar__mark {
   font-family: var(--font-display);
   font-size: var(--text-lg);
+  letter-spacing: -0.01em;
 }
 
-.muted {
-  color: var(--color-ink-2);
-  font-size: var(--text-sm);
-}
-
-.eyebrow {
-  font-size: var(--text-xs);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-ink-2);
-}
-
-.stack {
-  display: grid;
-  gap: var(--space-md);
+.topbar__tools {
+  display: flex;
+  gap: var(--space-xs);
+  align-items: center;
 }
 
 .columns {
   display: grid;
   gap: var(--space-xl);
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  align-items: start;
 }
 
-@media (max-width: 52rem) {
+@media (max-width: 56rem) {
   .columns {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+.card {
+  background: var(--color-paper-2);
+  border: var(--rule);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+}
+
+.card--raised {
+  background: var(--color-paper);
+  box-shadow: var(--shadow-card);
+}
+
+/* ---------- Anillo calórico ---------- */
+
+.dial {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  flex-wrap: wrap;
+}
+
+.ring {
+  --pct: 0;
+  position: relative;
+  width: 9.5rem;
+  aspect-ratio: 1;
+  flex: none;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    var(--ring-color, var(--color-accent)) calc(var(--pct) * 3.6deg),
+    var(--color-paper-3) 0
+  );
+  /* Dona: el mask evita un pseudo-elemento y un color de fondo que mantener. */
+  mask: radial-gradient(farthest-side, transparent calc(100% - 10px), black calc(100% - 9px));
+  transition: background var(--dur-base) var(--ease-out);
+}
+
+.dial__figures {
+  min-width: 0;
+}
+
+.calories__value {
+  display: block;
+  font-family: var(--font-display);
+  font-size: var(--text-display);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.dial__unit {
+  display: block;
+  margin-top: var(--space-2xs);
+  color: var(--color-ink-2);
+  font-size: var(--text-sm);
+}
+
+.dial__left {
+  display: block;
+  margin-top: var(--space-sm);
+  font-size: var(--text-lg);
+}
+
+.dial__left[data-over='true'] {
+  color: var(--color-danger);
+}
+
+/* ---------- Tiles de macros ---------- */
+
+.macros {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+}
+
+@media (max-width: 26rem) {
+  .macros {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.macro {
+  border: var(--rule);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm);
+  background: var(--color-paper);
+}
+
+.macro__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  font-size: var(--text-sm);
+}
+
+.macro__name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  color: var(--color-ink-2);
+}
+
+/* El chip de color acompaña siempre a la etiqueta: la identidad nunca depende
+   solo del color. */
+.macro__chip {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--macro-color);
+  flex: none;
+}
+
+.macro__value {
+  font-size: var(--text-base);
+  color: var(--color-ink);
+}
+
+.macro__track {
+  height: 5px;
+  margin-top: var(--space-sm);
+  background: var(--color-paper-3);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.macro__fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--macro-color);
+  transition: width var(--dur-base) var(--ease-out);
+}
+
+.macro__fill[data-over='true'] {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--macro-color) 0 5px,
+    var(--color-danger) 5px 10px
+  );
+}
+
+/* ---------- Comidas ---------- */
+
+.meals {
+  margin-top: var(--space-xl);
+  display: grid;
+  gap: var(--space-md);
+}
+
+.meal__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding-bottom: var(--space-2xs);
+  border-bottom: var(--rule);
+}
+
+.entries {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.entry {
+  display: flex;
+  gap: var(--space-md);
+  justify-content: space-between;
+  align-items: baseline;
+  padding: var(--space-sm) 0;
+  border-bottom: var(--rule);
+}
+
+.entry__name {
+  font-weight: 500;
+}
+
+.meal__empty {
+  padding: var(--space-sm) 0;
+  color: var(--color-ink-3);
+  font-size: var(--text-sm);
+}
+
+/* ---------- Buscador ---------- */
+
+.results {
+  list-style: none;
+  margin: var(--space-sm) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2xs);
+  max-height: 24rem;
+  overflow-y: auto;
+}
+
+.result {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: var(--color-paper);
+  border: var(--rule);
+  border-radius: var(--radius-md);
+  padding: var(--space-xs) var(--space-sm);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+
+.result:hover {
+  background: var(--color-paper-3);
+}
+
+.result[aria-selected='true'] {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.result__kcal {
+  flex: none;
+}
+
+.addbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: var(--rule);
+}
+
+.addbar select,
+.addbar input {
+  flex: 1 1 6rem;
+}
+
+.hint {
+  margin: var(--space-md) 0 0;
+  color: var(--color-ink-3);
+  font-size: var(--text-sm);
 }
 
 /* ---------- Controles ---------- */
@@ -113,6 +448,7 @@ a {
 .field {
   display: grid;
   gap: var(--space-2xs);
+  margin-bottom: var(--space-md);
 }
 
 .field > label {
@@ -195,6 +531,10 @@ input[aria-invalid='true'] {
   filter: none;
 }
 
+.btn--block {
+  width: 100%;
+}
+
 .alert {
   font-size: var(--text-sm);
   padding: var(--space-xs) var(--space-sm);
@@ -206,137 +546,6 @@ input[aria-invalid='true'] {
 .alert--ok {
   background: var(--color-accent-soft);
   color: var(--color-accent);
-}
-
-/* ---------- Resumen del día ---------- */
-
-.calories {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-sm);
-  flex-wrap: wrap;
-}
-
-.calories__value {
-  font-family: var(--font-display);
-  font-size: var(--text-display);
-  line-height: 1;
-}
-
-.macros {
-  display: grid;
-  gap: var(--space-md);
-  margin-top: var(--space-lg);
-}
-
-.macro__head {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-sm);
-  font-size: var(--text-sm);
-}
-
-.macro__track {
-  height: 6px;
-  margin-top: var(--space-2xs);
-  background: var(--color-paper-3);
-  border-radius: 999px;
-  overflow: hidden;
-}
-
-.macro__fill {
-  height: 100%;
-  background: var(--macro-color);
-  transition: width var(--dur-base) var(--ease-out);
-}
-
-.macro__fill[data-over='true'] {
-  background: repeating-linear-gradient(
-    135deg,
-    var(--macro-color) 0 6px,
-    var(--color-danger) 6px 12px
-  );
-}
-
-/* ---------- Listas ---------- */
-
-.entries {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  border-top: var(--rule);
-}
-
-.entry {
-  display: flex;
-  gap: var(--space-md);
-  justify-content: space-between;
-  align-items: baseline;
-  padding: var(--space-sm) 0;
-  border-bottom: var(--rule);
-}
-
-.entry__name {
-  font-weight: 500;
-}
-
-.results {
-  list-style: none;
-  margin: var(--space-sm) 0 0;
-  padding: 0;
-  display: grid;
-  gap: var(--space-2xs);
-  max-height: 22rem;
-  overflow-y: auto;
-}
-
-.result {
-  display: flex;
-  gap: var(--space-sm);
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  text-align: left;
-  font: inherit;
-  color: inherit;
-  background: none;
-  border: var(--rule);
-  border-radius: var(--radius-sm);
-  padding: var(--space-xs) var(--space-sm);
-  cursor: pointer;
-  transition: background var(--dur-fast) var(--ease-out);
-}
-
-.result:hover,
-.result[aria-selected='true'] {
-  background: var(--color-paper-2);
-}
-
-.result[aria-selected='true'] {
-  border-color: var(--color-accent);
-}
-
-.searchbar {
-  display: flex;
-  gap: var(--space-xs);
-}
-
-.searchbar input {
-  flex: 1;
-}
-
-.addbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-xs);
-  margin-top: var(--space-md);
-  padding-top: var(--space-md);
-  border-top: var(--rule);
-}
-
-.addbar select,
-.addbar input {
-  flex: 1 1 6rem;
 }
 
 @media (prefers-reduced-motion: reduce) {

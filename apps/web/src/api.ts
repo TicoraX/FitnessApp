@@ -66,6 +66,7 @@ export interface DaySummary {
     meal_type: string;
     servings_consumed: number;
     logged_at: string;
+    calories: number;
     food: { id: string; name: string; brand: string | null; serving_size_amount: number; serving_size_unit: string };
   }[];
 }

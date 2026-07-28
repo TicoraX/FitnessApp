@@ -44,16 +44,32 @@ export function Auth({ onAuthed }: { onAuthed: () => void }) {
   }
 
   return (
-    <div className="shell" style={{ maxWidth: '32rem' }}>
-      <p className="eyebrow">FitTrack</p>
-      <h1>{mode === 'login' ? 'Entrar' : 'Crear cuenta'}</h1>
-      <p className="muted" style={{ marginTop: '0.5rem' }}>
-        {mode === 'login'
-          ? 'Seguí donde dejaste el diario.'
-          : 'Calculamos tu BMR, tu TDEE y el reparto de macros al registrarte.'}
-      </p>
+    <div className="auth">
+      <aside className="auth__aside">
+        <p className="eyebrow">FitTrack</p>
+        <div>
+          <p className="formula">
+            Tu gasto diario sale de tu <b>peso</b>, tu <b>altura</b>, tu <b>edad</b> y cuánto te{' '}
+            <b>movés</b>. Mifflin-St Jeor para el metabolismo basal, factor de actividad para el
+            total.
+          </p>
+          <p className="muted" style={{ marginTop: 'var(--space-lg)' }}>
+            Al registrarte calculamos tu BMR, tu TDEE y el reparto de macros, y los guardamos como
+            tu objetivo activo.
+          </p>
+        </div>
+        <p className="muted">Seguimiento nutricional con cálculo metabólico.</p>
+      </aside>
 
-      <form className="stack" onSubmit={submit} style={{ marginTop: '2rem' }}>
+      <div className="auth__form">
+        <h1>{mode === 'login' ? 'Entrar' : 'Crear cuenta'}</h1>
+        <p className="muted" style={{ marginTop: 'var(--space-xs)' }}>
+          {mode === 'login'
+            ? 'Seguí donde dejaste el diario.'
+            : 'Son unos pocos datos, una sola vez.'}
+        </p>
+
+        <form onSubmit={submit} style={{ marginTop: 'var(--space-xl)' }}>
         <div className="field">
           <label htmlFor="email">Email</label>
           <input id="email" name="email" type="email" required autoComplete="email" />
@@ -161,21 +177,29 @@ export function Auth({ onAuthed }: { onAuthed: () => void }) {
           </p>
         )}
 
-        <button className="btn" type="submit" disabled={busy} data-state={busy ? 'loading' : undefined}>
-          {busy ? 'Enviando' : mode === 'login' ? 'Entrar' : 'Crear cuenta'}
-        </button>
+          <div className="stack">
+            <button
+              className="btn btn--block"
+              type="submit"
+              disabled={busy}
+              data-state={busy ? 'loading' : undefined}
+            >
+              {busy ? 'Enviando' : mode === 'login' ? 'Entrar' : 'Crear cuenta'}
+            </button>
 
-        <button
-          className="btn btn--quiet"
-          type="button"
-          onClick={() => {
-            setMode(mode === 'login' ? 'register' : 'login');
-            setError('');
-          }}
-        >
-          {mode === 'login' ? 'No tengo cuenta' : 'Ya tengo cuenta'}
-        </button>
-      </form>
+            <button
+              className="btn btn--quiet btn--block"
+              type="button"
+              onClick={() => {
+                setMode(mode === 'login' ? 'register' : 'login');
+                setError('');
+              }}
+            >
+              {mode === 'login' ? 'No tengo cuenta' : 'Ya tengo cuenta'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
