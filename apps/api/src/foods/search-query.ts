@@ -12,7 +12,11 @@ export function normalizeQuery(raw: string): string {
     .slice(0, 100);
 }
 
-/** Escapa los comodines de LIKE para que el input del usuario sea texto literal. */
-export function likePrefix(query: string): string {
-  return query.replace(/[\\%_]/g, '\\$&') + '%';
+/**
+ * Patrón de subcadena para ILIKE, con los comodines del input escapados.
+ * Es subcadena y no prefijo porque el término buscado casi nunca abre el
+ * nombre: "pollo" tiene que encontrar "Pechuga de pollo cocida".
+ */
+export function likeContains(query: string): string {
+  return '%' + query.replace(/[\\%_]/g, '\\$&') + '%';
 }

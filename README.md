@@ -4,27 +4,43 @@ Implementación del blueprint en [`estrucura.md`](./estrucura.md).
 
 ```
 apps/api/          # Servicio NestJS (usuarios, objetivos, auth)
-  prisma/          # Schema + migración inicial (extensiones e índices GIN)
+  prisma/          # Schema, migraciones y seed del catálogo
+  scripts/smoke.mjs# Smoke test end to end contra el API levantado
   src/auth/        # Registro, login, JWT
   src/foods/       # Catálogo y búsqueda difusa (pg_trgm)
   src/logs/        # Diario diario, entradas de comida y totales
   src/nutrition/   # Motor BMR/TDEE/macros (§3), funciones puras
+apps/web/          # Cliente Vite + React
 docker-compose.yml # PostgreSQL 16 local
 ```
 
 ## Arranque
 
+Postgres escucha en **5433** y el API en **3100** para no chocar con otros
+proyectos que usen los puertos por defecto.
+
 ```bash
 docker compose up -d
 cd apps/api
-cp .env.example .env        # completar JWT_SECRET (>=32 chars)
+cp .env.example .env         # completar JWT_SECRET (>=32 chars)
 npm install
-npx prisma migrate deploy    # crea extensiones, tablas e índices GIN
+npx prisma migrate deploy    # extensiones, tablas e índices
 npx prisma generate
+npm run seed                 # 30 alimentos de referencia
 npm run start:dev
 ```
 
-Tests: `npm test`.
+Con el API arriba, en otra terminal:
+
+```bash
+cd apps/web && npm install && npm run dev    # http://localhost:5177
+```
+
+- `npm test` en `apps/api`: unitarios del motor metabólico, totales y búsqueda.
+- `npm run smoke` en `apps/api`: recorre el flujo completo contra el API real
+  (registro, login, búsqueda, alta de comidas, totales y casos de error).
+  El limiter de auth es de 5/15min, así que no lo corras más de dos veces
+  seguidas.
 
 ## Endpoints
 

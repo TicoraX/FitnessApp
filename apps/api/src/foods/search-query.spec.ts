@@ -1,4 +1,4 @@
-import { likePrefix, normalizeQuery } from './search-query';
+import { likeContains, normalizeQuery } from './search-query';
 
 describe('normalización de búsqueda', () => {
   it('quita acentos, colapsa espacios y baja a minúsculas', () => {
@@ -14,14 +14,14 @@ describe('normalización de búsqueda', () => {
   });
 });
 
-describe('prefijo LIKE', () => {
-  it('agrega el comodín al final', () => {
-    expect(likePrefix('pan')).toBe('pan%');
+describe('patrón LIKE', () => {
+  it('envuelve el término en comodines', () => {
+    expect(likeContains('pan')).toBe('%pan%');
   });
 
   it('neutraliza los comodines que venían en el input', () => {
     // Sin escapar, "100%" haría match con todo.
-    expect(likePrefix('100%')).toBe('100\\%%');
-    expect(likePrefix('a_b')).toBe('a\\_b%');
+    expect(likeContains('100%')).toBe('%100\\%%');
+    expect(likeContains('a_b')).toBe('%a\\_b%');
   });
 });

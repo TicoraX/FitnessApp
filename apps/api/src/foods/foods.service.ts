@@ -2,28 +2,42 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { FoodItem, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateFoodDto } from './dto/create-food.dto';
-import { likePrefix, normalizeQuery } from './search-query';
+import { likeContains, normalizeQuery } from './search-query';
 
 @Injectable()
 export class FoodsService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Búsqueda difusa vía pg_trgm (L5 del blueprint). El operador % y el ILIKE de
-   * prefijo entran los dos por los índices GIN de idx_food_name_trgm/brand_trgm;
-   * el ILIKE existe porque términos de 3-4 letras comparten pocos trigramas.
+   * Búsqueda difusa vía pg_trgm (L5 del blueprint).
+   *
+   * Usa word_similarity (operador `<%`) y no similarity (`%`): el segundo
+   * compara cadenas completas, así que "pollo" contra "Pechuga de pollo
+   * cocida" puntúa ~0.2 y nunca pasa el umbral. word_similarity busca el
+   * término dentro del nombre. El ILIKE cubre las subcadenas que no caen en
+   * límite de palabra ("integral" dentro de "pan integral"). Los tres caminos
+   * entran por los índices GIN de idx_food_name_trgm/idx_food_brand_trgm.
    */
   async search(rawQuery: string, limit: number) {
     const q = normalizeQuery(rawQuery);
     if (q.length < 2) return { status: 'success', data: [] };
 
+    // $queryRaw no aplica el mapeo @map del schema: sin estos alias, las
+    // columnas snake_case llegan como undefined y salen null en el JSON.
     const rows = await this.prisma.$queryRaw<(FoodItem & { score: number })[]>`
-      SELECT *,
-             GREATEST(similarity(name, ${q}), similarity(COALESCE(brand, ''), ${q})) AS score
+      SELECT id, barcode, name, brand, verified,
+             serving_size_amount AS "servingSizeAmount",
+             serving_size_unit   AS "servingSizeUnit",
+             calories, protein, carbohydrates, fat, fiber, sugar,
+             sodium_mg           AS "sodiumMg",
+             GREATEST(
+               word_similarity(${q}, f_unaccent(name)),
+               word_similarity(${q}, f_unaccent(COALESCE(brand, '')))
+             ) AS score
       FROM food_items
-      WHERE name % ${q}
-         OR brand % ${q}
-         OR name ILIKE ${likePrefix(q)}
+      WHERE ${q} <% f_unaccent(name)
+         OR ${q} <% f_unaccent(COALESCE(brand, ''))
+         OR f_unaccent(name) ILIKE ${likeContains(q)}
       ORDER BY score DESC, verified DESC, name ASC
       LIMIT ${limit}`;
 
