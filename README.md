@@ -4,8 +4,9 @@ Implementación del blueprint en [`estrucura.md`](./estrucura.md).
 
 ```
 apps/api/          # Servicio NestJS (usuarios, objetivos, auth)
-  prisma/          # Schema + SQL de extensiones/índices
+  prisma/          # Schema + migración inicial (extensiones e índices GIN)
   src/auth/        # Registro, login, JWT
+  src/foods/       # Catálogo y búsqueda difusa (pg_trgm)
   src/logs/        # Diario diario, entradas de comida y totales
   src/nutrition/   # Motor BMR/TDEE/macros (§3), funciones puras
 docker-compose.yml # PostgreSQL 16 local
@@ -18,9 +19,8 @@ docker compose up -d
 cd apps/api
 cp .env.example .env        # completar JWT_SECRET (>=32 chars)
 npm install
-npx prisma migrate dev --name init --create-only
-# pegar prisma/sql/search_indexes.sql al inicio de la migración generada
-npx prisma migrate dev
+npx prisma migrate deploy    # crea extensiones, tablas e índices GIN
+npx prisma generate
 npm run start:dev
 ```
 
@@ -35,6 +35,9 @@ Tests: `npm test`.
 | GET | `/api/v1/auth/me` | JWT | Identidad del token |
 | POST | `/api/v1/logs/meal` | JWT | Registra una comida y devuelve los totales del día |
 | GET | `/api/v1/logs/:date` | JWT | Resumen del día: entradas, totales y restante vs. objetivo |
+| GET | `/api/v1/foods/search?q=` | JWT | Búsqueda difusa por nombre y marca |
+| GET | `/api/v1/foods/barcode/:barcode` | JWT | Lookup exacto por EAN/UPC |
+| POST | `/api/v1/foods` | JWT | Alta de alimento (queda `verified: false`) |
 
 ## Estado
 
@@ -42,7 +45,7 @@ Tests: `npm test`.
 | :--- | :--- | :--- |
 | 1 | Setup, ORM (`users`, `user_goals`, `food_items`), auth + BMR/TDEE | ✅ |
 | 2 | `daily_logs`, `meal_entries`, `POST /api/v1/logs/meal` | ✅ |
-| 3 | Búsqueda de alimentos (pg_trgm → Typesense), caché Redis | pendiente |
+| 3 | Catálogo y búsqueda de alimentos (pg_trgm) | ✅ |
 | 4 | Sync offline-first, wearables, visión por IA | pendiente |
 
 Redis, Typesense, Kong y los microservicios de §2 no están: con un servicio y
