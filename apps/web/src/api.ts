@@ -79,6 +79,9 @@ export interface Food {
   protein: number;
   carbohydrates: number;
   fat: number;
+  fiber?: number;
+  sugar?: number;
+  sodium_mg?: number;
 }
 
 export interface DaySummary {

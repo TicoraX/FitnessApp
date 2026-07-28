@@ -473,15 +473,17 @@ function Entry({
   onChanged: () => void;
   setBusy: (id: string | null) => void;
 }) {
-  const [servings, setServings] = useState(String(entry.servings_consumed));
+  // Redondear a máximo 2 decimales limpios para evitar ruido de punto flotante (ej: 2.010000002 -> 2.01 o 1.00 -> 1)
+  const formatVal = (v: number) => Number(Math.round(v * 100) / 100).toString();
+  const [servings, setServings] = useState(formatVal(entry.servings_consumed));
 
   // Si el día se recarga por otro motivo, el input sigue al servidor.
-  useEffect(() => setServings(String(entry.servings_consumed)), [entry.servings_consumed]);
+  useEffect(() => setServings(formatVal(entry.servings_consumed)), [entry.servings_consumed]);
 
   async function commit() {
-    const value = Number(servings);
+    const value = Math.round(Number(servings) * 100) / 100;
     if (!Number.isFinite(value) || value <= 0 || value === entry.servings_consumed) {
-      setServings(String(entry.servings_consumed));
+      setServings(formatVal(entry.servings_consumed));
       return;
     }
     setBusy(entry.id);
@@ -490,7 +492,7 @@ function Entry({
       notificarCambio('diario-cambiado');
       onChanged();
     } catch {
-      setServings(String(entry.servings_consumed));
+      setServings(formatVal(entry.servings_consumed));
     } finally {
       setBusy(null);
     }
@@ -550,6 +552,8 @@ function AddFood({ date, onAdded }: { date: string; onAdded: () => void }) {
   const [results, setResults] = useState<Food[]>([]);
   const [selected, setSelected] = useState<Food | null>(null);
   const [servings, setServings] = useState('1');
+  const [unitMode, setUnitMode] = useState<string>('serving');
+  const [qty, setQty] = useState('1');
   const [meal, setMeal] = useState<string>('breakfast');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
@@ -592,23 +596,31 @@ function AddFood({ date, onAdded }: { date: string; onAdded: () => void }) {
     return () => clearTimeout(id);
   }, [query]);
 
+  const handleSelectFood = (food: Food) => {
+    setSelected(food);
+    setUnitMode('serving');
+    setQty('1');
+    setServings('1');
+  };
+
   async function add() {
     if (!selected) return;
     setBusy(true);
     setMessage(null);
+    const finalServings = Math.round(Number(servings) * 1000) / 1000;
     try {
       await api.post('/logs/meal', {
         log_date: date,
         meal_type: meal,
         food_item_id: selected.id,
-        servings_consumed: Number(servings),
+        servings_consumed: finalServings,
       });
       setMessage({ text: `${selected.name} registrado.`, ok: true });
       setSelected(null);
       setQuery('');
-      // Vuelve a 1: arrastrar las porciones del alimento anterior hace que el
-      // siguiente se registre al doble sin que se note.
       setServings('1');
+      setQty('1');
+      setUnitMode('serving');
       setResults([]);
       notificarCambio('diario-cambiado');
       onAdded();
@@ -649,7 +661,7 @@ function AddFood({ date, onAdded }: { date: string; onAdded: () => void }) {
             setActivo((i) => (i + paso + visibles.length) % visibles.length);
           } else if (e.key === 'Enter' && activo >= 0) {
             e.preventDefault();
-            setSelected(visibles[activo]);
+            handleSelectFood(visibles[activo]);
           } else if (e.key === 'Escape') {
             setActivo(-1);
             setSelected(null);
@@ -678,7 +690,7 @@ function AddFood({ date, onAdded }: { date: string; onAdded: () => void }) {
           <NewFood
             name={query.trim()}
             onCreated={(food) => {
-              setSelected(food);
+              handleSelectFood(food);
               setResults([food]);
               setMessage(null);
             }}
@@ -697,7 +709,7 @@ function AddFood({ date, onAdded }: { date: string; onAdded: () => void }) {
             className="result"
             aria-selected={selected?.id === f.id}
             data-activo={i === activo}
-            onClick={() => setSelected(f)}
+            onClick={() => handleSelectFood(f)}
           >
             <span>
               {f.name}
@@ -712,31 +724,125 @@ function AddFood({ date, onAdded }: { date: string; onAdded: () => void }) {
       </ul>
 
       {selected && (
-        <div className="addbar">
-          <select value={meal} onChange={(e) => setMeal(e.target.value)} aria-label="Comida">
-            {MEALS.map(([key, label]) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
-          </select>
-          <input
-            type="number"
-            className="num"
-            step="0.25"
-            min="0.01"
-            value={servings}
-            onChange={(e) => setServings(e.target.value)}
-            aria-label="Porciones"
-          />
-          <button
-            className="btn"
-            onClick={add}
-            disabled={busy || Number(servings) <= 0}
-            data-state={busy ? 'loading' : undefined}
-          >
-            {busy ? 'Guardando' : 'Agregar'}
-          </button>
+        <div className="food-preview card" style={{ marginTop: 'var(--space-md)', background: 'var(--color-paper-2)', border: 'var(--rule)', padding: 'var(--space-md)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--space-xs)' }}>
+            <div>
+              <strong style={{ fontSize: 'var(--text-base)', display: 'block' }}>{selected.name}</strong>
+              {selected.brand && <span className="muted" style={{ fontSize: 'var(--text-xs)' }}>{selected.brand}</span>}
+            </div>
+            <span className="num" style={{ fontSize: 'var(--text-lg)', fontWeight: 'bold', color: 'var(--color-accent)' }}>
+              {Math.round(selected.calories * (Number(servings) || 1))} kcal
+            </span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-xs)', marginBottom: 'var(--space-sm)' }}>
+            <div>
+              <label style={{ fontSize: 'var(--text-xs)', display: 'block', marginBottom: '2px' }} className="muted" htmlFor="unit-mode-select">
+                Unidad de medida
+              </label>
+              <select
+                id="unit-mode-select"
+                value={unitMode}
+                onChange={(e) => {
+                  const mode = e.target.value;
+                  setUnitMode(mode);
+                  if (mode === 'serving') {
+                    setQty('1');
+                    setServings('1');
+                  } else if (mode === '100g') {
+                    setQty('100');
+                    setServings((100 / selected.serving_size_amount).toFixed(3));
+                  } else if (mode === 'unit') {
+                    setQty(String(selected.serving_size_amount));
+                    setServings('1');
+                  }
+                }}
+                aria-label="Unidad de medida"
+                style={{ fontSize: 'var(--text-sm)', width: '100%' }}
+              >
+                <option value="serving">1 porción ({selected.serving_size_amount} {selected.serving_size_unit})</option>
+                {selected.serving_size_unit === 'g' || selected.serving_size_unit === 'ml' ? (
+                  <>
+                    <option value="100g">100 {selected.serving_size_unit}</option>
+                    <option value="unit">1 {selected.serving_size_unit} (balanza)</option>
+                  </>
+                ) : null}
+              </select>
+            </div>
+
+            <div>
+              <label style={{ fontSize: 'var(--text-xs)', display: 'block', marginBottom: '2px' }} className="muted" htmlFor="quantity-input">
+                Cantidad ({unitMode === 'serving' ? 'porciones' : selected.serving_size_unit})
+              </label>
+              <input
+                id="quantity-input"
+                type="number"
+                className="num"
+                step={unitMode === 'serving' ? '0.25' : '1'}
+                min="0.01"
+                value={qty}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setQty(val);
+                  const numVal = Number(val);
+                  if (unitMode === 'serving') {
+                    setServings(val);
+                  } else if (unitMode === '100g') {
+                    setServings((numVal / selected.serving_size_amount).toFixed(3));
+                  } else if (unitMode === 'unit') {
+                    setServings((numVal / selected.serving_size_amount).toFixed(3));
+                  }
+                }}
+                aria-label="Porciones"
+                style={{ width: '100%' }}
+              />
+            </div>
+          </div>
+
+          <div className="nutrition-preview" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 'var(--space-2xs)', textAlign: 'center', background: 'var(--color-paper)', padding: 'var(--space-xs)', borderRadius: 'var(--radius-sm)', border: 'var(--rule)', marginBottom: 'var(--space-md)' }}>
+            <div>
+              <span className="muted" style={{ fontSize: 'var(--text-xs)', display: 'block' }}>Proteína</span>
+              <strong className="num" style={{ fontSize: 'var(--text-sm)', color: 'var(--color-protein)' }}>
+                {(selected.protein * (Number(servings) || 1)).toFixed(1)}g
+              </strong>
+            </div>
+            <div>
+              <span className="muted" style={{ fontSize: 'var(--text-xs)', display: 'block' }}>Carbos</span>
+              <strong className="num" style={{ fontSize: 'var(--text-sm)', color: 'var(--color-carbs)' }}>
+                {(selected.carbohydrates * (Number(servings) || 1)).toFixed(1)}g
+              </strong>
+            </div>
+            <div>
+              <span className="muted" style={{ fontSize: 'var(--text-xs)', display: 'block' }}>Grasa</span>
+              <strong className="num" style={{ fontSize: 'var(--text-sm)', color: 'var(--color-fat)' }}>
+                {(selected.fat * (Number(servings) || 1)).toFixed(1)}g
+              </strong>
+            </div>
+            <div>
+              <span className="muted" style={{ fontSize: 'var(--text-xs)', display: 'block' }}>Fibra</span>
+              <strong className="num" style={{ fontSize: 'var(--text-sm)' }}>
+                {((selected.fiber || 0) * (Number(servings) || 1)).toFixed(1)}g
+              </strong>
+            </div>
+          </div>
+
+          <div className="addbar" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
+            <select value={meal} onChange={(e) => setMeal(e.target.value)} aria-label="Comida">
+              {MEALS.map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <button
+              className="btn"
+              onClick={add}
+              disabled={busy || Number(servings) <= 0}
+              data-state={busy ? 'loading' : undefined}
+            >
+              {busy ? 'Guardando' : 'Agregar'}
+            </button>
+          </div>
         </div>
       )}
 
