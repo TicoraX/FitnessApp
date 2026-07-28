@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { api, setToken } from './api';
+import { api, setToken, today } from './api';
 
 type AuthResponse = { data: { token: string } };
 
@@ -28,6 +28,8 @@ export function Auth({ onAuthed }: { onAuthed: () => void }) {
           ? { email: raw.email, password: raw.password }
           : {
               ...raw,
+              // Día local: el servidor no conoce la zona del cliente.
+              logged_on: today(),
               height_cm: Number(raw.height_cm),
               current_weight_kg: Number(raw.current_weight_kg),
               target_weight_kg: Number(raw.target_weight_kg),

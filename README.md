@@ -49,6 +49,8 @@ cd apps/web && npm install && npm run dev    # http://localhost:5177
 | POST | `/api/v1/auth/register` | no | Crea usuario + objetivos calculados (BMR/TDEE/macros) |
 | POST | `/api/v1/auth/login` | no | Devuelve JWT |
 | GET | `/api/v1/auth/me` | JWT | Identidad del token |
+| GET | `/api/v1/profile` | JWT | Perfil y objetivo activo |
+| PATCH | `/api/v1/profile` | JWT | Cambia altura, actividad, peso objetivo o ritmo, y recalcula |
 | POST | `/api/v1/logs/meal` | JWT | Registra una comida y devuelve los totales del día |
 | PATCH | `/api/v1/logs/meal/:id` | JWT | Cambia las porciones de una entrada |
 | DELETE | `/api/v1/logs/meal/:id` | JWT | Quita una entrada propia |

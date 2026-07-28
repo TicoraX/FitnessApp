@@ -46,6 +46,16 @@ export class AuthService {
             activityLevel: dto.activity_level,
           },
         });
+        // El peso del registro se guarda como primera medición: si no, existe
+        // solo para este cálculo y después no hay contra qué recalcular.
+        await tx.weightEntry.create({
+          data: {
+            userId: created.id,
+            loggedOn: new Date(dto.logged_on ?? new Date().toISOString().slice(0, 10)),
+            weightKg: dto.current_weight_kg,
+            emaKg: dto.current_weight_kg,
+          },
+        });
         await tx.userGoal.create({
           data: {
             userId: created.id,

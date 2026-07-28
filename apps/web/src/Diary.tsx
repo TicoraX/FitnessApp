@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import { api, today, type DaySummary, type Food } from './api';
 import { Weight } from './Weight';
 import { NewFood } from './NewFood';
+import { Profile } from './Profile';
 
 const MEALS = [
   ['breakfast', 'Desayuno'],
@@ -14,6 +15,7 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
   const [date, setDate] = useState(today());
   const [day, setDay] = useState<DaySummary | null>(null);
   const [error, setError] = useState('');
+  const [showProfile, setShowProfile] = useState(false);
 
   const load = useCallback(async (d: string) => {
     try {
@@ -44,6 +46,13 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
             max={today()}
             onChange={(e) => setDate(e.target.value)}
           />
+          <button
+            className="btn btn--quiet"
+            aria-expanded={showProfile}
+            onClick={() => setShowProfile(!showProfile)}
+          >
+            Perfil
+          </button>
           <button className="btn btn--quiet" onClick={onLogout}>
             Salir
           </button>
@@ -54,6 +63,15 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
         <p className="alert" role="alert">
           {error}
         </p>
+      )}
+
+      {showProfile && (
+        <section className="card" aria-labelledby="perfil" style={{ marginBottom: 'var(--space-xl)' }}>
+          <h2 id="perfil" className="card__title">
+            Perfil y objetivo
+          </h2>
+          <Profile onSaved={() => load(date)} onClose={() => setShowProfile(false)} />
+        </section>
       )}
 
       <div className="columns">

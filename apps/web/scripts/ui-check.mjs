@@ -250,6 +250,29 @@ try {
     await shot('10-alimento-nuevo');
   });
 
+  await step('el perfil se puede editar y el objetivo se recalcula', async () => {
+    await page.getByRole('button', { name: 'Perfil' }).click();
+    await page.waitForSelector('#pf-activity', { timeout: 10_000 });
+    assert.equal(await page.locator('#pf-height').inputValue(), '178.5');
+
+    const objetivoAntes = await page.locator('.dial__unit').innerText();
+    await page.selectOption('#pf-activity', '1.9');
+    await page.getByRole('button', { name: 'Guardar' }).click();
+
+    // Acotado a la sección: el panel de comida también deja un .alert--ok.
+    const okPerfil = page.locator('section[aria-labelledby="perfil"] .alert--ok');
+    await okPerfil.waitFor({ timeout: 10_000 });
+    assert.match(await okPerfil.innerText(), /Objetivo actualizado/);
+    // El resumen del día refleja el objetivo nuevo sin recargar.
+    await page.waitForFunction(
+      (antes) => document.querySelector('.dial__unit')?.innerText !== antes,
+      objetivoAntes,
+      { timeout: 10_000 },
+    );
+    await shot('11-perfil');
+    await page.getByRole('button', { name: 'Cerrar' }).click();
+  });
+
   await step('responde a 375px sin scroll horizontal', async () => {
     await page.setViewportSize({ width: 375, height: 812 });
     const overflow = await page.evaluate(

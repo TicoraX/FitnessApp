@@ -69,4 +69,12 @@ export class RegisterDto {
   @Min(3)
   @Max(70)
   body_fat_pct?: number;
+
+  /**
+   * Día local del cliente para la primera pesada. Sin esto el servidor usa su
+   * día UTC, que en UTC-3 después de las 21:00 es el día siguiente.
+   */
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'logged_on debe ser YYYY-MM-DD' })
+  logged_on?: string;
 }

@@ -280,28 +280,38 @@ await check('id que no es UUID da 400', async () => {
 console.log('\nPeso y ajuste dinámico');
 
 const dayOffset = (n) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
+// El registro siembra la serie con el peso declarado, así que hay una entrada
+// de hoy desde el principio: se busca por fecha, no por posición.
+const el = (body, d) => body.data.find((e) => e.logged_on === d);
 
-await check('la primera pesada siembra la EMA con su propio valor', async () => {
+await check('el registro ya dejó la primera medición', async () => {
+  const { status, body } = await call('GET', '/weight');
+  assert.equal(status, 200);
+  assert.equal(el(body, day).weight_kg, 82);
+  assert.equal(el(body, day).ema_kg, 82);
+});
+
+await check('una pesada anterior siembra la EMA con su propio valor', async () => {
   const { status, body } = await call('POST', '/weight', {
     logged_on: dayOffset(-3),
     weight_kg: 82,
   });
   assert.equal(status, 201);
-  assert.equal(body.data.at(-1).ema_kg, 82);
+  assert.equal(el(body, dayOffset(-3)).ema_kg, 82);
 });
 
 await check('la EMA suaviza: se mueve menos que la pesada', async () => {
   const { body } = await call('POST', '/weight', { logged_on: dayOffset(-2), weight_kg: 84 });
-  const ultima = body.data.at(-1);
-  assert.equal(ultima.weight_kg, 84);
-  assert.equal(ultima.ema_kg, 82.2); // 84*0.1 + 82*0.9
+  const e = el(body, dayOffset(-2));
+  assert.equal(e.weight_kg, 84);
+  assert.equal(e.ema_kg, 82.2); // 84*0.1 + 82*0.9
 });
 
 await check('cargar una fecha pasada recalcula la cadena hacia adelante', async () => {
-  // Se mete un peso ENTRE los dos anteriores: la EMA del ultimo tiene que cambiar.
+  // Se mete un peso ANTES de los anteriores: todas las EMA posteriores cambian.
   const { body } = await call('POST', '/weight', { logged_on: dayOffset(-4), weight_kg: 80 });
   assert.deepEqual(
-    body.data.map((e) => e.ema_kg),
+    [dayOffset(-4), dayOffset(-3), dayOffset(-2)].map((d) => el(body, d).ema_kg),
     [80, 80.2, 80.58], // 80 · 82*0.1+80*0.9 · 84*0.1+80.2*0.9
   );
 });
@@ -310,8 +320,8 @@ await check('el objetivo se recalcula con el peso nuevo', async () => {
   const antes = (await call('GET', '/auth/me')).status;
   assert.equal(antes, 200);
 
-  const { body } = await call('POST', '/weight', { logged_on: dayOffset(0), weight_kg: 78 });
-  const ema = body.data.at(-1).ema_kg;
+  const { body } = await call('POST', '/weight', { logged_on: day, weight_kg: 78 });
+  const ema = el(body, day).ema_kg;
 
   // El objetivo activo tiene que reflejar la EMA, no los 82 kg del registro.
   const dia = (await call('GET', `/logs/${day}`)).body.data;
@@ -326,6 +336,38 @@ await check('el objetivo se recalcula con el peso nuevo', async () => {
 await check('un peso fuera de rango se rechaza', async () => {
   assert.equal((await call('POST', '/weight', { logged_on: day, weight_kg: 5 })).status, 400);
   assert.equal((await call('POST', '/weight', { logged_on: 'ayer', weight_kg: 80 })).status, 400);
+});
+
+console.log('\nPerfil');
+
+await check('el perfil devuelve lo declarado en el registro', async () => {
+  const { status, body } = await call('GET', '/profile');
+  assert.equal(status, 200);
+  assert.equal(body.data.height_cm, 178.5);
+  assert.equal(body.data.activity_level, 1.55);
+  assert.equal(body.data.target_weight_kg, 75);
+  assert.equal(body.data.weekly_goal_kg, -0.5);
+});
+
+await check('subir el nivel de actividad sube las calorías', async () => {
+  const antes = (await call('GET', '/profile')).body.data.daily_calories;
+  const { status, body } = await call('PATCH', '/profile', { activity_level: 1.9 });
+  assert.equal(status, 200);
+  assert.equal(body.data.activity_level, 1.9);
+  assert.ok(body.data.daily_calories > antes, `${body.data.daily_calories} no supera ${antes}`);
+});
+
+await check('cambiar el ritmo semanal mueve el déficit', async () => {
+  const antes = (await call('GET', '/profile')).body.data.daily_calories;
+  const { body } = await call('PATCH', '/profile', { weekly_goal_kg: -1 });
+  // De -0.5 a -1 kg/semana son 550 kcal/día más de déficit.
+  assert.equal(body.data.daily_calories, antes - 550);
+});
+
+await check('un perfil inválido se rechaza entero', async () => {
+  assert.equal((await call('PATCH', '/profile', { activity_level: 3 })).status, 400);
+  assert.equal((await call('PATCH', '/profile', { height_cm: 10 })).status, 400);
+  assert.equal((await call('PATCH', '/profile', { weekly_goal_kg: -5 })).status, 400);
 });
 
 console.log('\nTodo verde.\n');
