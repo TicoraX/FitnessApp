@@ -12,7 +12,7 @@ apps/api/          # Servicio NestJS (usuarios, objetivos, auth)
 docker-compose.yml # PostgreSQL 16 local
 ```
 
-## Fase 1 — arranque
+## Arranque
 
 ```bash
 docker compose up -d
@@ -30,8 +30,8 @@ Tests: `npm test`.
 
 | Método | Ruta | Auth | Qué hace |
 | :--- | :--- | :--- | :--- |
-| POST | `/api/v1/auth/register` | — | Crea usuario + objetivos calculados (BMR/TDEE/macros) |
-| POST | `/api/v1/auth/login` | — | Devuelve JWT |
+| POST | `/api/v1/auth/register` | no | Crea usuario + objetivos calculados (BMR/TDEE/macros) |
+| POST | `/api/v1/auth/login` | no | Devuelve JWT |
 | GET | `/api/v1/auth/me` | JWT | Identidad del token |
 | POST | `/api/v1/logs/meal` | JWT | Registra una comida y devuelve los totales del día |
 | GET | `/api/v1/logs/:date` | JWT | Resumen del día: entradas, totales y restante vs. objetivo |
@@ -43,9 +43,9 @@ Tests: `npm test`.
 
 | Fase | Alcance | Estado |
 | :--- | :--- | :--- |
-| 1 | Setup, ORM (`users`, `user_goals`, `food_items`), auth + BMR/TDEE | ✅ |
-| 2 | `daily_logs`, `meal_entries`, `POST /api/v1/logs/meal` | ✅ |
-| 3 | Catálogo y búsqueda de alimentos (pg_trgm) | ✅ |
+| 1 | Setup, ORM (`users`, `user_goals`, `food_items`), auth + BMR/TDEE | listo |
+| 2 | `daily_logs`, `meal_entries`, `POST /api/v1/logs/meal` | listo |
+| 3 | Catálogo y búsqueda de alimentos (pg_trgm) | listo |
 | 4 | Sync offline-first, wearables, visión por IA | pendiente |
 
 Redis, Typesense, Kong y los microservicios de §2 no están: con un servicio y

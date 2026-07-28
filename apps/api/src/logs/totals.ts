@@ -25,8 +25,8 @@ export interface Totals {
 }
 
 /**
- * Suma un día completo. ponytail: se agrega en JS, no en SQL — un día son
- * decenas de filas. Si esto aparece en el perfil, pasar a SUM() en Postgres.
+ * Suma un día completo. ponytail: se agrega en JS, no en SQL, porque un día
+ * son decenas de filas. Si aparece en el perfil, pasar a SUM() en Postgres.
  */
 export function sumEntries(entries: EntryForTotals[]): Totals {
   const t: Totals = {
