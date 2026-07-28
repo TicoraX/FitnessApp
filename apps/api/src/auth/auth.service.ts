@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma } from '@prisma/client';
 import * as argon2 from 'argon2';
@@ -6,6 +6,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { calculateAge, calculateTargets } from '../nutrition/metabolic';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { GuestDto } from './dto/guest.dto';
+import { ClaimDto } from './dto/claim.dto';
 
 @Injectable()
 export class AuthService {
@@ -44,6 +46,7 @@ export class AuthService {
             gender: dto.gender,
             heightCm: dto.height_cm,
             activityLevel: dto.activity_level,
+            isGuest: false,
           },
         });
         // El peso del registro se guarda como primera medición: si no, existe
@@ -80,6 +83,7 @@ export class AuthService {
       status: 'success',
       data: {
         user_id: user.id,
+        is_guest: false,
         token: await this.signToken(user.id, user.email),
         calculated_goals: {
           bmr: targets.bmr,
@@ -95,11 +99,112 @@ export class AuthService {
     };
   }
 
+  async registerGuest(dto: GuestDto) {
+    const dob = new Date(dto.dob);
+    const targets = calculateTargets({
+      weightKg: dto.current_weight_kg,
+      heightCm: dto.height_cm,
+      age: calculateAge(dob),
+      gender: dto.gender,
+      activityLevel: dto.activity_level,
+      weeklyChangeKg: dto.weekly_goal_kg,
+      bodyFatPct: dto.body_fat_pct,
+    });
+
+    const user = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: {
+          firstName: dto.first_name || 'Invitado',
+          dob,
+          gender: dto.gender,
+          heightCm: dto.height_cm,
+          activityLevel: dto.activity_level,
+          isGuest: true,
+        },
+      });
+      await tx.weightEntry.create({
+        data: {
+          userId: created.id,
+          loggedOn: new Date(dto.logged_on ?? new Date().toISOString().slice(0, 10)),
+          weightKg: dto.current_weight_kg,
+          emaKg: dto.current_weight_kg,
+        },
+      });
+      await tx.userGoal.create({
+        data: {
+          userId: created.id,
+          targetWeightKg: dto.target_weight_kg,
+          weeklyChangeKg: dto.weekly_goal_kg,
+          dailyCalories: targets.dailyCalories,
+          proteinGrams: targets.macros.proteinG,
+          carbsGrams: targets.macros.carbsG,
+          fatGrams: targets.macros.fatG,
+        },
+      });
+      return created;
+    });
+
+    return {
+      status: 'success',
+      data: {
+        user_id: user.id,
+        is_guest: true,
+        token: await this.signToken(user.id, null),
+        calculated_goals: {
+          bmr: targets.bmr,
+          tdee: targets.tdee,
+          daily_calories: targets.dailyCalories,
+          macros: {
+            protein_g: targets.macros.proteinG,
+            carbs_g: targets.macros.carbsG,
+            fat_g: targets.macros.fatG,
+          },
+        },
+      },
+    };
+  }
+
+  async claimAccount(userId: string, dto: ClaimDto) {
+    const existing = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!existing || !existing.isGuest) {
+      throw new BadRequestException('Esta cuenta no existe o ya fue registrada');
+    }
+
+    const emailTaken = await this.prisma.user.findUnique({
+      where: { email: dto.email.toLowerCase() },
+    });
+    if (emailTaken) {
+      throw new ConflictException('El email ya está registrado');
+    }
+
+    const passwordHash = await argon2.hash(dto.password, { type: argon2.argon2id });
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        email: dto.email.toLowerCase(),
+        passwordHash,
+        isGuest: false,
+      },
+    });
+
+    return {
+      status: 'success',
+      data: {
+        user_id: updated.id,
+        email: updated.email,
+        is_guest: false,
+        token: await this.signToken(updated.id, updated.email),
+      },
+    };
+  }
+
   async login(dto: LoginDto) {
     const user = await this.prisma.user.findUnique({ where: { email: dto.email.toLowerCase() } });
     // Se verifica igual contra un hash dummy si el usuario no existe, para no
     // filtrar por tiempo de respuesta qué emails están registrados.
-    const ok = user
+    const ok = user && user.passwordHash
       ? await argon2.verify(user.passwordHash, dto.password)
       : await argon2.verify(DUMMY_HASH, dto.password).catch(() => false);
 
@@ -110,12 +215,12 @@ export class AuthService {
 
     return {
       status: 'success',
-      data: { user_id: user.id, token: await this.signToken(user.id, user.email) },
+      data: { user_id: user.id, is_guest: user.isGuest, token: await this.signToken(user.id, user.email) },
     };
   }
 
-  private signToken(sub: string, email: string) {
-    return this.jwt.signAsync({ sub, email });
+  private signToken(sub: string, email?: string | null) {
+    return this.jwt.signAsync({ sub, email: email ?? undefined });
   }
 }
 

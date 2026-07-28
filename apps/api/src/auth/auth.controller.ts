@@ -3,6 +3,8 @@ import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { GuestDto } from './dto/guest.dto';
+import { ClaimDto } from './dto/claim.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
 // 5 intentos por 15 min en endpoints de credenciales. Configurable solo para
@@ -16,6 +18,17 @@ export class AuthController {
   @Post('register')
   register(@Body() dto: RegisterDto) {
     return this.auth.register(dto);
+  }
+
+  @Post('guest')
+  registerGuest(@Body() dto: GuestDto) {
+    return this.auth.registerGuest(dto);
+  }
+
+  @Post('claim')
+  @UseGuards(JwtAuthGuard)
+  claimAccount(@Req() req: { user: { userId: string } }, @Body() dto: ClaimDto) {
+    return this.auth.claimAccount(req.user.userId, dto);
   }
 
   @Post('login')

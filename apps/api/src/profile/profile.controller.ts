@@ -52,6 +52,7 @@ export class ProfileService {
       status: 'success',
       data: {
         email: user.email,
+        is_guest: user.isGuest,
         first_name: user.firstName,
         dob: user.dob.toISOString().slice(0, 10),
         gender: user.gender,

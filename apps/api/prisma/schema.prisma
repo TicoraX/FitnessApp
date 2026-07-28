@@ -22,8 +22,9 @@ enum UnitPreference {
 
 model User {
   id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email          String         @unique @db.VarChar(255)
-  passwordHash   String         @map("password_hash") @db.VarChar(255)
+  email          String?        @unique @db.VarChar(255)
+  passwordHash   String?        @map("password_hash") @db.VarChar(255)
+  isGuest        Boolean        @default(false) @map("is_guest")
   firstName      String         @map("first_name") @db.VarChar(100)
   dob            DateTime       @db.Date
   gender         Gender

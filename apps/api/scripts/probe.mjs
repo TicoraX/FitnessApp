@@ -97,6 +97,26 @@ await probe('la respuesta de registro no filtra el hash', async () => {
   return /argon2|password_hash|passwordHash/i.test(txt) ? 'la respuesta contiene el hash' : null;
 });
 
+await probe('registro de cuenta de invitado y vinculación posterior', async () => {
+  const g = await call('POST', '/auth/guest', {
+    dob: '1995-05-10',
+    gender: 'female',
+    height_cm: 165,
+    current_weight_kg: 62,
+    target_weight_kg: 58,
+    activity_level: 1.375,
+    weekly_goal_kg: -0.3,
+  });
+  if (g.status !== 201 && g.status !== 200) return `el alta de invitado devolvió ${g.status}`;
+  const gToken = g.body.data.token;
+  if (!g.body.data.is_guest) return 'el invitado no tiene is_guest=true';
+
+  const claimEmail = `claimed-${Date.now()}@t.test`;
+  const claim = await call('POST', '/auth/claim', { email: claimEmail, password: 'ClaimPassword123' }, { Authorization: `Bearer ${gToken}` });
+  if (claim.status !== 201 && claim.status !== 200) return `la vinculación devolvió ${claim.status}`;
+  if (claim.body.data.is_guest) return 'tras vincular la cuenta sigue figurando como invitado';
+});
+
 console.log('\nInyección y contenido hostil');
 
 await probe('comillas en la búsqueda no rompen la query', async () => {
