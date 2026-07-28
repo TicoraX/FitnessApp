@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import { api, today, type DaySummary, type Food } from './api';
 import { Weight } from './Weight';
+import { NewFood } from './NewFood';
 
 const MEALS = [
   ['breakfast', 'Desayuno'],
@@ -380,6 +381,9 @@ function AddFood({ date, onAdded }: { date: string; onAdded: () => void }) {
       setMessage({ text: `${selected.name} registrado.`, ok: true });
       setSelected(null);
       setQuery('');
+      // Vuelve a 1: arrastrar las porciones del alimento anterior hace que el
+      // siguiente se registre al doble sin que se note.
+      setServings('1');
       setResults([]);
       onAdded();
       void loadRecent();
@@ -414,7 +418,17 @@ function AddFood({ date, onAdded }: { date: string; onAdded: () => void }) {
       )}
 
       {query.trim().length >= 2 && results.length === 0 && (
-        <p className="hint">Sin resultados para “{query}”.</p>
+        <>
+          <p className="hint">Sin resultados para “{query}”. Podés darlo de alta vos.</p>
+          <NewFood
+            name={query.trim()}
+            onCreated={(food) => {
+              setSelected(food);
+              setResults([food]);
+              setMessage(null);
+            }}
+          />
+        </>
       )}
 
       <ul className="results">

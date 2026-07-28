@@ -432,6 +432,39 @@ a {
   }
 }
 
+/* ---------- Alta de alimento ---------- */
+
+.newfood {
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: var(--rule);
+}
+
+.newfood__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: var(--space-sm);
+}
+
+.newfood__more {
+  margin-top: var(--space-sm);
+}
+
+.newfood__more summary {
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--color-ink-2);
+  min-height: 2.75rem;
+  display: flex;
+  align-items: center;
+}
+
+.newfood__actions {
+  display: flex;
+  gap: var(--space-xs);
+  margin-top: var(--space-md);
+}
+
 /* ---------- Peso ---------- */
 
 .card__title {

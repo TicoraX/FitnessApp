@@ -21,7 +21,20 @@ page.on('pageerror', (e) => errors.push(String(e)));
 
 const shot = (name) => page.screenshot({ path: `${SHOTS}${name}.png`, fullPage: true });
 const step = async (label, fn) => {
-  await fn();
+  try {
+    await fn();
+  } catch (err) {
+    // Un timeout no dice nada por sí solo: se deja la pantalla y los mensajes
+    // de error visibles, que es lo que uno miraría a mano.
+    await shot('fallo').catch(() => {});
+    const alertas = await page
+      .locator('.alert')
+      .allInnerTexts()
+      .catch(() => []);
+    if (alertas.length) err.message += `\n  alertas en pantalla: ${alertas.join(' | ')}`;
+    err.message += `\n  captura: shots/fallo.png`;
+    throw err;
+  }
   console.log(`  ok  ${label}`);
 };
 
@@ -207,6 +220,34 @@ try {
     await page.waitForSelector('text=Sin resultados', { timeout: 10_000 });
     // Tipear invalida la confirmación anterior.
     assert.equal(await page.locator('.alert--ok').count(), 0);
+  });
+
+  await step('un alimento que no está se puede crear y usar', async () => {
+    const nombre = `Milanesa casera ${Date.now()}`;
+    await page.getByLabel('Buscar alimento').fill(nombre);
+    await page.waitForSelector('text=Podés darlo de alta', { timeout: 10_000 });
+
+    await page.getByRole('button', { name: 'Crear alimento' }).click();
+    // El nombre buscado llega precargado.
+    assert.equal(await page.locator('#nf-name').inputValue(), nombre);
+    await page.fill('#nf-cal', '220');
+    await page.fill('#nf-prot', '18');
+    await page.fill('#nf-carb', '12');
+    await page.fill('#nf-fat', '11');
+    await page.getByRole('button', { name: 'Crear y usar' }).click();
+
+    // Queda seleccionado: se puede registrar sin volver a buscarlo.
+    await page.waitForSelector('.result[aria-selected="true"]', { timeout: 10_000 });
+    // Las porciones vuelven a 1 tras cada alta: no se arrastran del anterior.
+    assert.equal(await page.getByLabel('Porciones', { exact: true }).inputValue(), '1');
+    await page.getByLabel('Comida', { exact: true }).selectOption('breakfast');
+    await page.getByRole('button', { name: 'Agregar', exact: true }).click();
+    await page.waitForFunction(
+      () => document.querySelector('.calories__value')?.textContent === '220',
+      null,
+      { timeout: 10_000 },
+    );
+    await shot('10-alimento-nuevo');
   });
 
   await step('responde a 375px sin scroll horizontal', async () => {
