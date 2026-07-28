@@ -63,6 +63,29 @@ cd apps/web && npm install && npm run dev    # http://localhost:5177
 | GET | `/api/v1/foods/barcode/:barcode` | JWT | Lookup exacto por EAN/UPC |
 | POST | `/api/v1/foods` | JWT | Alta de alimento (queda `verified: false`) |
 
+## Despliegue
+
+El stack completo va en contenedores. Solo `web` publica un puerto; el API y la
+base quedan en la red interna.
+
+```bash
+cp .env.example .env   # completar POSTGRES_PASSWORD y JWT_SECRET
+docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml exec api node dist-seed/seed.js
+```
+
+Queda en http://localhost:8080. Nginx sirve el SPA y hace de proxy de `/api/`
+hacia el API, así que el navegador ve un solo origen y no hace falta CORS. Las
+migraciones corren al arrancar el contenedor del API.
+
+Sondas: `/health/live` responde mientras el proceso viva, `/health/ready` solo
+si además puede hablar con la base.
+
+El compose de producción usa su propio nombre de proyecto. Con el nombre por
+defecto compartiría volumen con el de desarrollo, y Postgres solo aplica
+`POSTGRES_PASSWORD` sobre un directorio de datos vacío: al reusarlo, la
+contraseña nueva no sirve y el API no puede conectarse.
+
 ## Estado
 
 | Fase | Alcance | Estado |

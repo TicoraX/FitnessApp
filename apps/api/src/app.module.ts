@@ -9,6 +9,7 @@ import { FoodsModule } from './foods/foods.module';
 import { WeightModule } from './weight/weight.controller';
 import { ProfileModule } from './profile/profile.controller';
 import { GoalsModule } from './nutrition/goals.service';
+import { HealthModule } from './health/health.controller';
 import { validateEnv } from './config/env.validation';
 
 @Module({
@@ -24,6 +25,7 @@ import { validateEnv } from './config/env.validation';
     WeightModule,
     ProfileModule,
     GoalsModule,
+    HealthModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

@@ -1,0 +1,56 @@
+# Stack completo. Para desarrollo alcanza docker-compose.yml, que levanta solo
+# Postgres. Uso: docker compose -f docker-compose.prod.yml up -d --build
+#
+# Proyecto propio a propósito: con el nombre por defecto compartiría volumen
+# con el stack de desarrollo, y Postgres solo aplica POSTGRES_PASSWORD sobre un
+# directorio de datos vacío. Al reusarlo, la contraseña nueva no sirve.
+name: fittrack-prod
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-fittrack}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?definir POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-fittrack}
+    volumes: ['pgdata:/var/lib/postgresql/data']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-fittrack}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./apps/api
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-fittrack}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-fittrack}?schema=public
+      JWT_SECRET: ${JWT_SECRET:?definir JWT_SECRET de 32 caracteres o más}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      PORT: '3100'
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      # node y no curl: la imagen no trae curl y agregarlo solo para esto sería
+      # ampliar la superficie del contenedor.
+      test:
+        ['CMD', 'node', '-e', "fetch('http://localhost:3100/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./apps/web
+    ports: ['${WEB_PORT:-8080}:80']
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
