@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -15,14 +14,14 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateMealEntryDto } from './dto/create-meal-entry.dto';
 import { UpdateServingsDto, UpdateWaterDto } from './dto/update-entry.dto';
+import { parseLogDate } from '../common/log-date';
 import { LogsService } from './logs.service';
 
 type AuthedRequest = { user: { userId: string } };
 
-function isoDate(date: string): string {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new BadRequestException('date debe ser YYYY-MM-DD');
-  return date;
-}
+// El regex de forma dejaba pasar 2026-02-31, que reventaba en Postgres y salía
+// como 500 en vez de 400.
+const isoDate = parseLogDate;
 
 @Controller('api/v1/logs')
 @UseGuards(JwtAuthGuard)

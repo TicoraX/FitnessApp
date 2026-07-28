@@ -11,6 +11,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+import { IsLogDate } from '../../common/log-date';
 
 export class RegisterDto {
   @IsEmail()
@@ -75,6 +76,6 @@ export class RegisterDto {
    * día UTC, que en UTC-3 después de las 21:00 es el día siguiente.
    */
   @IsOptional()
-  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'logged_on debe ser YYYY-MM-DD' })
+  @IsLogDate()
   logged_on?: string;
 }

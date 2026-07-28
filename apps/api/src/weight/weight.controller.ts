@@ -11,12 +11,13 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Type } from 'class-transformer';
-import { IsNumber, Matches, Max, Min } from 'class-validator';
+import { IsNumber, Max, Min } from 'class-validator';
+import { IsLogDate } from '../common/log-date';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { WeightService } from './weight.service';
 
 class LogWeightDto {
-  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'logged_on debe ser YYYY-MM-DD' })
+  @IsLogDate()
   logged_on!: string;
 
   @Type(() => Number)

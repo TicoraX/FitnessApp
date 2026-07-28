@@ -11,6 +11,7 @@
     "prisma:generate": "prisma generate",
     "seed": "prisma db seed",
     "smoke": "node scripts/smoke.mjs",
+    "probe": "node scripts/probe.mjs",
     "test": "jest"
   },
   "prisma": {

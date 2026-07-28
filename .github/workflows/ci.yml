@@ -65,6 +65,9 @@ jobs:
       - name: Smoke end to end
         run: npm run smoke
 
+      - name: Sonda de bordes
+        run: npm run probe
+
   # Stack completo con navegador. Es el único que prueba lo que ve el usuario.
   e2e:
     runs-on: ubuntu-latest
