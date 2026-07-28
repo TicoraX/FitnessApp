@@ -585,15 +585,18 @@ function AddFood({ date, onAdded }: { date: string; onAdded: () => void }) {
   // Una búsqueda por pausa de tecleo, no una por tecla.
   useEffect(() => {
     if (query.trim().length < 2) {
-      setResults([]);
+      setResults((prev) => (prev.length === 0 ? prev : []));
       return;
     }
     const id = setTimeout(async () => {
       try {
         const res = await api.get<{ data: Food[] }>(`/foods/search?q=${encodeURIComponent(query)}`);
-        setResults(res.data);
+        setResults((prev) => {
+          if (prev.length === 0 && res.data.length === 0) return prev;
+          return res.data;
+        });
       } catch {
-        setResults([]);
+        setResults((prev) => (prev.length === 0 ? prev : []));
       }
     }, 250);
     return () => clearTimeout(id);
@@ -691,6 +694,7 @@ function AddFood({ date, onAdded }: { date: string; onAdded: () => void }) {
         <>
           <p className="hint">Sin resultados para “{query}”. Podés darlo de alta vos.</p>
           <NewFood
+            key={query.trim()}
             name={query.trim()}
             onCreated={(food) => {
               handleSelectFood(food);
