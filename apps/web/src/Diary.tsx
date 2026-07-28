@@ -62,6 +62,7 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
               <div className="card card--raised" style={{ marginTop: 'var(--space-md)' }}>
                 <Dial day={day} />
                 <Macros day={day} />
+                <Water date={date} day={day} onChanged={() => load(date)} />
               </div>
               <Meals day={day} onChanged={() => load(date)} />
             </>
@@ -157,18 +158,60 @@ function Macros({ day }: { day: DaySummary }) {
   );
 }
 
-function Meals({ day, onChanged }: { day: DaySummary; onChanged: () => void }) {
-  const [deleting, setDeleting] = useState<string | null>(null);
+/** Vasos de 250 ml: en el teléfono se suma tocando, no tipeando un número. */
+const GLASS_ML = 250;
 
-  async function remove(id: string) {
-    setDeleting(id);
+function Water({
+  date,
+  day,
+  onChanged,
+}: {
+  date: string;
+  day: DaySummary;
+  onChanged: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  async function set(ml: number) {
+    setBusy(true);
     try {
-      await api.del(`/logs/meal/${id}`);
+      await api.patch(`/logs/${date}/water`, { water_ml: Math.max(0, ml) });
       onChanged();
     } finally {
-      setDeleting(null);
+      setBusy(false);
     }
   }
+
+  return (
+    <div className="water">
+      <span className="water__label muted">Agua</span>
+      <span className="num water__value">
+        {(day.water_ml / 1000).toFixed(2).replace(/\.?0+$/, '')} L
+      </span>
+      <span className="water__buttons">
+        <button
+          className="btn btn--quiet btn--icon"
+          onClick={() => set(day.water_ml - GLASS_ML)}
+          disabled={busy || day.water_ml === 0}
+          aria-label="Quitar un vaso de agua"
+        >
+          −
+        </button>
+        <button
+          className="btn btn--quiet btn--icon"
+          onClick={() => set(day.water_ml + GLASS_ML)}
+          disabled={busy}
+          aria-label="Agregar un vaso de agua"
+        >
+          +
+        </button>
+      </span>
+    </div>
+  );
+}
+
+function Meals({ day, onChanged }: { day: DaySummary; onChanged: () => void }) {
+  const [busy, setBusy] = useState<string | null>(null);
 
   return (
     <div className="meals">
@@ -185,27 +228,7 @@ function Meals({ day, onChanged }: { day: DaySummary; onChanged: () => void }) {
             {entries.length > 0 && (
               <ul className="entries">
                 {entries.map((e) => (
-                  <li className="entry" key={e.id}>
-                    <span>
-                      <span className="entry__name">{e.food.name}</span>
-                      {e.food.brand && <span className="muted"> · {e.food.brand}</span>}
-                    </span>
-                    <span className="entry__right">
-                      <span className="muted num">
-                        {e.servings_consumed} × {e.food.serving_size_amount}
-                        {e.food.serving_size_unit} · {Math.round(e.calories)} kcal
-                      </span>
-                      <button
-                        type="button"
-                        className="entry__delete"
-                        aria-label={`Quitar ${e.food.name}`}
-                        disabled={deleting === e.id}
-                        onClick={() => remove(e.id)}
-                      >
-                        Quitar
-                      </button>
-                    </span>
-                  </li>
+                  <Entry key={e.id} entry={e} busy={busy === e.id} onChanged={onChanged} setBusy={setBusy} />
                 ))}
               </ul>
             )}
@@ -213,6 +236,92 @@ function Meals({ day, onChanged }: { day: DaySummary; onChanged: () => void }) {
         );
       })}
     </div>
+  );
+}
+
+/**
+ * Fila de entrada. Las porciones se editan en el lugar y se confirman al salir
+ * del campo o con Enter, no por tecla: una request por dígito es cara y el
+ * teclado móvil dispara muchos eventos intermedios.
+ */
+function Entry({
+  entry,
+  busy,
+  onChanged,
+  setBusy,
+}: {
+  entry: DaySummary['entries'][number];
+  busy: boolean;
+  onChanged: () => void;
+  setBusy: (id: string | null) => void;
+}) {
+  const [servings, setServings] = useState(String(entry.servings_consumed));
+
+  // Si el día se recarga por otro motivo, el input sigue al servidor.
+  useEffect(() => setServings(String(entry.servings_consumed)), [entry.servings_consumed]);
+
+  async function commit() {
+    const value = Number(servings);
+    if (!Number.isFinite(value) || value <= 0 || value === entry.servings_consumed) {
+      setServings(String(entry.servings_consumed));
+      return;
+    }
+    setBusy(entry.id);
+    try {
+      await api.patch(`/logs/meal/${entry.id}`, { servings_consumed: value });
+      onChanged();
+    } catch {
+      setServings(String(entry.servings_consumed));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function remove() {
+    setBusy(entry.id);
+    try {
+      await api.del(`/logs/meal/${entry.id}`);
+      onChanged();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <li className="entry">
+      <span className="entry__label">
+        <span className="entry__name">{entry.food.name}</span>
+        {entry.food.brand && <span className="muted"> · {entry.food.brand}</span>}
+      </span>
+      <span className="entry__right">
+        <input
+          type="number"
+          className="num entry__servings"
+          inputMode="decimal"
+          step="0.25"
+          min="0.01"
+          value={servings}
+          disabled={busy}
+          aria-label={`Porciones de ${entry.food.name}`}
+          onChange={(e) => setServings(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+        />
+        <span className="muted num entry__meta">
+          × {entry.food.serving_size_amount}
+          {entry.food.serving_size_unit} · {Math.round(entry.calories)} kcal
+        </span>
+        <button
+          type="button"
+          className="entry__delete"
+          aria-label={`Quitar ${entry.food.name}`}
+          disabled={busy}
+          onClick={remove}
+        >
+          Quitar
+        </button>
+      </span>
+    </li>
   );
 }
 

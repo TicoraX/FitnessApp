@@ -84,7 +84,8 @@ try {
     // exact: la sección se llama "Agregar comida" y también matchearía.
     await page.getByLabel('Comida', { exact: true }).selectOption('lunch');
     await page.getByLabel('Porciones', { exact: true }).fill('2');
-    await page.getByRole('button', { name: 'Agregar' }).click();
+    // exact: el botón de agua se llama "Agregar un vaso de agua".
+    await page.getByRole('button', { name: 'Agregar', exact: true }).click();
 
     await page.waitForFunction(
       () => document.querySelector('.calories__value')?.textContent !== '0',
@@ -122,6 +123,34 @@ try {
     await page.waitForSelector('.result', { timeout: 10_000 });
     assert.match(await page.locator('.result').first().innerText(), /Pechuga de pollo cocida/);
     assert.match(await page.locator('.hint').innerText(), /registraste antes/);
+  });
+
+  await step('editar porciones en la fila recalcula el total', async () => {
+    const porciones = page.getByLabel('Porciones de Pechuga de pollo cocida');
+    await porciones.fill('3');
+    await porciones.blur();
+    await page.waitForFunction(
+      () => document.querySelector('.calories__value')?.textContent === '495',
+      null,
+      { timeout: 10_000 },
+    );
+  });
+
+  await step('el agua se suma de a un vaso', async () => {
+    await page.getByLabel('Agregar un vaso de agua').click();
+    await page.waitForFunction(
+      () => document.querySelector('.water__value')?.textContent?.includes('0.25'),
+      null,
+      { timeout: 10_000 },
+    );
+    await shot('08-con-agua');
+  });
+
+  await step('los controles llegan al piso táctil de 44px', async () => {
+    for (const label of ['Agregar un vaso de agua', 'Porciones de Pechuga de pollo cocida']) {
+      const box = await page.getByLabel(label).boundingBox();
+      assert.ok(box && box.height >= 44, `${label} mide ${box?.height}px de alto`);
+    }
   });
 
   await step('quitar una entrada la borra y baja el total', async () => {

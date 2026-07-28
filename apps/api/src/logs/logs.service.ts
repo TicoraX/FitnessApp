@@ -49,6 +49,25 @@ export class LogsService {
     return { status: 'success' };
   }
 
+  /** Mismo patrón de propiedad que el borrado: el userId va en el where. */
+  async updateMealEntry(userId: string, entryId: string, servings: number) {
+    const { count } = await this.prisma.mealEntry.updateMany({
+      where: { id: entryId, dailyLog: { userId } },
+      data: { servingsConsumed: servings },
+    });
+    if (count === 0) throw new NotFoundException('La entrada no existe');
+    return { status: 'success' };
+  }
+
+  /** El diario del día puede no existir todavía: se crea al registrar agua. */
+  async setWater(userId: string, logDate: string, waterMl: number) {
+    await this.prisma.$transaction(async (tx) => {
+      const dailyLogId = await this.ensureDailyLog(tx, userId, logDate);
+      await tx.dailyLog.update({ where: { id: dailyLogId }, data: { waterMl } });
+    });
+    return this.getDay(userId, logDate);
+  }
+
   async getDay(userId: string, logDate: string) {
     const [log, goal] = await Promise.all([
       this.prisma.dailyLog.findUnique({

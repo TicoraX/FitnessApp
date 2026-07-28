@@ -246,6 +246,32 @@ await check('no se puede borrar la entrada de otro usuario', async () => {
   assert.ok(sigue.some((e) => e.id === propia.id));
 });
 
+await check('editar porciones recalcula los totales', async () => {
+  const entrada = (await call('GET', `/logs/${day}`)).body.data.entries[0];
+  const { status } = await call('PATCH', `/logs/meal/${entrada.id}`, { servings_consumed: 3 });
+  assert.equal(status, 200);
+  const { body } = await call('GET', `/logs/${day}`);
+  assert.equal(body.data.totals.calories, Math.round(pollo.calories * 3));
+});
+
+await check('porciones invalidas al editar se rechazan', async () => {
+  const entrada = (await call('GET', `/logs/${day}`)).body.data.entries[0];
+  const { status } = await call('PATCH', `/logs/meal/${entrada.id}`, { servings_consumed: -1 });
+  assert.equal(status, 400);
+});
+
+await check('el agua se guarda y vuelve en el resumen', async () => {
+  const { status, body } = await call('PATCH', `/logs/${day}/water`, { water_ml: 1500 });
+  assert.equal(status, 200);
+  assert.equal(body.data.water_ml, 1500);
+  assert.equal((await call('GET', `/logs/${day}`)).body.data.water_ml, 1500);
+});
+
+await check('el agua fuera de rango se rechaza', async () => {
+  assert.equal((await call('PATCH', `/logs/${day}/water`, { water_ml: -1 })).status, 400);
+  assert.equal((await call('PATCH', `/logs/${day}/water`, { water_ml: 99999 })).status, 400);
+});
+
 await check('id que no es UUID da 400', async () => {
   const { status } = await call('DELETE', '/logs/meal/no-es-un-uuid');
   assert.equal(status, 400);

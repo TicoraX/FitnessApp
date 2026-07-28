@@ -50,7 +50,9 @@ cd apps/web && npm install && npm run dev    # http://localhost:5177
 | POST | `/api/v1/auth/login` | no | Devuelve JWT |
 | GET | `/api/v1/auth/me` | JWT | Identidad del token |
 | POST | `/api/v1/logs/meal` | JWT | Registra una comida y devuelve los totales del día |
+| PATCH | `/api/v1/logs/meal/:id` | JWT | Cambia las porciones de una entrada |
 | DELETE | `/api/v1/logs/meal/:id` | JWT | Quita una entrada propia |
+| PATCH | `/api/v1/logs/:date/water` | JWT | Registra el agua del día |
 | GET | `/api/v1/logs/:date` | JWT | Resumen del día: entradas, totales y restante vs. objetivo |
 | GET | `/api/v1/foods/search?q=` | JWT | Búsqueda difusa por nombre y marca |
 | GET | `/api/v1/foods/recent` | JWT | Últimos alimentos registrados, sin repetir |

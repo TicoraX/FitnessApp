@@ -373,35 +373,44 @@ a {
   font-weight: 500;
 }
 
+.entry__label {
+  min-width: 0;
+}
+
 .entry__right {
   display: flex;
-  align-items: baseline;
-  gap: var(--space-sm);
+  align-items: center;
+  gap: var(--space-xs);
   flex: none;
 }
 
+/* El input hereda 1rem: por debajo de 16px, Safari en iOS hace zoom al
+   enfocar y descoloca el layout. */
+.entry__servings {
+  width: 4.25rem;
+  min-height: 2.75rem; /* 44px, piso táctil */
+  text-align: right;
+}
+
+.entry__meta {
+  white-space: nowrap;
+}
+
+/* Siempre visible, no revelado por hover: en táctil no hay hover y un control
+   que solo existe en desktop es una interfaz distinta por dispositivo. */
 .entry__delete {
   font: inherit;
   font-size: var(--text-sm);
   color: var(--color-ink-3);
   background: none;
   border: none;
-  padding: 0 var(--space-2xs);
+  padding: 0 var(--space-xs);
+  min-height: 2.75rem;
   cursor: pointer;
-  /* Aparece al pasar por la fila o al enfocar con teclado; nunca escondido
-     para lectores de pantalla. */
-  opacity: 0;
-  transition:
-    opacity var(--dur-fast) var(--ease-out),
-    color var(--dur-fast) var(--ease-out);
+  transition: color var(--dur-fast) var(--ease-out);
 }
 
-.entry:hover .entry__delete,
-.entry__delete:focus-visible {
-  opacity: 1;
-}
-
-.entry__delete:hover {
+.entry__delete:hover:not(:disabled) {
   color: var(--color-danger);
 }
 
@@ -410,11 +419,50 @@ a {
   opacity: 0.5;
 }
 
-/* En táctil no hay hover: la acción tiene que estar siempre visible. */
-@media (hover: none) {
-  .entry__delete {
-    opacity: 1;
+@media (max-width: 34rem) {
+  .entry {
+    flex-wrap: wrap;
   }
+  .entry__label {
+    flex: 1 1 100%;
+  }
+  .entry__right {
+    flex: 1 1 100%;
+    justify-content: space-between;
+  }
+}
+
+/* ---------- Agua ---------- */
+
+.water {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+  padding-top: var(--space-md);
+  border-top: var(--rule);
+}
+
+.water__label {
+  flex: none;
+}
+
+.water__value {
+  flex: 1;
+  font-size: var(--text-lg);
+}
+
+.water__buttons {
+  display: flex;
+  gap: var(--space-2xs);
+}
+
+.btn--icon {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  font-size: var(--text-lg);
+  line-height: 1;
+  padding: 0;
 }
 
 .meal__empty {
