@@ -179,6 +179,15 @@ await check('alimento inexistente da 404', async () => {
   assert.equal(status, 404);
 });
 
+await check('sin log_date se rechaza', async () => {
+  const { status } = await call('POST', '/logs/meal', {
+    meal_type: 'snack',
+    food_item_id: pollo.id,
+    servings_consumed: 1,
+  });
+  assert.equal(status, 400);
+});
+
 await check('campo desconocido se rechaza', async () => {
   const { status } = await call('POST', '/logs/meal', {
     log_date: day,

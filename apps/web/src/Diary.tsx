@@ -235,7 +235,12 @@ function AddFood({ date, onAdded }: { date: string; onAdded: () => void }) {
           placeholder="Buscar alimento"
           aria-label="Buscar alimento"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            // Solo al tipear: add() también limpia el query, y ahí la
+            // confirmación tiene que quedar visible.
+            setQuery(e.target.value);
+            setMessage(null);
+          }}
         />
       </div>
 

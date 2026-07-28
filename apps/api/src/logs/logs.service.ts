@@ -9,7 +9,7 @@ export class LogsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async addMealEntry(userId: string, dto: CreateMealEntryDto) {
-    const logDate = dto.log_date ?? today();
+    const logDate = dto.log_date;
 
     const entry = await this.prisma.$transaction(async (tx) => {
       const dailyLogId = await this.ensureDailyLog(tx, userId, logDate);
@@ -92,6 +92,3 @@ export class LogsService {
     return rows[0].id;
   }
 }
-
-// ponytail: día UTC. Cuando haya usuarios fuera de UTC, el cliente manda log_date.
-const today = () => new Date().toISOString().slice(0, 10);

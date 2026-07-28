@@ -70,4 +70,11 @@ export interface DaySummary {
   }[];
 }
 
-export const today = () => new Date().toISOString().slice(0, 10);
+/**
+ * Día local, no UTC. Con toISOString(), un usuario en UTC-3 ve el diario del
+ * día siguiente desde las 21:00.
+ */
+export const today = () => {
+  const d = new Date();
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+};

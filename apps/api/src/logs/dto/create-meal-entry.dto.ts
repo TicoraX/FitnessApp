@@ -1,11 +1,13 @@
 import { Type } from 'class-transformer';
-import { IsIn, IsISO8601, IsNumber, IsOptional, IsUUID, Max, Min } from 'class-validator';
+import { IsIn, IsNumber, IsUUID, Matches, Max, Min } from 'class-validator';
 
 export class CreateMealEntryDto {
-  /** Fecha del diario (YYYY-MM-DD). Por defecto, hoy en el cliente. */
-  @IsOptional()
-  @IsISO8601({ strict: true })
-  log_date?: string;
+  /**
+   * Fecha del diario (YYYY-MM-DD), obligatoria: el servidor no conoce la zona
+   * horaria del cliente, y adivinarla escribe la comida en el día equivocado.
+   */
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'log_date debe ser YYYY-MM-DD' })
+  log_date!: string;
 
   @IsIn(['breakfast', 'lunch', 'dinner', 'snack'])
   meal_type!: 'breakfast' | 'lunch' | 'dinner' | 'snack';
