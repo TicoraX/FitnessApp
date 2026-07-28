@@ -1,5 +1,5 @@
 import { motion, useMotionValue, useSpring, useTransform, AnimatePresence, type SpringOptions, type MotionValue } from 'motion/react';
-import { Children, cloneElement, useEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import { Children, cloneElement, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import './Dock.css';
 
 export interface DockItemData {
@@ -86,9 +86,9 @@ function DockLabel({ children, className = '', ...rest }: { children: ReactNode;
       {isVisible && (
         <motion.div
           initial={{ opacity: 0, y: 0 }}
-          animate={{ opacity: 1, y: -10 }}
+          animate={{ opacity: 1, y: -8 }}
           exit={{ opacity: 0, y: 0 }}
-          transition={{ duration: 0.2 }}
+          transition={{ duration: 0.15 }}
           className={`dock-label ${className}`}
           role="tooltip"
           style={{ x: '-50%' }}
@@ -111,33 +111,26 @@ export interface DockProps {
   magnification?: number;
   distance?: number;
   panelHeight?: number;
-  dockHeight?: number;
   baseItemSize?: number;
 }
 
 export default function Dock({
   items,
   className = '',
-  spring = { mass: 0.1, stiffness: 150, damping: 12 },
-  magnification = 70,
-  distance = 200,
-  panelHeight = 64,
-  dockHeight = 256,
-  baseItemSize = 48,
+  spring = { mass: 0.1, stiffness: 140, damping: 16 },
+  magnification = 58,
+  distance = 140,
+  baseItemSize = 44,
 }: DockProps) {
   const mouseX = useMotionValue(Infinity);
   const isHovered = useMotionValue(0);
-
-  const maxHeight = useMemo(
-    () => Math.max(dockHeight, magnification + magnification / 2 + 4),
-    [magnification, dockHeight]
-  );
-  const heightRow = useTransform(isHovered, [0, 1], [panelHeight, maxHeight]);
-  const height = useSpring(heightRow, spring);
+  const panelY = useSpring(useTransform(isHovered, [0, 1], [0, -6]), spring);
 
   return (
-    <motion.div style={{ height, scrollbarWidth: 'none' }} className="dock-outer">
+    <div className="dock-outer">
       <motion.div
+        style={{ y: panelY }}
+        onMouseEnter={() => isHovered.set(1)}
         onMouseMove={({ pageX }) => {
           isHovered.set(1);
           mouseX.set(pageX);
@@ -147,7 +140,6 @@ export default function Dock({
           mouseX.set(Infinity);
         }}
         className={`dock-panel ${className}`}
-        style={{ height: panelHeight }}
         role="toolbar"
         aria-label="Navegación principal"
       >
@@ -168,6 +160,6 @@ export default function Dock({
           </DockItem>
         ))}
       </motion.div>
-    </motion.div>
+    </div>
   );
 }
