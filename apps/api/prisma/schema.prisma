@@ -35,6 +35,7 @@ model User {
 
   goals         UserGoal[]
   createdFoods  FoodItem[]
+  dailyLogs     DailyLog[]
 
   @@map("users")
 }
@@ -76,7 +77,44 @@ model FoodItem {
   createdById       String?  @map("created_by") @db.Uuid
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  createdBy User? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdBy   User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  mealEntries MealEntry[]
 
   @@map("food_items")
+}
+
+enum MealType {
+  breakfast
+  lunch
+  dinner
+  snack
+}
+
+model DailyLog {
+  id       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId   String   @map("user_id") @db.Uuid
+  logDate  DateTime @map("log_date") @db.Date
+  waterMl  Int      @default(0) @map("water_ml")
+  notes    String?
+
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries MealEntry[]
+
+  @@unique([userId, logDate])
+  @@map("daily_logs")
+}
+
+model MealEntry {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dailyLogId       String   @map("daily_log_id") @db.Uuid
+  mealType         MealType @map("meal_type")
+  foodItemId       String   @map("food_item_id") @db.Uuid
+  servingsConsumed Decimal  @map("servings_consumed") @db.Decimal(6, 2)
+  loggedAt         DateTime @default(now()) @map("logged_at") @db.Timestamptz(6)
+
+  dailyLog DailyLog @relation(fields: [dailyLogId], references: [id], onDelete: Cascade)
+  foodItem FoodItem @relation(fields: [foodItemId], references: [id])
+
+  @@index([dailyLogId])
+  @@map("meal_entries")
 }
