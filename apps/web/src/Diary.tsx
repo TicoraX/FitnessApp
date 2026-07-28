@@ -143,6 +143,35 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
     },
   ];
 
+function formatDateLabel(dateStr: string) {
+  if (!dateStr) return '';
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const target = new Date(y, m - 1, d);
+  const now = new Date();
+  const todayStr = today();
+
+  const yesterday = new Date();
+  yesterday.setDate(now.getDate() - 1);
+  const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+
+  if (dateStr === todayStr) return 'Hoy';
+  if (dateStr === yesterdayStr) return 'Ayer';
+
+  const options: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'short' };
+  const formatted = target.toLocaleDateString('es-ES', options);
+  return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+}
+
+function shiftDate(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() + days);
+  const ny = dt.getFullYear();
+  const nm = String(dt.getMonth() + 1).padStart(2, '0');
+  const nd = String(dt.getDate()).padStart(2, '0');
+  return `${ny}-${nm}-${nd}`;
+}
+
   return (
     <div className="shell" style={{ paddingBottom: '6rem' }}>
       <header className="topbar">
@@ -157,17 +186,86 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
               Guardar cuenta
             </button>
           )}
-          <label className="muted" htmlFor="date">
-            Día
-          </label>
-          <input
-            id="date"
-            type="date"
-            className="num"
-            value={date}
-            max={today()}
-            onChange={(e) => setDate(e.target.value)}
-          />
+
+          <div
+            className="date-picker-capsule"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-full)',
+              padding: '2px 4px',
+              gap: '2px',
+            }}
+          >
+            <button
+              type="button"
+              className="btn btn--quiet"
+              title="Día anterior"
+              aria-label="Día anterior"
+              style={{
+                padding: '0.2rem 0.5rem',
+                borderRadius: 'var(--radius-full)',
+                fontSize: '0.85rem',
+                lineHeight: 1,
+                minHeight: 'auto',
+              }}
+              onClick={() => setDate((d) => shiftDate(d, -1))}
+            >
+              ‹
+            </button>
+
+            <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+              <span
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  color: 'var(--color-primary)',
+                  padding: '0 6px',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {formatDateLabel(date)} ({date})
+              </span>
+              <input
+                id="date"
+                type="date"
+                className="num"
+                value={date}
+                max={today()}
+                onChange={(e) => setDate(e.target.value)}
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  opacity: 0,
+                  cursor: 'pointer',
+                  width: '100%',
+                  height: '100%',
+                }}
+              />
+            </div>
+
+            <button
+              type="button"
+              className="btn btn--quiet"
+              title="Día siguiente"
+              aria-label="Día siguiente"
+              disabled={date >= today()}
+              style={{
+                padding: '0.2rem 0.5rem',
+                borderRadius: 'var(--radius-full)',
+                fontSize: '0.85rem',
+                lineHeight: 1,
+                minHeight: 'auto',
+                opacity: date >= today() ? 0.3 : 1,
+              }}
+              onClick={() => setDate((d) => shiftDate(d, 1))}
+            >
+              ›
+            </button>
+          </div>
           <button
             className="btn btn--quiet"
             aria-expanded={showProfile}

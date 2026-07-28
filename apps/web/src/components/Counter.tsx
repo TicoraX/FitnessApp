@@ -49,13 +49,15 @@ interface DigitProps {
   value: number;
   height: number;
   digitStyle?: CSSProperties;
+  stiffness?: number;
+  damping?: number;
 }
 
-function Digit({ place, value, height, digitStyle }: DigitProps) {
+function Digit({ place, value, height, digitStyle, stiffness = 35, damping = 18 }: DigitProps) {
   const isDecimal = place === '.';
   const numericPlace = typeof place === 'number' ? place : 1;
   const valueRoundedToPlace = isDecimal ? 0 : getValueRoundedToPlace(value, numericPlace);
-  const animatedValue = useSpring(valueRoundedToPlace, { mass: 0.8, stiffness: 75, damping: 15 });
+  const animatedValue = useSpring(valueRoundedToPlace, { mass: 1, stiffness, damping });
   const currentDigit = Math.abs(valueRoundedToPlace % 10);
 
   useEffect(() => {
