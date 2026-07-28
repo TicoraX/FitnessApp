@@ -13,136 +13,6 @@ const MEALS = [
   ['snack', 'Snack'],
 ] as const;
 
-export function Diary({ onLogout }: { onLogout: () => void }) {
-  const [date, setDate] = useState(today());
-  const [day, setDay] = useState<DaySummary | null>(null);
-  const [error, setError] = useState('');
-  const [showProfile, setShowProfile] = useState(false);
-  const [isGuest, setIsGuest] = useState(false);
-  const [showClaimModal, setShowClaimModal] = useState(false);
-  const [claimEmail, setClaimEmail] = useState('');
-  const [claimPassword, setClaimPassword] = useState('');
-  const [claimBusy, setClaimBusy] = useState(false);
-  const [claimError, setClaimError] = useState('');
-
-  const load = useCallback(async (d: string) => {
-    try {
-      setError('');
-      setDay((await api.get<{ data: DaySummary }>(`/logs/${d}`)).data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo cargar el día');
-    }
-  }, []);
-
-  useEffect(() => {
-    void load(date);
-    api.get<{ data: { is_guest: boolean } }>('/profile')
-      .then((res) => setIsGuest(Boolean(res.data.is_guest)))
-      .catch(() => {});
-  }, [date, load]);
-
-  useEffect(() => {
-    // Otra pestaña tocó el diario, o esta volvió a primer plano tras un rato:
-    // en los dos casos lo que hay en pantalla puede estar viejo.
-    const dejarDeEscuchar = escucharCambios((tipo) => {
-      if (tipo === 'diario-cambiado') void load(date);
-    });
-    const alVolver = () => document.visibilityState === 'visible' && void load(date);
-    document.addEventListener('visibilitychange', alVolver);
-
-    return () => {
-      dejarDeEscuchar();
-      document.removeEventListener('visibilitychange', alVolver);
-    };
-  }, [date, load]);
-
-  async function handleClaim(e: React.FormEvent) {
-    e.preventDefault();
-    setClaimBusy(true);
-    setClaimError('');
-    try {
-      const res = await api.post<{ data: { token: string } }>('/auth/claim', {
-        email: claimEmail,
-        password: claimPassword,
-      });
-      if (res.data?.token) {
-        setToken(res.data.token);
-      }
-      setIsGuest(false);
-      setShowClaimModal(false);
-    } catch (err) {
-      setClaimError(err instanceof Error ? err.message : 'No se pudo vincular la cuenta');
-    } finally {
-      setClaimBusy(false);
-    }
-  }
-
-  const dockItems: DockItemData[] = [
-    {
-      icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-          <polyline points="9 22 9 12 15 12 15 22" />
-        </svg>
-      ),
-      label: 'Diario',
-      onClick: () => window.scrollTo({ top: 0, behavior: 'smooth' }),
-    },
-    {
-      icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <circle cx="11" cy="11" r="8" />
-          <line x1="21" y1="21" x2="16.65" y2="16.65" />
-        </svg>
-      ),
-      label: 'Agregar Comida',
-      onClick: () => {
-        const input = document.querySelector('input[type="search"]') as HTMLInputElement;
-        input?.focus();
-        input?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      },
-    },
-    {
-      icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M3 3v18h18" />
-          <path d="M18 17V9" />
-          <path d="M13 17V5" />
-          <path d="M8 17v-3" />
-        </svg>
-      ),
-      label: 'Peso',
-      onClick: () => {
-        const el = document.getElementById('peso');
-        el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      },
-    },
-    {
-      icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-          <circle cx="12" cy="7" r="4" />
-        </svg>
-      ),
-      label: 'Perfil',
-      onClick: () => {
-        setShowProfile((prev) => !prev);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      },
-    },
-    {
-      icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-          <polyline points="16 17 21 12 16 7" />
-          <line x1="21" y1="12" x2="9" y2="12" />
-        </svg>
-      ),
-      label: 'Salir',
-      onClick: onLogout,
-    },
-  ];
-
 function formatDateLabel(dateStr: string) {
   if (!dateStr) return '';
   const [y, m, d] = dateStr.split('-').map(Number);
@@ -293,6 +163,136 @@ function CyberDayStrip({ date, setDate }: { date: string; setDate: (d: string) =
     </div>
   );
 }
+
+export function Diary({ onLogout }: { onLogout: () => void }) {
+  const [date, setDate] = useState(today());
+  const [day, setDay] = useState<DaySummary | null>(null);
+  const [error, setError] = useState('');
+  const [showProfile, setShowProfile] = useState(false);
+  const [isGuest, setIsGuest] = useState(false);
+  const [showClaimModal, setShowClaimModal] = useState(false);
+  const [claimEmail, setClaimEmail] = useState('');
+  const [claimPassword, setClaimPassword] = useState('');
+  const [claimBusy, setClaimBusy] = useState(false);
+  const [claimError, setClaimError] = useState('');
+
+  const load = useCallback(async (d: string) => {
+    try {
+      setError('');
+      setDay((await api.get<{ data: DaySummary }>(`/logs/${d}`)).data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo cargar el día');
+    }
+  }, []);
+
+  useEffect(() => {
+    void load(date);
+    api.get<{ data: { is_guest: boolean } }>('/profile')
+      .then((res) => setIsGuest(Boolean(res.data.is_guest)))
+      .catch(() => {});
+  }, [date, load]);
+
+  useEffect(() => {
+    // Otra pestaña tocó el diario, o esta volvió a primer plano tras un rato:
+    // en los dos casos lo que hay en pantalla puede estar viejo.
+    const dejarDeEscuchar = escucharCambios((tipo) => {
+      if (tipo === 'diario-cambiado') void load(date);
+    });
+    const alVolver = () => document.visibilityState === 'visible' && void load(date);
+    document.addEventListener('visibilitychange', alVolver);
+
+    return () => {
+      dejarDeEscuchar();
+      document.removeEventListener('visibilitychange', alVolver);
+    };
+  }, [date, load]);
+
+  async function handleClaim(e: React.FormEvent) {
+    e.preventDefault();
+    setClaimBusy(true);
+    setClaimError('');
+    try {
+      const res = await api.post<{ data: { token: string } }>('/auth/claim', {
+        email: claimEmail,
+        password: claimPassword,
+      });
+      if (res.data?.token) {
+        setToken(res.data.token);
+      }
+      setIsGuest(false);
+      setShowClaimModal(false);
+    } catch (err) {
+      setClaimError(err instanceof Error ? err.message : 'No se pudo vincular la cuenta');
+    } finally {
+      setClaimBusy(false);
+    }
+  }
+
+  const dockItems: DockItemData[] = [
+    {
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+          <polyline points="9 22 9 12 15 12 15 22" />
+        </svg>
+      ),
+      label: 'Diario',
+      onClick: () => window.scrollTo({ top: 0, behavior: 'smooth' }),
+    },
+    {
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+      ),
+      label: 'Agregar Comida',
+      onClick: () => {
+        const input = document.querySelector('input[type="search"]') as HTMLInputElement;
+        input?.focus();
+        input?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      },
+    },
+    {
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M3 3v18h18" />
+          <path d="M18 17V9" />
+          <path d="M13 17V5" />
+          <path d="M8 17v-3" />
+        </svg>
+      ),
+      label: 'Peso',
+      onClick: () => {
+        const el = document.getElementById('peso');
+        el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      },
+    },
+    {
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+        </svg>
+      ),
+      label: 'Perfil',
+      onClick: () => {
+        setShowProfile((prev) => !prev);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      },
+    },
+    {
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <polyline points="16 17 21 12 16 7" />
+          <line x1="21" y1="12" x2="9" y2="12" />
+        </svg>
+      ),
+      label: 'Salir',
+      onClick: onLogout,
+    },
+  ];
 
   return (
     <div className="shell" style={{ paddingBottom: '6rem' }}>
