@@ -139,6 +139,10 @@ jobs:
         working-directory: apps/web
         run: npm run ui:check
 
+      - name: Sincronización entre pestañas
+        working-directory: apps/web
+        run: npm run tabs:check
+
       # Cuando algo falla, la captura dice más que el stack trace.
       - name: Guardar capturas
         if: always()

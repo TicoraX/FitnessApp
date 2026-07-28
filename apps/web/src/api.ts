@@ -6,6 +6,26 @@ export const setToken = (t: string | null) =>
 
 export class ApiError extends Error {}
 
+/**
+ * Un 401 en cualquier request significa que el token murió: caducó, se revocó
+ * o la cuenta ya no existe. Sin esto la app se quedaba en el diario mostrando
+ * "Unauthorized" en rojo, con un token invalido en localStorage y sin forma de
+ * volver al login salvo recargar.
+ */
+let onUnauthorized: (() => void) | null = null;
+export const setUnauthorizedHandler = (fn: () => void) => {
+  onUnauthorized = fn;
+};
+
+/** Avisa a las otras pestañas del mismo origen que la sesión terminó. */
+const canal = 'BroadcastChannel' in globalThis ? new BroadcastChannel('fittrack') : null;
+export const notificarCambio = (tipo: string) => canal?.postMessage({ tipo });
+export function escucharCambios(fn: (tipo: string) => void) {
+  const handler = (e: MessageEvent) => fn(e.data?.tipo);
+  canal?.addEventListener('message', handler);
+  return () => canal?.removeEventListener('message', handler);
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getToken();
   const res = await fetch(`/api/v1${path}`, {
@@ -18,6 +38,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   const body = await res.json().catch(() => null);
+
+  // El login y el registro también devuelven 401/409; ahí el 401 es
+  // "credenciales incorrectas", no una sesión vencida.
+  if (res.status === 401 && token && !path.startsWith('/auth/')) {
+    setToken(null);
+    notificarCambio('sesion-cerrada');
+    onUnauthorized?.();
+    throw new ApiError('La sesión venció. Entrá de nuevo.');
+  }
+
   if (!res.ok) {
     const detail = body?.message;
     throw new ApiError(
@@ -75,10 +105,16 @@ export interface DaySummary {
 }
 
 /**
- * Día local, no UTC. Con toISOString(), un usuario en UTC-3 ve el diario del
- * día siguiente desde las 21:00.
+ * Día local, no UTC. Con toISOString() directo, un usuario en UTC-3 ve el
+ * diario del día siguiente desde las 21:00.
+ *
+ * Se leen los componentes locales en vez de restar getTimezoneOffset(): la
+ * aritmética con el offset también da bien, pero hay que razonarla; esto se
+ * lee de una.
  */
 export const today = () => {
   const d = new Date();
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+  const mes = String(d.getMonth() + 1).padStart(2, '0');
+  const dia = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mes}-${dia}`;
 };

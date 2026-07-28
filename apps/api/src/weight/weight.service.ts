@@ -26,6 +26,10 @@ export class WeightService {
   }
 
   async series(userId: string, days: number) {
+    // loggedOn es @db.Date, así que Prisma manda el filtro como date y la
+    // comparación es día contra día: la hora de `from` no participa y el borde
+    // no depende de a qué hora se consulte. Verificado sobre los días -91 y
+    // -90 a las 04:25 UTC.
     const from = new Date(Date.now() - days * 86_400_000);
     const entries = await this.prisma.weightEntry.findMany({
       where: { userId, loggedOn: { gte: from } },

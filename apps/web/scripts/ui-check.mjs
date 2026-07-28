@@ -273,6 +273,55 @@ try {
     await page.getByRole('button', { name: 'Cerrar' }).click();
   });
 
+  await step('la búsqueda se maneja con flechas y Enter', async () => {
+    await page.getByLabel('Buscar alimento').fill('pollo');
+    await page.waitForSelector('.result', { timeout: 10_000 });
+
+    const input = page.getByLabel('Buscar alimento');
+    assert.equal(await input.getAttribute('role'), 'combobox');
+    assert.equal(await input.getAttribute('aria-expanded'), 'true');
+    assert.equal(await page.locator('.results').getAttribute('role'), 'listbox');
+
+    await input.press('ArrowDown');
+    // El foco sigue en el input: lo que se mueve es el descendiente activo.
+    assert.equal(await page.locator('.result[data-activo="true"]').count(), 1);
+    const activo = await page.locator('.result[data-activo="true"]').getAttribute('id');
+    assert.equal(await input.getAttribute('aria-activedescendant'), activo);
+
+    await input.press('Enter');
+    await page.waitForSelector('.result[aria-selected="true"]', { timeout: 5_000 });
+    assert.equal(await page.locator('.result[aria-selected="true"]').getAttribute('id'), activo);
+
+    await input.press('Escape');
+    assert.equal(await page.locator('.result[aria-selected="true"]').count(), 0);
+  });
+
+  await step('ningún campo dispara el zoom de iOS', async () => {
+    // Por debajo de 16px, Safari en iOS hace zoom al enfocar y descoloca todo.
+    const chicos = await page.evaluate(() =>
+      [...document.querySelectorAll('input, select, textarea')]
+        .map((el) => ({ id: el.id || el.getAttribute('aria-label') || el.type, px: parseFloat(getComputedStyle(el).fontSize) }))
+        .filter((f) => f.px < 16),
+    );
+    assert.deepEqual(chicos, []);
+  });
+
+  await step('una sesión vencida vuelve al login, no a un error', async () => {
+    await page.evaluate(() => localStorage.setItem('fittrack.token', 'token.invalido.a-proposito'));
+    await page.reload();
+    // Con un token roto, la primera llamada da 401 y la app tiene que volver
+    // sola a la pantalla de entrada.
+    await page.waitForSelector('h1', { timeout: 10_000 });
+    assert.equal(await page.locator('h1').textContent(), 'Entrar');
+    assert.equal(await page.evaluate(() => localStorage.getItem('fittrack.token')), null);
+    await shot('12-sesion-vencida');
+
+    // Los 401 de este paso son el objetivo del paso, no ruido: se descuentan
+    // para que el chequeo final de consola siga detectando lo inesperado.
+    const sin401 = errors.filter((e) => !/401|Unauthorized/.test(e));
+    errors.splice(0, errors.length, ...sin401);
+  });
+
   await step('responde a 375px sin scroll horizontal', async () => {
     await page.setViewportSize({ width: 375, height: 812 });
     const overflow = await page.evaluate(

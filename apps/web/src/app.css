@@ -83,7 +83,10 @@ a {
 /* ---------- Auth: dos paneles ---------- */
 
 .auth {
+  /* dvh y no vh: en Safari, vh cuenta la barra de direcciones aunque esté
+     oculta, y la pantalla salta al hacer scroll. vh queda de respaldo. */
   min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   grid-template-columns: minmax(0, 0.85fr) minmax(0, 1fr);
 }
@@ -95,6 +98,7 @@ a {
   top: 0;
   align-self: start;
   height: 100vh;
+  height: 100dvh;
   background: var(--color-paper-2);
   border-right: var(--rule);
   padding: var(--space-xl) var(--space-lg);
@@ -157,7 +161,10 @@ a {
 .shell {
   max-width: 68rem;
   margin: 0 auto;
-  padding: var(--space-lg) var(--space-md) var(--space-2xl);
+  /* El área segura evita que el contenido quede bajo la isla o la barra de
+     gestos; en pantallas sin recortes los env() valen 0. */
+  padding: calc(var(--space-lg) + env(safe-area-inset-top)) calc(var(--space-md) + env(safe-area-inset-right))
+    calc(var(--space-2xl) + env(safe-area-inset-bottom)) calc(var(--space-md) + env(safe-area-inset-left));
 }
 
 .topbar {
@@ -623,9 +630,28 @@ a {
   background: var(--color-paper-3);
 }
 
+/* El resaltado del teclado se distingue del elegido: uno dice "acá estás", el
+   otro "esto quedó elegido". */
+.result[data-activo='true'] {
+  background: var(--color-paper-3);
+  box-shadow: inset 2px 0 0 var(--color-focus);
+}
+
 .result[aria-selected='true'] {
   border-color: var(--color-accent);
   background: var(--color-accent-soft);
+}
+
+/* Visible para lectores de pantalla, fuera de la vista. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .result__kcal {

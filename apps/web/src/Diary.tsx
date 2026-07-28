@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
-import { api, today, type DaySummary, type Food } from './api';
+import { api, escucharCambios, notificarCambio, today, type DaySummary, type Food } from './api';
 import { Weight } from './Weight';
 import { NewFood } from './NewFood';
 import { Profile } from './Profile';
@@ -28,6 +28,21 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
 
   useEffect(() => {
     void load(date);
+  }, [date, load]);
+
+  useEffect(() => {
+    // Otra pestaña tocó el diario, o esta volvió a primer plano tras un rato:
+    // en los dos casos lo que hay en pantalla puede estar viejo.
+    const dejarDeEscuchar = escucharCambios((tipo) => {
+      if (tipo === 'diario-cambiado') void load(date);
+    });
+    const alVolver = () => document.visibilityState === 'visible' && void load(date);
+    document.addEventListener('visibilitychange', alVolver);
+
+    return () => {
+      dejarDeEscuchar();
+      document.removeEventListener('visibilitychange', alVolver);
+    };
   }, [date, load]);
 
   return (
@@ -197,6 +212,7 @@ function Water({
     setBusy(true);
     try {
       await api.patch(`/logs/${date}/water`, { water_ml: Math.max(0, ml) });
+      notificarCambio('diario-cambiado');
       onChanged();
     } finally {
       setBusy(false);
@@ -290,6 +306,7 @@ function Entry({
     setBusy(entry.id);
     try {
       await api.patch(`/logs/meal/${entry.id}`, { servings_consumed: value });
+      notificarCambio('diario-cambiado');
       onChanged();
     } catch {
       setServings(String(entry.servings_consumed));
@@ -302,6 +319,7 @@ function Entry({
     setBusy(entry.id);
     try {
       await api.del(`/logs/meal/${entry.id}`);
+      notificarCambio('diario-cambiado');
       onChanged();
     } finally {
       setBusy(null);
@@ -355,6 +373,14 @@ function AddFood({ date, onAdded }: { date: string; onAdded: () => void }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
   const [recent, setRecent] = useState<Food[]>([]);
+  const [activo, setActivo] = useState(-1);
+
+  // Con menos de dos letras la lista muestra los recientes; con más, la
+  // búsqueda. Es la misma lista para el teclado y para el mouse.
+  const visibles = query.trim().length < 2 ? recent : results;
+
+  // La lista cambió: el índice viejo apuntaría a otro alimento.
+  useEffect(() => setActivo(-1), [query, results, recent]);
 
   const loadRecent = useCallback(async () => {
     try {
@@ -403,6 +429,7 @@ function AddFood({ date, onAdded }: { date: string; onAdded: () => void }) {
       // siguiente se registre al doble sin que se note.
       setServings('1');
       setResults([]);
+      notificarCambio('diario-cambiado');
       onAdded();
       void loadRecent();
     } catch (err) {
@@ -413,10 +440,18 @@ function AddFood({ date, onAdded }: { date: string; onAdded: () => void }) {
 
   return (
     <div>
+      {/* Patrón combobox de ARIA: el input conserva el foco y las flechas
+          mueven un descendiente activo. Sin esto un lector de pantalla no
+          anuncia que aparecieron resultados. */}
       <input
         type="search"
         placeholder="Buscar alimento"
         aria-label="Buscar alimento"
+        role="combobox"
+        aria-expanded={visibles.length > 0}
+        aria-controls="resultados-busqueda"
+        aria-autocomplete="list"
+        aria-activedescendant={activo >= 0 ? `alimento-${visibles[activo].id}` : undefined}
         style={{ width: '100%' }}
         value={query}
         onChange={(e) => {
@@ -425,7 +460,28 @@ function AddFood({ date, onAdded }: { date: string; onAdded: () => void }) {
           setQuery(e.target.value);
           setMessage(null);
         }}
+        onKeyDown={(e) => {
+          if (visibles.length === 0) return;
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault(); // si no, el cursor salta al principio o al final
+            const paso = e.key === 'ArrowDown' ? 1 : -1;
+            setActivo((i) => (i + paso + visibles.length) % visibles.length);
+          } else if (e.key === 'Enter' && activo >= 0) {
+            e.preventDefault();
+            setSelected(visibles[activo]);
+          } else if (e.key === 'Escape') {
+            setActivo(-1);
+            setSelected(null);
+          }
+        }}
       />
+
+      {/* Los resultados llegan tras una pausa de tecleo: sin esto el cambio es
+          silencioso para quien no ve la pantalla. */}
+      <p className="visually-hidden" role="status">
+        {query.trim().length >= 2 &&
+          (results.length > 0 ? `${results.length} resultados` : 'Sin resultados')}
+      </p>
 
       {query.trim().length < 2 && (
         <p className="hint">
@@ -449,24 +505,27 @@ function AddFood({ date, onAdded }: { date: string; onAdded: () => void }) {
         </>
       )}
 
-      <ul className="results">
-        {(query.trim().length < 2 ? recent : results).map((f) => (
-          <li key={f.id}>
-            <button
-              type="button"
-              className="result"
-              aria-selected={selected?.id === f.id}
-              onClick={() => setSelected(f)}
-            >
-              <span>
-                {f.name}
-                {f.brand && <span className="muted"> · {f.brand}</span>}
-              </span>
-              <span className="muted num result__kcal">
-                {f.calories} kcal / {f.serving_size_amount}
-                {f.serving_size_unit}
-              </span>
-            </button>
+      <ul className="results" id="resultados-busqueda" role="listbox" aria-label="Resultados">
+        {visibles.map((f, i) => (
+          // role="option" va en el elemento en sí: una opción no puede contener
+          // un botón sin romper la semántica del listbox.
+          <li
+            key={f.id}
+            id={`alimento-${f.id}`}
+            role="option"
+            className="result"
+            aria-selected={selected?.id === f.id}
+            data-activo={i === activo}
+            onClick={() => setSelected(f)}
+          >
+            <span>
+              {f.name}
+              {f.brand && <span className="muted"> · {f.brand}</span>}
+            </span>
+            <span className="muted num result__kcal">
+              {f.calories} kcal / {f.serving_size_amount}
+              {f.serving_size_unit}
+            </span>
           </li>
         ))}
       </ul>
