@@ -16,6 +16,12 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
   const [day, setDay] = useState<DaySummary | null>(null);
   const [error, setError] = useState('');
   const [showProfile, setShowProfile] = useState(false);
+  const [isGuest, setIsGuest] = useState(false);
+  const [showClaimModal, setShowClaimModal] = useState(false);
+  const [claimEmail, setClaimEmail] = useState('');
+  const [claimPassword, setClaimPassword] = useState('');
+  const [claimBusy, setClaimBusy] = useState(false);
+  const [claimError, setClaimError] = useState('');
 
   const load = useCallback(async (d: string) => {
     try {
@@ -28,6 +34,9 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
 
   useEffect(() => {
     void load(date);
+    api.get<{ data: { is_guest: boolean } }>('/profile')
+      .then((res) => setIsGuest(Boolean(res.data.is_guest)))
+      .catch(() => {});
   }, [date, load]);
 
   useEffect(() => {
@@ -45,11 +54,41 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
     };
   }, [date, load]);
 
+  async function handleClaim(e: React.FormEvent) {
+    e.preventDefault();
+    setClaimBusy(true);
+    setClaimError('');
+    try {
+      const res = await api.post<{ data: { token: string } }>('/auth/claim', {
+        email: claimEmail,
+        password: claimPassword,
+      });
+      if (res.data?.token) {
+        setToken(res.data.token);
+      }
+      setIsGuest(false);
+      setShowClaimModal(false);
+    } catch (err) {
+      setClaimError(err instanceof Error ? err.message : 'No se pudo vincular la cuenta');
+    } finally {
+      setClaimBusy(false);
+    }
+  }
+
   return (
     <div className="shell">
       <header className="topbar">
         <span className="topbar__mark">FitTrack</span>
         <div className="topbar__tools">
+          {isGuest && (
+            <button
+              className="btn"
+              style={{ fontSize: 'var(--text-xs)', padding: 'var(--space-2xs) var(--space-xs)' }}
+              onClick={() => setShowClaimModal(true)}
+            >
+              Guardar cuenta
+            </button>
+          )}
           <label className="muted" htmlFor="date">
             Día
           </label>
@@ -73,6 +112,77 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
           </button>
         </div>
       </header>
+
+      {isGuest && (
+        <div
+          className="alert alert--ok"
+          style={{
+            marginBottom: 'var(--space-lg)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 'var(--space-xs)',
+          }}
+        >
+          <span>
+            Estás usando una <b>cuenta de invitado</b>. Agregá email y contraseña para no perder tus datos.
+          </span>
+          <button className="btn" onClick={() => setShowClaimModal(true)}>
+            Guardar cuenta permanente
+          </button>
+        </div>
+      )}
+
+      {showClaimModal && (
+        <section className="card" style={{ marginBottom: 'var(--space-xl)' }}>
+          <h2 className="card__title">Guardar cuenta de invitado</h2>
+          <p className="muted" style={{ marginBottom: 'var(--space-md)' }}>
+            Ingresá tu correo y una contraseña para vincular tu historial actual a una cuenta registrada.
+          </p>
+          <form onSubmit={handleClaim} style={{ display: 'grid', gap: 'var(--space-md)' }}>
+            <div className="field">
+              <label htmlFor="claim-email">Email</label>
+              <input
+                id="claim-email"
+                type="email"
+                required
+                value={claimEmail}
+                onChange={(e) => setClaimEmail(e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="claim-password">Contraseña</label>
+              <input
+                id="claim-password"
+                type="password"
+                required
+                minLength={10}
+                value={claimPassword}
+                onChange={(e) => setClaimPassword(e.target.value)}
+              />
+              <span className="muted">Mínimo 10 caracteres, con mayúscula, minúscula y número.</span>
+            </div>
+            {claimError && (
+              <p className="alert" role="alert">
+                {claimError}
+              </p>
+            )}
+            <div style={{ display: 'flex', gap: 'var(--space-xs)' }}>
+              <button className="btn" type="submit" disabled={claimBusy}>
+                {claimBusy ? 'Guardando' : 'Guardar cuenta'}
+              </button>
+              <button
+                className="btn btn--quiet"
+                type="button"
+                onClick={() => setShowClaimModal(false)}
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
 
       {error && (
         <p className="alert" role="alert">
@@ -257,17 +367,19 @@ function Meals({ day, onChanged }: { day: DaySummary; onChanged: () => void }) {
         // Sumar primero y redondear al final, igual que el total del día.
         const subtotal = Math.round(entries.reduce((sum, e) => sum + e.calories, 0));
         return (
-          <div key={key}>
+          <div key={key} className="meal__card">
             <div className="meal__head">
               <p className="eyebrow">{label}</p>
               <span className="muted num">{subtotal > 0 ? `${subtotal} kcal` : '—'}</span>
             </div>
-            {entries.length > 0 && (
+            {entries.length > 0 ? (
               <ul className="entries">
                 {entries.map((e) => (
                   <Entry key={e.id} entry={e} busy={busy === e.id} onChanged={onChanged} setBusy={setBusy} />
                 ))}
               </ul>
+            ) : (
+              <p className="meal__empty">Sin registros en este tiempo.</p>
             )}
           </div>
         );

@@ -10,13 +10,14 @@
   --color-paper-3: oklch(93% 0.01 95);
   --color-ink: oklch(22% 0.012 95);
   --color-ink-2: oklch(48% 0.012 95);
-  --color-ink-3: oklch(66% 0.01 95);
+  --color-ink-3: oklch(40% 0.012 95);
   --color-rule: oklch(88% 0.01 95);
-  --color-accent: oklch(48% 0.11 152);
+  --color-accent: oklch(36% 0.13 152);
   --color-accent-soft: oklch(94% 0.03 152);
-  --color-danger: oklch(52% 0.17 27);
+  --color-btn-text: oklch(99% 0.005 95);
+  --color-danger: oklch(50% 0.18 27);
   --color-danger-soft: oklch(95% 0.03 27);
-  --color-focus: oklch(52% 0.16 250);
+  --color-focus: oklch(45% 0.18 250);
 
   /* Macros: paleta categórica validada con scripts/validate_palette.js
    * (banda de luminosidad, piso de croma, separación CVD con todos los pares,
@@ -64,14 +65,15 @@
     --color-paper-2: oklch(23% 0.009 95);
     --color-paper-3: oklch(27% 0.01 95);
     --color-ink: oklch(95% 0.006 95);
-    --color-ink-2: oklch(72% 0.008 95);
-    --color-ink-3: oklch(55% 0.008 95);
+    --color-ink-2: oklch(76% 0.008 95);
+    --color-ink-3: oklch(76% 0.008 95);
     --color-rule: oklch(32% 0.01 95);
-    --color-accent: oklch(74% 0.13 152);
+    --color-accent: oklch(76% 0.14 152);
     --color-accent-soft: oklch(30% 0.05 152);
-    --color-danger: oklch(70% 0.15 27);
+    --color-btn-text: oklch(12% 0.01 95);
+    --color-danger: oklch(72% 0.16 27);
     --color-danger-soft: oklch(30% 0.06 27);
-    --color-focus: oklch(72% 0.14 250);
+    --color-focus: oklch(74% 0.15 250);
     --shadow-card: 0 1px 2px oklch(0% 0 0 / 0.3), 0 8px 24px -12px oklch(0% 0 0 / 0.5);
     /* Revalidada contra la superficie oscura, no invertida automáticamente. */
     --color-protein: oklch(55% 0.19 18);

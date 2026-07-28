@@ -144,8 +144,11 @@ function Sparkline({ series }: { series: WeightPoint[] }) {
 
   const x = (i: number) => (i / (series.length - 1)) * W;
   const y = (v: number) => H - ((v - lo) / (hi - lo)) * H;
-  const path = (get: (p: WeightPoint) => number) =>
+  const linePath = (get: (p: WeightPoint) => number) =>
     series.map((p, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(get(p)).toFixed(1)}`).join(' ');
+
+  const emaPath = linePath((p) => p.ema_kg);
+  const areaPath = `${emaPath} L ${W} ${H} L 0 ${H} Z`;
 
   return (
     <svg
@@ -155,8 +158,15 @@ function Sparkline({ series }: { series: WeightPoint[] }) {
       role="img"
       aria-label={`Tendencia de peso: de ${series[0].ema_kg.toFixed(1)} a ${series.at(-1)!.ema_kg.toFixed(1)} kilos`}
     >
-      <path className="sparkline__raw" d={path((p) => p.weight_kg)} vectorEffect="non-scaling-stroke" />
-      <path className="sparkline__ema" d={path((p) => p.ema_kg)} vectorEffect="non-scaling-stroke" />
+      <defs>
+        <linearGradient id="emaAreaGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--color-accent)" stopOpacity="0.2" />
+          <stop offset="100%" stopColor="var(--color-accent)" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill="url(#emaAreaGrad)" />
+      <path className="sparkline__raw" d={linePath((p) => p.weight_kg)} vectorEffect="non-scaling-stroke" />
+      <path className="sparkline__ema" d={emaPath} vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }

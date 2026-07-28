@@ -217,6 +217,12 @@ a {
 
 /* ---------- Anillo calórico ---------- */
 
+@property --pct {
+  syntax: '<number>';
+  initial-value: 0;
+  inherits: false;
+}
+
 .dial {
   display: flex;
   align-items: center;
@@ -238,7 +244,7 @@ a {
   );
   /* Dona: el mask evita un pseudo-elemento y un color de fondo que mantener. */
   mask: radial-gradient(farthest-side, transparent calc(100% - 10px), black calc(100% - 9px));
-  transition: background var(--dur-base) var(--ease-out);
+  transition: --pct var(--dur-base) var(--ease-out);
 }
 
 .dial__figures {
@@ -352,13 +358,28 @@ a {
   gap: var(--space-md);
 }
 
+.meal__card {
+  background: var(--color-paper-2);
+  border: var(--rule);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  transition: box-shadow var(--dur-fast) var(--ease-out);
+}
+
 .meal__head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-sm);
-  padding-bottom: var(--space-2xs);
+  padding-bottom: var(--space-xs);
   border-bottom: var(--rule);
+}
+
+.meal__empty {
+  padding: var(--space-sm) 0 var(--space-2xs);
+  color: var(--color-ink-3);
+  font-size: var(--text-sm);
+  margin: 0;
 }
 
 .entries {
@@ -722,7 +743,7 @@ input[aria-invalid='true'] {
 .btn {
   font: inherit;
   font-weight: 500;
-  color: var(--color-paper);
+  color: var(--color-btn-text);
   background: var(--color-accent);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
