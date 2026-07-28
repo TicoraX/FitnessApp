@@ -1,0 +1,73 @@
+/* Hallmark · component-scope app shell · genre: modern-minimal
+ * paper: light warm-neutral · display: classical-serif · accent: chromatic-green
+ * pre-emit critique: P4 H4 E4 S4 R5 V4
+ */
+
+:root {
+  /* Color */
+  --color-paper: oklch(98.2% 0.006 95);
+  --color-paper-2: oklch(96% 0.008 95);
+  --color-paper-3: oklch(93% 0.01 95);
+  --color-ink: oklch(22% 0.012 95);
+  --color-ink-2: oklch(48% 0.012 95);
+  --color-ink-3: oklch(66% 0.01 95);
+  --color-rule: oklch(88% 0.01 95);
+  --color-accent: oklch(48% 0.11 152);
+  --color-accent-soft: oklch(94% 0.03 152);
+  --color-danger: oklch(52% 0.17 27);
+  --color-danger-soft: oklch(95% 0.03 27);
+  --color-focus: oklch(52% 0.16 250);
+
+  /* Macros: un tono por macro, reutilizado en barras y leyendas */
+  --color-protein: oklch(55% 0.13 25);
+  --color-carbs: oklch(62% 0.12 75);
+  --color-fat: oklch(58% 0.09 260);
+
+  /* Tipografía */
+  --font-display: 'Instrument Serif', Georgia, serif;
+  --font-body: Inter, system-ui, sans-serif;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.75rem;
+  --text-display: clamp(2.25rem, 6vw, 3.5rem);
+
+  /* Espaciado, escala de 4pt */
+  --space-2xs: 0.25rem;
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2.5rem;
+  --space-2xl: 4rem;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --rule: 1px solid var(--color-rule);
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-paper: oklch(19% 0.008 95);
+    --color-paper-2: oklch(23% 0.009 95);
+    --color-paper-3: oklch(27% 0.01 95);
+    --color-ink: oklch(95% 0.006 95);
+    --color-ink-2: oklch(72% 0.008 95);
+    --color-ink-3: oklch(55% 0.008 95);
+    --color-rule: oklch(32% 0.01 95);
+    --color-accent: oklch(74% 0.13 152);
+    --color-accent-soft: oklch(30% 0.05 152);
+    --color-danger: oklch(70% 0.15 27);
+    --color-danger-soft: oklch(30% 0.06 27);
+    --color-focus: oklch(72% 0.14 250);
+    --color-protein: oklch(70% 0.13 25);
+    --color-carbs: oklch(76% 0.12 75);
+    --color-fat: oklch(72% 0.1 260);
+  }
+}
