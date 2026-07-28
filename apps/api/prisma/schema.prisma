@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Espeja el DDL de §4 del blueprint. Los CHECK de gender/unit_preference se
+// modelan como enums nativos de Postgres (equivalente y tipado en el cliente).
+enum Gender {
+  male
+  female
+  other
+}
+
+enum UnitPreference {
+  metric
+  imperial
+}
+
+model User {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email          String         @unique @db.VarChar(255)
+  passwordHash   String         @map("password_hash") @db.VarChar(255)
+  firstName      String         @map("first_name") @db.VarChar(100)
+  dob            DateTime       @db.Date
+  gender         Gender
+  heightCm       Decimal        @map("height_cm") @db.Decimal(5, 2)
+  activityLevel  Decimal        @default(1.200) @map("activity_level") @db.Decimal(4, 3)
+  unitPreference UnitPreference @default(metric) @map("unit_preference")
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  goals         UserGoal[]
+  createdFoods  FoodItem[]
+
+  @@map("users")
+}
+
+model UserGoal {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  targetWeightKg Decimal  @map("target_weight_kg") @db.Decimal(5, 2)
+  weeklyChangeKg Decimal  @map("weekly_change_kg") @db.Decimal(3, 2)
+  dailyCalories  Int      @map("daily_calories")
+  proteinGrams   Int      @map("protein_grams")
+  carbsGrams     Int      @map("carbs_grams")
+  fatGrams       Int      @map("fat_grams")
+  effectiveFrom  DateTime @default(now()) @map("effective_from") @db.Date
+  isActive       Boolean  @default(true) @map("is_active")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isActive])
+  @@map("user_goals")
+}
+
+model FoodItem {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  barcode           String?  @unique @db.VarChar(50)
+  name              String   @db.VarChar(255)
+  brand             String?  @db.VarChar(255)
+  verified          Boolean  @default(false)
+  servingSizeAmount Decimal  @map("serving_size_amount") @db.Decimal(8, 2)
+  servingSizeUnit   String   @map("serving_size_unit") @db.VarChar(50)
+  calories          Int
+  protein           Decimal  @db.Decimal(6, 2)
+  carbohydrates     Decimal  @db.Decimal(6, 2)
+  fat               Decimal  @db.Decimal(6, 2)
+  fiber             Decimal  @default(0) @db.Decimal(6, 2)
+  sugar             Decimal  @default(0) @db.Decimal(6, 2)
+  sodiumMg          Decimal  @default(0) @map("sodium_mg") @db.Decimal(8, 2)
+  microsJson        Json     @default("{}") @map("micros_json")
+  createdById       String?  @map("created_by") @db.Uuid
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  createdBy User? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@map("food_items")
+}
