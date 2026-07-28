@@ -89,6 +89,11 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          # Este job instala los dos paquetes y en la raíz no hay lockfile:
+          # sin esta lista, setup-node no encuentra qué cachear y falla.
+          cache-dependency-path: |
+            apps/api/package-lock.json
+            apps/web/package-lock.json
 
       - name: Preparar el API
         working-directory: apps/api
