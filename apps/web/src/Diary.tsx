@@ -63,7 +63,7 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
                 <Dial day={day} />
                 <Macros day={day} />
               </div>
-              <Meals day={day} />
+              <Meals day={day} onChanged={() => load(date)} />
             </>
           ) : (
             <p className="muted">Cargando el día.</p>
@@ -157,12 +157,25 @@ function Macros({ day }: { day: DaySummary }) {
   );
 }
 
-function Meals({ day }: { day: DaySummary }) {
+function Meals({ day, onChanged }: { day: DaySummary; onChanged: () => void }) {
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  async function remove(id: string) {
+    setDeleting(id);
+    try {
+      await api.del(`/logs/meal/${id}`);
+      onChanged();
+    } finally {
+      setDeleting(null);
+    }
+  }
+
   return (
     <div className="meals">
       {MEALS.map(([key, label]) => {
         const entries = day.entries.filter((e) => e.meal_type === key);
-        const subtotal = entries.reduce((sum, e) => sum + e.calories, 0);
+        // Sumar primero y redondear al final, igual que el total del día.
+        const subtotal = Math.round(entries.reduce((sum, e) => sum + e.calories, 0));
         return (
           <div key={key}>
             <div className="meal__head">
@@ -177,9 +190,20 @@ function Meals({ day }: { day: DaySummary }) {
                       <span className="entry__name">{e.food.name}</span>
                       {e.food.brand && <span className="muted"> · {e.food.brand}</span>}
                     </span>
-                    <span className="muted num">
-                      {e.servings_consumed} × {e.food.serving_size_amount}
-                      {e.food.serving_size_unit} · {e.calories} kcal
+                    <span className="entry__right">
+                      <span className="muted num">
+                        {e.servings_consumed} × {e.food.serving_size_amount}
+                        {e.food.serving_size_unit} · {Math.round(e.calories)} kcal
+                      </span>
+                      <button
+                        type="button"
+                        className="entry__delete"
+                        aria-label={`Quitar ${e.food.name}`}
+                        disabled={deleting === e.id}
+                        onClick={() => remove(e.id)}
+                      >
+                        Quitar
+                      </button>
                     </span>
                   </li>
                 ))}
@@ -200,6 +224,19 @@ function AddFood({ date, onAdded }: { date: string; onAdded: () => void }) {
   const [meal, setMeal] = useState<string>('breakfast');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
+  const [recent, setRecent] = useState<Food[]>([]);
+
+  const loadRecent = useCallback(async () => {
+    try {
+      setRecent((await api.get<{ data: Food[] }>('/foods/recent')).data);
+    } catch {
+      setRecent([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadRecent();
+  }, [loadRecent]);
 
   // Una búsqueda por pausa de tecleo, no una por tecla.
   useEffect(() => {
@@ -234,6 +271,7 @@ function AddFood({ date, onAdded }: { date: string; onAdded: () => void }) {
       setQuery('');
       setResults([]);
       onAdded();
+      void loadRecent();
     } catch (err) {
       setMessage({ text: err instanceof Error ? err.message : 'No se pudo registrar', ok: false });
     }
@@ -256,9 +294,11 @@ function AddFood({ date, onAdded }: { date: string; onAdded: () => void }) {
         }}
       />
 
-      {query.trim().length < 2 && !selected && (
+      {query.trim().length < 2 && (
         <p className="hint">
-          Escribí al menos dos letras. La búsqueda tolera errores de tipeo y no distingue acentos.
+          {recent.length > 0
+            ? 'Lo que registraste antes, o buscá con al menos dos letras.'
+            : 'Escribí al menos dos letras. La búsqueda tolera errores de tipeo y no distingue acentos.'}
         </p>
       )}
 
@@ -267,7 +307,7 @@ function AddFood({ date, onAdded }: { date: string; onAdded: () => void }) {
       )}
 
       <ul className="results">
-        {results.map((f) => (
+        {(query.trim().length < 2 ? recent : results).map((f) => (
           <li key={f.id}>
             <button
               type="button"

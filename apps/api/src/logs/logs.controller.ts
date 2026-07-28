@@ -1,4 +1,16 @@
-import { BadRequestException, Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateMealEntryDto } from './dto/create-meal-entry.dto';
 import { LogsService } from './logs.service';
@@ -13,6 +25,12 @@ export class LogsController {
   @Post('meal')
   addMeal(@Req() req: AuthedRequest, @Body() dto: CreateMealEntryDto) {
     return this.logs.addMealEntry(req.user.userId, dto);
+  }
+
+  @Delete('meal/:id')
+  @HttpCode(204)
+  deleteMeal(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.logs.deleteMealEntry(req.user.userId, id);
   }
 
   @Get(':date')

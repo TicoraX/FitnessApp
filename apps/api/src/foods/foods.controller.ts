@@ -34,6 +34,11 @@ export class FoodsController {
     return this.foods.search(q, Math.min(Math.max(limit, 1), 50));
   }
 
+  @Get('recent')
+  recent(@Req() req: AuthedRequest) {
+    return this.foods.recent(req.user.userId, 8);
+  }
+
   @Get('barcode/:barcode')
   byBarcode(@Param('barcode') barcode: string) {
     if (!/^\d{8,14}$/.test(barcode)) throw new BadRequestException('barcode inválido');

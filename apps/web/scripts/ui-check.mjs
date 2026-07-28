@@ -118,6 +118,23 @@ try {
     assert.equal(await page.locator('#date').inputValue(), esperado);
   });
 
+  await step('el panel ofrece los recientes sin escribir nada', async () => {
+    await page.waitForSelector('.result', { timeout: 10_000 });
+    assert.match(await page.locator('.result').first().innerText(), /Pechuga de pollo cocida/);
+    assert.match(await page.locator('.hint').innerText(), /registraste antes/);
+  });
+
+  await step('quitar una entrada la borra y baja el total', async () => {
+    await page.locator('.entry__delete').first().click();
+    await page.waitForFunction(
+      () => document.querySelector('.calories__value')?.textContent === '0',
+      null,
+      { timeout: 10_000 },
+    );
+    assert.equal(await page.locator('.entry').count(), 0);
+    await shot('07-tras-quitar');
+  });
+
   await step('el estado vacío de búsqueda es explícito', async () => {
     await page.getByLabel('Buscar alimento').fill('zzzzquenoexiste');
     await page.waitForSelector('text=Sin resultados', { timeout: 10_000 });

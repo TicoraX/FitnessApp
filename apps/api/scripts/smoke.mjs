@@ -199,4 +199,56 @@ await check('campo desconocido se rechaza', async () => {
   assert.equal(status, 400);
 });
 
+console.log('\nRecientes y borrado');
+
+await check('los recientes traen lo ya registrado, sin repetir', async () => {
+  const { status, body } = await call('GET', '/foods/recent');
+  assert.equal(status, 200);
+  // Se registró pollo dos veces (almuerzo y cena): tiene que aparecer una sola.
+  assert.equal(body.data.filter((f) => f.id === pollo.id).length, 1);
+  assert.equal(typeof body.data[0].serving_size_amount, 'number');
+});
+
+await check('borrar una entrada baja el total', async () => {
+  const antes = await call('GET', `/logs/${day}`);
+  const entrada = antes.body.data.entries[0];
+  const { status } = await call('DELETE', `/logs/meal/${entrada.id}`);
+  assert.equal(status, 204);
+
+  const despues = await call('GET', `/logs/${day}`);
+  assert.equal(despues.body.data.entries.length, antes.body.data.entries.length - 1);
+  // Se borra la de 1.5 porciones; queda la de 0.5. Se compara contra el valor
+  // exacto, no contra una resta de totales ya redondeados.
+  assert.equal(despues.body.data.totals.calories, Math.round(pollo.calories * 0.5));
+});
+
+await check('los subtotales por comida cierran con el total del día', async () => {
+  const { body } = await call('GET', `/logs/${day}`);
+  const suma = body.data.entries.reduce((s, e) => s + e.calories, 0);
+  assert.equal(Math.round(suma), body.data.totals.calories);
+});
+
+await check('no se puede borrar la entrada de otro usuario', async () => {
+  const propia = (await call('GET', `/logs/${day}`)).body.data.entries[0];
+  const guardado = token;
+
+  const otro = await call('POST', '/auth/register', {
+    ...REGISTER,
+    email: `smoke-otro-${Date.now()}@fittrack.test`,
+  });
+  token = otro.body.data.token;
+  const { status } = await call('DELETE', `/logs/meal/${propia.id}`);
+  token = guardado;
+
+  assert.equal(status, 404, 'un usuario ajeno pudo borrar la entrada');
+  // Y sigue estando.
+  const sigue = (await call('GET', `/logs/${day}`)).body.data.entries;
+  assert.ok(sigue.some((e) => e.id === propia.id));
+});
+
+await check('id que no es UUID da 400', async () => {
+  const { status } = await call('DELETE', '/logs/meal/no-es-un-uuid');
+  assert.equal(status, 400);
+});
+
 console.log('\nTodo verde.\n');

@@ -36,6 +36,19 @@ export class LogsService {
     };
   }
 
+  /**
+   * El where incluye el userId: sin eso, cualquiera con un id de entrada podría
+   * borrar la comida de otro. deleteMany devuelve el conteo y no tira si no
+   * matchea, así que sirve de chequeo de propiedad en una sola consulta.
+   */
+  async deleteMealEntry(userId: string, entryId: string) {
+    const { count } = await this.prisma.mealEntry.deleteMany({
+      where: { id: entryId, dailyLog: { userId } },
+    });
+    if (count === 0) throw new NotFoundException('La entrada no existe');
+    return { status: 'success' };
+  }
+
   async getDay(userId: string, logDate: string) {
     const [log, goal] = await Promise.all([
       this.prisma.dailyLog.findUnique({
@@ -63,9 +76,10 @@ export class LogsService {
           meal_type: e.mealType,
           servings_consumed: Number(e.servingsConsumed),
           logged_at: e.loggedAt,
-          // Calorías de la entrada ya escaladas: el cliente muestra subtotales
-          // por comida sin tener que replicar la aritmética.
-          calories: Math.round(e.foodItem.calories * Number(e.servingsConsumed)),
+          // Escaladas pero SIN redondear: el cliente suma y redondea al final,
+          // igual que totals. Redondear acá hace que los subtotales por comida
+          // no cierren con el total del día (248 + 248 = 496 vs 495).
+          calories: e.foodItem.calories * Number(e.servingsConsumed),
           food: {
             id: e.foodItem.id,
             name: e.foodItem.name,

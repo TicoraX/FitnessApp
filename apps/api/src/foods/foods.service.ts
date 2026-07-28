@@ -44,6 +44,18 @@ export class FoodsService {
     return { status: 'success', data: rows.map(toResponse) };
   }
 
+  /** Lo que el usuario ya registró, sin repetir, lo más reciente primero. */
+  async recent(userId: string, limit: number) {
+    const entries = await this.prisma.mealEntry.findMany({
+      where: { dailyLog: { userId } },
+      distinct: ['foodItemId'],
+      orderBy: { loggedAt: 'desc' },
+      take: limit,
+      include: { foodItem: true },
+    });
+    return { status: 'success', data: entries.map((e) => toResponse(e.foodItem)) };
+  }
+
   async findByBarcode(barcode: string) {
     const food = await this.prisma.foodItem.findUnique({ where: { barcode } });
     if (!food) throw new NotFoundException('Código de barras no encontrado');
