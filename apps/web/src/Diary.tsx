@@ -4,6 +4,7 @@ import { Weight } from './Weight';
 import { NewFood } from './NewFood';
 import { Profile } from './Profile';
 import Dock, { type DockItemData } from './components/Dock';
+import Counter from './components/Counter';
 
 const MEALS = [
   ['breakfast', 'Desayuno'],
@@ -317,7 +318,9 @@ function Dial({ day }: { day: DaySummary }) {
         }
       />
       <div className="dial__figures">
-        <span className="calories__value num">{totals.calories}</span>
+        <span className="calories__value num">
+          <Counter value={totals.calories} fontSize={38} fontWeight={700} />
+        </span>
         <span className="dial__unit">kcal consumidas{goal > 0 && ` de ${goal}`}</span>
         {remaining ? (
           <span className="dial__left num" data-over={over}>
