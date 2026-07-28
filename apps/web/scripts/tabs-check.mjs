@@ -38,7 +38,7 @@ await c.waitForFunction(
 console.log(`  ok  la pestaña B se actualizó sola a ${totalA} kcal`);
 
 // Y cerrar sesión en una tiene que echar a la otra.
-await a.getByRole('button', { name: 'Salir' }).click();
+await a.locator('.topbar').getByRole('button', { name: 'Salir' }).click();
 await c.waitForFunction(() => document.querySelector('h1')?.textContent === 'Entrar', null, { timeout: 10_000 });
 console.log('  ok  cerrar sesión en A saca a B del diario');
 

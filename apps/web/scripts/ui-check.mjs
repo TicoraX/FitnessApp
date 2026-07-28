@@ -251,7 +251,7 @@ try {
   });
 
   await step('el perfil se puede editar y el objetivo se recalcula', async () => {
-    await page.getByRole('button', { name: 'Perfil' }).click();
+    await page.locator('.topbar').getByRole('button', { name: 'Perfil' }).click();
     await page.waitForSelector('#pf-activity', { timeout: 10_000 });
     assert.equal(await page.locator('#pf-height').inputValue(), '178.5');
 
