@@ -10,15 +10,7 @@ interface NumberProps {
 }
 
 function NumberDigit({ mv, number, height, isCurrent }: NumberProps) {
-  const y = useTransform(mv, (latest) => {
-    const placeValue = latest % 10;
-    let offset = (10 + number - placeValue) % 10;
-    let memo = offset * height;
-    if (offset > 5) {
-      memo -= 10 * height;
-    }
-    return memo;
-  });
+  const y = useTransform(mv, (latest) => (number - latest) * height);
 
   if (!isCurrent) return null;
 
@@ -39,9 +31,9 @@ function normalizeNearInteger(num: number): number {
   return Math.abs(num - nearest) < tolerance ? nearest : num;
 }
 
-function getValueRoundedToPlace(value: number, place: number): number {
-  const scaled = value / place;
-  return Math.floor(normalizeNearInteger(scaled));
+function getDigitForPlace(value: number, place: number): number {
+  const scaled = Math.floor(normalizeNearInteger(value / place));
+  return Math.abs(scaled % 10);
 }
 
 interface DigitProps {
@@ -53,18 +45,17 @@ interface DigitProps {
   damping?: number;
 }
 
-function Digit({ place, value, height, digitStyle, stiffness = 35, damping = 18 }: DigitProps) {
+function Digit({ place, value, height, digitStyle, stiffness = 40, damping = 20 }: DigitProps) {
   const isDecimal = place === '.';
   const numericPlace = typeof place === 'number' ? place : 1;
-  const valueRoundedToPlace = isDecimal ? 0 : getValueRoundedToPlace(value, numericPlace);
-  const animatedValue = useSpring(valueRoundedToPlace, { mass: 1, stiffness, damping });
-  const currentDigit = Math.abs(valueRoundedToPlace % 10);
+  const targetDigit = isDecimal ? 0 : getDigitForPlace(value, numericPlace);
+  const animatedValue = useSpring(targetDigit, { mass: 1, stiffness, damping });
 
   useEffect(() => {
     if (!isDecimal) {
-      animatedValue.set(valueRoundedToPlace);
+      animatedValue.set(targetDigit);
     }
-  }, [animatedValue, valueRoundedToPlace, isDecimal]);
+  }, [animatedValue, targetDigit, isDecimal]);
 
   if (isDecimal) {
     return (
@@ -77,7 +68,7 @@ function Digit({ place, value, height, digitStyle, stiffness = 35, damping = 18 
   return (
     <span className="counter-digit" style={{ height, ...digitStyle }}>
       {Array.from({ length: 10 }, (_, i) => (
-        <NumberDigit key={i} mv={animatedValue} number={i} height={height} isCurrent={i === currentDigit} />
+        <NumberDigit key={i} mv={animatedValue} number={i} height={height} isCurrent={i === targetDigit} />
       ))}
     </span>
   );

@@ -172,6 +172,128 @@ function shiftDate(dateStr: string, days: number): string {
   return `${ny}-${nm}-${nd}`;
 }
 
+function getWeekDays(centerDateStr: string): Array<{ iso: string; dayName: string; dayNum: number; isToday: boolean; isFuture: boolean }> {
+  const [y, m, d] = centerDateStr.split('-').map(Number);
+  const center = new Date(y, m - 1, d);
+  const todayStr = today();
+
+  const result = [];
+  for (let i = -3; i <= 3; i++) {
+    const dt = new Date(center);
+    dt.setDate(center.getDate() + i);
+    const iso = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+    const dayName = dt.toLocaleDateString('es-ES', { weekday: 'short' }).slice(0, 3).toUpperCase();
+    const dayNum = dt.getDate();
+    result.push({
+      iso,
+      dayName,
+      dayNum,
+      isToday: iso === todayStr,
+      isFuture: iso > todayStr,
+    });
+  }
+  return result;
+}
+
+function CyberDayStrip({ date, setDate }: { date: string; setDate: (d: string) => void }) {
+  const days = getWeekDays(date);
+
+  return (
+    <div
+      className="cyber-day-strip"
+      aria-label="Barra de calendario"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        background: 'var(--bg-surface)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 'var(--radius-lg)',
+        padding: '0.5rem 0.75rem',
+        marginBottom: '1.25rem',
+        boxShadow: 'var(--shadow-card)',
+        gap: '0.25rem',
+      }}
+    >
+      <button
+        type="button"
+        className="btn btn--quiet"
+        aria-label="Semana anterior"
+        title="Semana anterior"
+        style={{ padding: '0.4rem 0.6rem', borderRadius: 'var(--radius-md)' }}
+        onClick={() => setDate(shiftDate(date, -7))}
+      >
+        ‹‹
+      </button>
+
+      <div style={{ display: 'flex', gap: '0.35rem', flex: 1, justifyContent: 'center', overflowX: 'auto' }}>
+        {days.map((d) => {
+          const isSelected = d.iso === date;
+          return (
+            <button
+              key={d.iso}
+              type="button"
+              disabled={d.isFuture}
+              onClick={() => setDate(d.iso)}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '0.4rem 0.6rem',
+                minWidth: '44px',
+                borderRadius: 'var(--radius-md)',
+                background: isSelected ? 'var(--color-primary)' : 'var(--bg-elevated)',
+                color: isSelected ? 'oklch(0.12 0 0)' : d.isFuture ? 'var(--text-faint)' : 'var(--text-main)',
+                border: isSelected ? '1px solid var(--color-primary)' : '1px solid var(--border-subtle)',
+                fontWeight: isSelected ? 700 : 500,
+                cursor: d.isFuture ? 'not-allowed' : 'pointer',
+                opacity: d.isFuture ? 0.4 : 1,
+                transition: 'all var(--transition-fast)',
+                boxShadow: isSelected ? 'var(--shadow-glow)' : 'none',
+              }}
+            >
+              <span style={{ fontSize: '0.65rem', fontFamily: 'var(--font-mono)', opacity: 0.85, letterSpacing: '0.05em' }}>
+                {d.dayName}
+              </span>
+              <span style={{ fontSize: '1.05rem', fontWeight: 800, fontFamily: 'var(--font-sans)', lineHeight: 1.1 }}>
+                {d.dayNum}
+              </span>
+              {d.isToday && (
+                <span
+                  style={{
+                    width: '4px',
+                    height: '4px',
+                    borderRadius: '50%',
+                    background: isSelected ? 'oklch(0.12 0 0)' : 'var(--color-primary)',
+                    marginTop: '2px',
+                  }}
+                />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <button
+        type="button"
+        className="btn btn--quiet"
+        aria-label="Semana siguiente"
+        title="Semana siguiente"
+        disabled={shiftDate(date, 7) > today()}
+        style={{
+          padding: '0.4rem 0.6rem',
+          borderRadius: 'var(--radius-md)',
+          opacity: shiftDate(date, 7) > today() ? 0.3 : 1,
+        }}
+        onClick={() => setDate(shiftDate(date, 7))}
+      >
+        ››
+      </button>
+    </div>
+  );
+}
+
   return (
     <div className="shell" style={{ paddingBottom: '6rem' }}>
       <header className="topbar">
@@ -364,6 +486,8 @@ function shiftDate(dateStr: string, days: number): string {
           <Profile onSaved={() => load(date)} onClose={() => setShowProfile(false)} />
         </section>
       )}
+
+      <CyberDayStrip date={date} setDate={setDate} />
 
       <div className="columns">
         <section aria-labelledby="resumen">
@@ -737,6 +861,48 @@ function AddFood({ date, onAdded }: { date: string; onAdded: () => void }) {
 
   return (
     <div>
+      {/* Selector de tiempo de comida destacado (Desayuno, Almuerzo, Cena, Snacks) */}
+      <div
+        className="meal-selector-strip"
+        style={{
+          display: 'flex',
+          background: 'var(--bg-elevated)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: 'var(--radius-md)',
+          padding: '3px',
+          gap: '3px',
+          marginBottom: 'var(--space-md)',
+        }}
+      >
+        {MEALS.map(([key, label]) => {
+          const isSelected = meal === key;
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setMeal(key)}
+              style={{
+                flex: 1,
+                padding: '0.45rem 0.2rem',
+                fontSize: '0.75rem',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: isSelected ? 700 : 500,
+                borderRadius: 'var(--radius-sm)',
+                background: isSelected ? 'var(--color-primary)' : 'transparent',
+                color: isSelected ? 'oklch(0.12 0 0)' : 'var(--text-muted)',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all var(--transition-fast)',
+                textAlign: 'center',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
       {/* Patrón combobox de ARIA: el input conserva el foco y las flechas
           mueven un descendiente activo. Sin esto un lector de pantalla no
           anuncia que aparecieron resultados. */}
