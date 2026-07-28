@@ -1,36 +1,24 @@
-/* Hallmark · component-scope app shell · genre: modern-minimal
- * paper: light warm-neutral · display: classical-serif · accent: chromatic-green
- * pre-emit critique: P4 H4 E4 S4 R5 V4
- */
-
 :root {
-  /* Color */
-  --color-paper: oklch(98.2% 0.006 95);
-  --color-paper-2: oklch(96% 0.008 95);
-  --color-paper-3: oklch(93% 0.01 95);
-  --color-ink: oklch(22% 0.012 95);
-  --color-ink-2: oklch(48% 0.012 95);
-  --color-ink-3: oklch(40% 0.012 95);
-  --color-rule: oklch(88% 0.01 95);
-  --color-accent: oklch(36% 0.13 152);
-  --color-accent-soft: oklch(94% 0.03 152);
-  --color-btn-text: oklch(99% 0.005 95);
-  --color-danger: oklch(50% 0.18 27);
-  --color-danger-soft: oklch(95% 0.03 27);
-  --color-focus: oklch(45% 0.18 250);
-
-  /* Macros: paleta categórica validada con scripts/validate_palette.js
-   * (banda de luminosidad, piso de croma, separación CVD con todos los pares,
-   * piso de visión normal y contraste contra el papel). La luminosidad está
-   * escalonada a propósito: en visión deutan el rojo y el ámbar solo se
-   * distinguen por luminosidad, no por tono. */
-  --color-protein: oklch(48% 0.19 18);
-  --color-carbs: oklch(62% 0.14 95);
-  --color-fat: oklch(56% 0.16 265);
-
-  /* Tipografía */
+  /* Typography & Geometry */
   --font-display: 'Plus Jakarta Sans', Inter, system-ui, sans-serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
   --font-body: Inter, system-ui, sans-serif;
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --radius-full: 9999px;
+
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-bounce: 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 150ms;
+  --dur-base: 250ms;
+
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
   --text-base: 1rem;
@@ -38,7 +26,6 @@
   --text-xl: 1.75rem;
   --text-display: clamp(2.25rem, 6vw, 3.5rem);
 
-  /* Espaciado, escala de 4pt */
   --space-2xs: 0.25rem;
   --space-xs: 0.5rem;
   --space-sm: 0.75rem;
@@ -46,38 +33,88 @@
   --space-lg: 1.5rem;
   --space-xl: 2.5rem;
   --space-2xl: 4rem;
-
-  --radius-sm: 4px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
-  --rule: 1px solid var(--color-rule);
-  --shadow-card: 0 1px 2px oklch(0% 0 0 / 0.04), 0 8px 24px -12px oklch(0% 0 0 / 0.12);
-
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
-  --dur-fast: 120ms;
-  --dur-base: 200ms;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-paper: oklch(19% 0.008 95);
-    --color-paper-2: oklch(23% 0.009 95);
-    --color-paper-3: oklch(27% 0.01 95);
-    --color-ink: oklch(95% 0.006 95);
-    --color-ink-2: oklch(76% 0.008 95);
-    --color-ink-3: oklch(76% 0.008 95);
-    --color-rule: oklch(32% 0.01 95);
-    --color-accent: oklch(76% 0.14 152);
-    --color-accent-soft: oklch(30% 0.05 152);
-    --color-btn-text: oklch(12% 0.01 95);
-    --color-danger: oklch(72% 0.16 27);
-    --color-danger-soft: oklch(30% 0.06 27);
-    --color-focus: oklch(74% 0.15 250);
-    --shadow-card: 0 1px 2px oklch(0% 0 0 / 0.3), 0 8px 24px -12px oklch(0% 0 0 / 0.5);
-    /* Revalidada contra la superficie oscura, no invertida automáticamente. */
-    --color-protein: oklch(55% 0.19 18);
-    --color-carbs: oklch(66% 0.14 95);
-    --color-fat: oklch(62% 0.16 265);
-  }
+/* DARK MODE (PREDETERMINADO :: HIGH CONTRAST CYBER) */
+:root, [data-theme="dark"] {
+  /* Surfaces */
+  --bg-base: oklch(0.13 0.015 260);
+  --bg-surface: oklch(0.17 0.02 260);
+  --bg-surface-hover: oklch(0.21 0.025 260);
+  --bg-elevated: oklch(0.24 0.03 260);
+
+  /* Mapeos para compatibilidad */
+  --color-paper: var(--bg-surface);
+  --color-paper-2: var(--bg-elevated);
+  --color-paper-3: var(--bg-surface-hover);
+
+  /* Borders & Glass Effects */
+  --border-subtle: oklch(0.28 0.025 260 / 0.6);
+  --border-strong: oklch(0.38 0.04 260);
+  --border-glow: oklch(0.82 0.22 145 / 0.25);
+  --color-rule: oklch(0.28 0.025 260 / 0.8);
+  --rule: 1px solid var(--border-subtle);
+
+  /* Typography Colors */
+  --text-main: oklch(0.98 0.005 260);
+  --text-muted: oklch(0.65 0.02 260);
+  --text-faint: oklch(0.45 0.02 260);
+
+  --color-ink: var(--text-main);
+  --color-ink-2: var(--text-muted);
+  --color-ink-3: var(--text-faint);
+
+  /* Fitness Domain Accents (OKLCH :: L C H) */
+  --color-primary: oklch(0.82 0.22 145);       /* Electric Lime / Energy */
+  --color-accent: var(--color-primary);
+  --color-accent-soft: oklch(0.82 0.22 145 / 0.15);
+  --color-btn-text: oklch(0.12 0 0);
+
+  --color-calories: oklch(0.82 0.22 145);      /* Emerald Lime */
+  --color-protein: oklch(0.72 0.20 230);       /* Cyber Cyan */
+  --color-carbs: oklch(0.80 0.19 65);          /* Amber Coral */
+  --color-fats: oklch(0.75 0.21 320);           /* Neon Violet */
+  --color-fat: var(--color-fats);
+  --color-water: oklch(0.70 0.19 240);          /* Azure Blue */
+
+  --color-danger: oklch(0.72 0.18 27);
+  --color-danger-soft: oklch(0.72 0.18 27 / 0.15);
+  --color-focus: oklch(0.82 0.22 145);
+
+  /* Glows & Shadows */
+  --shadow-card: 0 12px 32px -8px oklch(0 0 0 / 0.6);
+  --shadow-glow: 0 0 20px -3px oklch(0.82 0.22 145 / 0.2);
+  --glass-blur: blur(16px) saturate(180%);
+}
+
+/* LIGHT MODE OVERRIDES */
+[data-theme="light"] {
+  --bg-base: oklch(0.97 0.005 260);
+  --bg-surface: oklch(1 0 0);
+  --bg-surface-hover: oklch(0.95 0.01 260);
+  --bg-elevated: oklch(0.93 0.015 260);
+
+  --color-paper: var(--bg-surface);
+  --color-paper-2: var(--bg-elevated);
+  --color-paper-3: var(--bg-surface-hover);
+
+  --border-subtle: oklch(0.90 0.01 260);
+  --border-strong: oklch(0.82 0.02 260);
+  --color-rule: var(--border-subtle);
+  --rule: 1px solid var(--border-subtle);
+
+  --text-main: oklch(0.18 0.02 260);
+  --text-muted: oklch(0.48 0.02 260);
+  --text-faint: oklch(0.68 0.02 260);
+
+  --color-ink: var(--text-main);
+  --color-ink-2: var(--text-muted);
+  --color-ink-3: var(--text-faint);
+
+  --color-primary: oklch(0.38 0.15 152);
+  --color-accent: var(--color-primary);
+  --color-btn-text: oklch(0.99 0.005 260);
+
+  --shadow-card: 0 10px 30px -5px oklch(0 0 0 / 0.06);
+  --shadow-glow: 0 0 20px -3px oklch(0.38 0.15 152 / 0.1);
 }
