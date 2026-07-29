@@ -175,17 +175,40 @@ export function RecetasView() {
       {loading ? (
         <p className="muted">Cargando recetas...</p>
       ) : recipes.length === 0 ? (
-        <section className="card" style={{ textAlign: 'center', padding: 'var(--space-xl)' }}>
-          <h3 className="card__title" style={{ marginBottom: 'var(--space-xs)' }}>
-            Aún no guardaste ninguna receta
-          </h3>
-          <p className="muted" style={{ maxWidth: '44ch', margin: '0 auto 1.5rem' }}>
-            Agrupá ingredientes frecuentes para calcular las calorías por porción y cargarlos al diario con un solo click.
-          </p>
-          <button type="button" className="btn" onClick={() => setShowCreateModal(true)}>
-            Crear mi primera receta
-          </button>
-        </section>
+        <div className="stack" style={{ gap: 'var(--space-md)' }}>
+          <div>
+            <span className="eyebrow" style={{ color: 'var(--color-primary)', display: 'block', marginBottom: '0.4rem' }}>
+              Ideas de Recetas & Inspiración
+            </span>
+            <InfiniteMenu
+              items={[
+                { title: 'Wok de Pollo y Vegetales', description: '450 kcal · 42g P / porción', image: 'https://picsum.photos/300/300?random=101' },
+                { title: 'Bowl Proteico de Atún', description: '520 kcal · 38g P / porción', image: 'https://picsum.photos/300/300?random=102' },
+                { title: 'Smoothie Verde Fit', description: '210 kcal · 15g P / porción', image: 'https://picsum.photos/300/300?random=103' },
+                { title: 'Omelette de Claras', description: '290 kcal · 30g P / porción', image: 'https://picsum.photos/300/300?random=104' },
+                { title: 'Ensalada Caesar Fit', description: '380 kcal · 35g P / porción', image: 'https://picsum.photos/300/300?random=105' },
+              ].map((s) => ({
+                ...s,
+                onClick: () => {
+                  setRecipeName(s.title);
+                  setShowCreateModal(true);
+                },
+              }))}
+            />
+          </div>
+
+          <section className="card" style={{ textAlign: 'center', padding: 'var(--space-xl)' }}>
+            <h3 className="card__title" style={{ marginBottom: 'var(--space-xs)' }}>
+              Aún no guardaste ninguna receta
+            </h3>
+            <p className="muted" style={{ maxWidth: '44ch', margin: '0 auto 1.5rem' }}>
+              Toca una idea de arriba o creá una personalizada para agrupar tus ingredientes frecuentes.
+            </p>
+            <button type="button" className="btn" onClick={() => setShowCreateModal(true)}>
+              Crear mi primera receta
+            </button>
+          </section>
+        </div>
       ) : (
         <>
           <div style={{ marginBottom: 'var(--space-sm)' }}>
