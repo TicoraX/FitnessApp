@@ -146,10 +146,10 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
       <header className="topbar">
         <span className="topbar__mark">FitTrack</span>
         <div style={{ display: 'flex', gap: 'var(--space-xs)' }}>
-          <button className="btn btn--quiet" onClick={() => setShowProfile(true)}>
+          <button type="button" className="btn btn--quiet" onClick={() => setShowProfile(true)}>
             Perfil
           </button>
-          <button className="btn btn--quiet" onClick={onLogout}>
+          <button type="button" className="btn btn--quiet" onClick={onLogout}>
             Salir
           </button>
         </div>

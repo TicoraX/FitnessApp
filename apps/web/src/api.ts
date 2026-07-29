@@ -37,10 +37,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
 
-  const body = await res.json().catch(() => null);
-
-  // El login y el registro también devuelven 401/409; ahí el 401 es
-  // "credenciales incorrectas", no una sesión vencida.
   if (res.status === 401 && token && !path.startsWith('/auth/')) {
     setToken(null);
     notificarCambio('sesion-cerrada');
@@ -48,6 +44,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError('La sesión venció. Entrá de nuevo.');
   }
 
+  const body = res.status !== 204 ? await res.json().catch(() => null) : null;
+
+  // El login y el registro también devuelven 401/409; ahí el 401 es
+  // "credenciales incorrectas", no una sesión vencida.
   if (!res.ok) {
     const detail = body?.message;
     throw new ApiError(

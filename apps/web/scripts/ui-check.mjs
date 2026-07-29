@@ -392,12 +392,15 @@ try {
     await page.locator('.modal-overlay .result').first().click({ timeout: 10_000 });
     await page.getByRole('button', { name: 'Guardar Receta' }).click();
 
-    await page.waitForSelector('text=Guiso de prueba', { timeout: 10_000 });
+    // La tarjeta, no cualquier texto: el mensaje de confirmación también
+    // contiene el nombre de la receta y quedaría matcheando siempre.
+    const tarjeta = page.locator('.card--raised', { hasText: 'Guiso de prueba' });
+    await tarjeta.waitFor({ timeout: 10_000 });
 
     // Un solo clic no borra: primero pide confirmación.
     await page.getByRole('button', { name: 'Borrar la receta Guiso de prueba' }).click();
     assert.equal(await page.getByRole('button', { name: 'Confirmar' }).count(), 1);
-    assert.ok(await page.locator('text=Guiso de prueba').count(), 'se borró sin confirmar');
+    assert.equal(await tarjeta.count(), 1, 'se borró sin confirmar');
 
     // Cancelar la deja donde estaba.
     await page.getByRole('button', { name: 'Cancelar' }).click();
@@ -405,7 +408,7 @@ try {
 
     await page.getByRole('button', { name: 'Borrar la receta Guiso de prueba' }).click();
     await page.getByRole('button', { name: 'Confirmar' }).click();
-    await page.waitForSelector('text=Guiso de prueba', { state: 'detached', timeout: 10_000 });
+    await tarjeta.waitFor({ state: 'detached', timeout: 10_000 });
   });
 
   await step('el tablero de progreso muestra rachas, adherencia y gráfico de barras', async () => {

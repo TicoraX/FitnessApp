@@ -93,7 +93,7 @@ export function PerfilView({
           <span>
             Estás usando una <b>cuenta de invitado</b>. Agregá email y contraseña para no perder tus datos.
           </span>
-          <button className="btn" onClick={() => setShowClaimModal(true)}>
+          <button type="button" className="btn" onClick={() => setShowClaimModal(true)}>
             Guardar cuenta permanente
           </button>
         </div>

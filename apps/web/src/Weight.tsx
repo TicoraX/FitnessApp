@@ -107,6 +107,7 @@ export function Weight({ onGoalChanged }: { onGoalChanged: () => void }) {
           onKeyDown={(e) => e.key === 'Enter' && submit()}
         />
         <button
+          type="button"
           className="btn"
           onClick={submit}
           disabled={busy || !value}
