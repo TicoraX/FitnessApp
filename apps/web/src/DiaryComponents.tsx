@@ -182,12 +182,13 @@ export function Dial({ day }: { day: DaySummary }) {
 
   return (
     <div className="dial">
-      <meter
+      <div
         className="ring"
+        role="meter"
         aria-label="Calorías del día"
-        value={totals.calories}
-        min={0}
-        max={goal || undefined}
+        aria-valuenow={totals.calories}
+        aria-valuemin={0}
+        aria-valuemax={goal || undefined}
         style={
           { '--pct': pct, '--ring-color': over ? 'var(--color-danger)' : undefined } as CSSProperties
         }
@@ -234,15 +235,16 @@ export function Macros({ day }: { day: DaySummary }) {
                 {m.eaten} g{goal > 0 && ` / ${Math.round(goal)} g`}
               </span>
             </div>
-            <meter
+            <div
               className="macro__track"
+              role="meter"
               aria-label={m.label}
-              value={m.eaten}
-              min={0}
-              max={goal || undefined}
+              aria-valuenow={m.eaten}
+              aria-valuemin={0}
+              aria-valuemax={goal || undefined}
             >
               <div className="macro__fill" data-over={goal > 0 && m.eaten > goal} style={{ width: `${pct}%` }} />
-            </meter>
+            </div>
           </div>
         );
       })}
