@@ -36,11 +36,35 @@ Con el API arriba, en otra terminal:
 cd apps/web && npm install && npm run dev    # http://localhost:5177
 ```
 
-- `npm test` en `apps/api`: unitarios del motor metabólico, totales y búsqueda.
+- `npm test` en `apps/api`: unitarios del motor metabólico, totales, búsqueda y
+  el mapeo de OpenFoodFacts.
 - `npm run smoke` en `apps/api`: recorre el flujo completo contra el API real
   (registro, login, búsqueda, alta de comidas, totales y casos de error).
   El limiter de auth es de 5/15min, así que no lo corras más de dos veces
   seguidas.
+- `npm run contrast:check` en `apps/web`: contraste WCAG de la paleta en los dos
+  temas.
+
+## Catálogo de alimentos
+
+El seed trae 30 alimentos de referencia. Para un catálogo real se importa el
+dump de OpenFoodFacts, que se procesa en streaming:
+
+```bash
+cd apps/api
+npm run import:off -- --file ./openfoodfacts-products.jsonl.gz --limit 5000 --dry-run
+npm run import:off -- --file ./openfoodfacts-products.jsonl.gz
+```
+
+El `--dry-run` cuenta cuánto entra y cuánto se descarta por cada filtro de
+calidad sin escribir nada. Antes de una carga masiva hay que bajar los dos
+índices GIN de búsqueda a mano: el encabezado del script tiene el runbook y
+explica por qué no está automatizado.
+
+Un alimento cargado por un usuario nunca se pisa, aunque comparta código de
+barras con uno del dump. Aparte, si se consulta un código que no está en la
+base, el API lo busca en vivo en OpenFoodFacts, lo guarda y lo devuelve; si no
+lo encuentra o la consulta tarda más de 2s, responde 404 como siempre.
 
 ## Endpoints
 

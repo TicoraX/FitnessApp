@@ -20,6 +20,12 @@ enum UnitPreference {
   imperial
 }
 
+enum FoodSource {
+  user
+  openfoodfacts
+  curated
+}
+
 model User {
   id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email          String?        @unique @db.VarChar(255)
@@ -71,6 +77,11 @@ model FoodItem {
   name              String   @db.VarChar(255)
   brand             String?  @db.VarChar(255)
   verified          Boolean  @default(false)
+  /// Procedencia y confianza son preguntas distintas y verified sola no las
+  /// sostiene: sirve para distinguir en la UI un alimento que cargó el usuario
+  /// de uno importado, y para desempatar la búsqueda si el catálogo importado
+  /// termina tapando al curado.
+  source            FoodSource @default(user)
   servingSizeAmount Decimal  @map("serving_size_amount") @db.Decimal(8, 2)
   servingSizeUnit   String   @map("serving_size_unit") @db.VarChar(50)
   calories          Int

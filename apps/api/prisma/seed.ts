@@ -53,6 +53,7 @@ async function main() {
         name,
         brand,
         verified: true,
+        source: 'curated',
         servingSizeAmount: amount,
         servingSizeUnit: unit,
         calories: kcal,

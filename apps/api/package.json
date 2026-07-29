@@ -10,6 +10,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:generate": "prisma generate",
     "seed": "prisma db seed",
+    "import:off": "ts-node scripts/import-off.ts",
     "smoke": "node scripts/smoke.mjs",
     "probe": "node scripts/probe.mjs",
     "test": "jest"

@@ -125,6 +125,29 @@ await check('query de una letra devuelve vacío', async () => {
   assert.deepEqual(body.data, []);
 });
 
+await check('la búsqueda dice de dónde salió cada alimento', async () => {
+  assert.equal(pollo.source, 'curated', `source llegó como ${pollo.source}`);
+});
+
+/**
+ * El código no existe en ningún catálogo, así que este check no depende de que
+ * OpenFoodFacts esté arriba: si contesta, dice que no lo tiene; si no contesta,
+ * el timeout de 2s cae al mismo 404. Lo que se verifica es que agregar el
+ * fallback en vivo no haya cambiado el contrato de "no está".
+ */
+await check('un código de barras que no existe sigue dando 404', async () => {
+  const { status } = await call('GET', '/foods/barcode/00000000000000');
+  assert.equal(status, 404);
+});
+
+await check('un código de barras mal formado se rechaza sin salir a la red', async () => {
+  const t0 = Date.now();
+  assert.equal((await call('GET', '/foods/barcode/123')).status, 400);
+  assert.equal((await call('GET', '/foods/barcode/abcdefghij')).status, 400);
+  // Si validara después de consultar OFF, esto tardaría segundos.
+  assert.ok(Date.now() - t0 < 1000, 'el formato se valida después de salir a la red');
+});
+
 console.log('\nDiario');
 
 const day = new Date().toISOString().slice(0, 10);
