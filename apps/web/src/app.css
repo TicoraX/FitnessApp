@@ -271,6 +271,13 @@ a {
   flex-wrap: wrap;
 }
 
+/* Todas las cifras en tabular mono tipo HUD de telemetría. */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+
 .ring {
   --pct: 0;
   position: relative;
@@ -280,11 +287,13 @@ a {
   border-radius: 50%;
   background: conic-gradient(
     from 0deg,
-    var(--ring-color, var(--color-accent)) calc(var(--pct) * 3.6deg),
-    var(--color-paper-3) 0
+    var(--ring-color, var(--color-primary)) 0%,
+    var(--color-protein) calc(var(--pct) * 3.6deg),
+    var(--bg-elevated) 0
   );
   /* Dona: el mask evita un pseudo-elemento y un color de fondo que mantener. */
   mask: radial-gradient(farthest-side, transparent calc(100% - 10px), black calc(100% - 9px));
+  filter: drop-shadow(0 0 10px oklch(0.82 0.22 145 / 0.35));
   transition: --pct var(--dur-base) var(--ease-out);
 }
 
@@ -294,10 +303,11 @@ a {
 
 .calories__value {
   display: block;
-  font-family: var(--font-display);
+  font-family: var(--font-mono);
+  font-weight: 800;
   font-size: var(--text-display);
   line-height: 1;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
 }
 
 .dial__unit {

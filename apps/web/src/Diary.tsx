@@ -79,7 +79,7 @@ function CyberDayStrip({ date, setDate }: { date: string; setDate: (d: string) =
         background: 'var(--bg-surface)',
         border: '1px solid var(--border-subtle)',
         borderRadius: 'var(--radius-lg)',
-        padding: '0.5rem 0.75rem',
+        padding: '0.4rem 0.6rem',
         marginBottom: '1.25rem',
         boxShadow: 'var(--shadow-card)',
         gap: '0.25rem',
@@ -90,13 +90,13 @@ function CyberDayStrip({ date, setDate }: { date: string; setDate: (d: string) =
         className="btn btn--quiet"
         aria-label="Semana anterior"
         title="Semana anterior"
-        style={{ padding: '0.4rem 0.6rem', borderRadius: 'var(--radius-md)' }}
+        style={{ padding: '0.3rem 0.5rem', borderRadius: 'var(--radius-md)', fontSize: '0.8rem' }}
         onClick={() => setDate(shiftDate(date, -7))}
       >
         ‹‹
       </button>
 
-      <div style={{ display: 'flex', gap: '0.35rem', flex: 1, justifyContent: 'center', overflowX: 'auto' }}>
+      <div style={{ display: 'flex', gap: '0.25rem', flex: 1, justifyContent: 'center', overflowX: 'auto' }}>
         {days.map((d) => {
           const isSelected = d.iso === date;
           return (
@@ -110,33 +110,36 @@ function CyberDayStrip({ date, setDate }: { date: string; setDate: (d: string) =
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                padding: '0.4rem 0.6rem',
-                minWidth: '44px',
+                padding: '0.35rem 0.5rem',
+                minWidth: '42px',
                 borderRadius: 'var(--radius-md)',
-                background: isSelected ? 'var(--color-primary)' : 'var(--bg-elevated)',
-                color: isSelected ? 'oklch(0.12 0 0)' : d.isFuture ? 'var(--text-faint)' : 'var(--text-main)',
-                border: isSelected ? '1px solid var(--color-primary)' : '1px solid var(--border-subtle)',
+                background: isSelected ? 'oklch(0.82 0.22 145 / 0.15)' : 'transparent',
+                color: isSelected ? 'var(--color-primary)' : d.isFuture ? 'var(--text-faint)' : 'var(--text-muted)',
+                border: isSelected ? '1px solid var(--color-primary)' : '1px solid transparent',
                 fontWeight: isSelected ? 700 : 500,
                 cursor: d.isFuture ? 'not-allowed' : 'pointer',
-                opacity: d.isFuture ? 0.4 : 1,
+                opacity: d.isFuture ? 0.35 : 1,
                 transition: 'all var(--transition-fast)',
                 boxShadow: isSelected ? 'var(--shadow-glow)' : 'none',
+                position: 'relative',
               }}
             >
-              <span style={{ fontSize: '0.65rem', fontFamily: 'var(--font-mono)', opacity: 0.85, letterSpacing: '0.05em' }}>
+              <span style={{ fontSize: '0.6rem', fontFamily: 'var(--font-mono)', letterSpacing: '0.05em', opacity: isSelected ? 1 : 0.7 }}>
                 {d.dayName}
               </span>
-              <span style={{ fontSize: '1.05rem', fontWeight: 800, fontFamily: 'var(--font-sans)', lineHeight: 1.1 }}>
+              <span style={{ fontSize: '0.95rem', fontWeight: 800, fontFamily: 'var(--font-mono)', lineHeight: 1.1 }}>
                 {d.dayNum}
               </span>
               {d.isToday && (
                 <span
                   style={{
-                    width: '4px',
-                    height: '4px',
-                    borderRadius: '50%',
-                    background: isSelected ? 'oklch(0.12 0 0)' : 'var(--color-primary)',
-                    marginTop: '2px',
+                    position: 'absolute',
+                    bottom: '2px',
+                    width: '12px',
+                    height: '2px',
+                    borderRadius: 'var(--radius-full)',
+                    background: 'var(--color-primary)',
+                    boxShadow: '0 0 6px var(--color-primary)',
                   }}
                 />
               )}
@@ -152,8 +155,9 @@ function CyberDayStrip({ date, setDate }: { date: string; setDate: (d: string) =
         title="Semana siguiente"
         disabled={shiftDate(date, 7) > today()}
         style={{
-          padding: '0.4rem 0.6rem',
+          padding: '0.3rem 0.5rem',
           borderRadius: 'var(--radius-md)',
+          fontSize: '0.8rem',
           opacity: shiftDate(date, 7) > today() ? 0.3 : 1,
         }}
         onClick={() => setDate(shiftDate(date, 7))}
@@ -995,13 +999,13 @@ function AddFood({ date, onAdded }: { date: string; onAdded: () => void }) {
       </ul>
 
       {selected && (
-        <div className="food-preview card" style={{ marginTop: 'var(--space-md)', background: 'var(--color-paper-2)', border: 'var(--rule)', padding: 'var(--space-md)' }}>
+        <div className="food-preview" style={{ marginTop: 'var(--space-md)', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 'var(--space-md)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--space-xs)' }}>
             <div>
-              <strong style={{ fontSize: 'var(--text-base)', display: 'block' }}>{selected.name}</strong>
+              <strong style={{ fontSize: 'var(--text-base)', display: 'block', color: 'var(--text-main)' }}>{selected.name}</strong>
               {selected.brand && <span className="muted" style={{ fontSize: 'var(--text-xs)' }}>{selected.brand}</span>}
             </div>
-            <span className="num" style={{ fontSize: 'var(--text-lg)', fontWeight: 'bold', color: 'var(--color-accent)' }}>
+            <span className="num" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-primary)', fontFamily: 'var(--font-mono)' }}>
               {Math.round(selected.calories * (Number(servings) || 1))} kcal
             </span>
           </div>
@@ -1029,7 +1033,7 @@ function AddFood({ date, onAdded }: { date: string; onAdded: () => void }) {
                   }
                 }}
                 aria-label="Unidad de medida"
-                style={{ fontSize: 'var(--text-sm)', width: '100%' }}
+                style={{ fontSize: 'var(--text-sm)', width: '100%', fontFamily: 'var(--font-mono)' }}
               >
                 <option value="serving">1 porción ({selected.serving_size_amount} {selected.serving_size_unit})</option>
                 {selected.serving_size_unit === 'g' || selected.serving_size_unit === 'ml' ? (
@@ -1065,32 +1069,32 @@ function AddFood({ date, onAdded }: { date: string; onAdded: () => void }) {
                   }
                 }}
                 aria-label="Porciones"
-                style={{ width: '100%' }}
+                style={{ width: '100%', fontFamily: 'var(--font-mono)', fontWeight: 700 }}
               />
             </div>
           </div>
 
-          <div className="nutrition-preview" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 'var(--space-2xs)', textAlign: 'center', background: 'var(--color-paper)', padding: 'var(--space-xs)', borderRadius: 'var(--radius-sm)', border: 'var(--rule)', marginBottom: 'var(--space-md)' }}>
+          <div className="nutrition-preview" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 'var(--space-2xs)', textAlign: 'center', padding: '0.4rem 0', marginBottom: 'var(--space-sm)' }}>
             <div>
-              <span className="muted" style={{ fontSize: 'var(--text-xs)', display: 'block' }}>Proteína</span>
+              <span className="muted" style={{ fontSize: '0.65rem', display: 'block', fontFamily: 'var(--font-mono)' }}>PRO</span>
               <strong className="num" style={{ fontSize: 'var(--text-sm)', color: 'var(--color-protein)' }}>
                 {(selected.protein * (Number(servings) || 1)).toFixed(1)}g
               </strong>
             </div>
             <div>
-              <span className="muted" style={{ fontSize: 'var(--text-xs)', display: 'block' }}>Carbos</span>
+              <span className="muted" style={{ fontSize: '0.65rem', display: 'block', fontFamily: 'var(--font-mono)' }}>CHO</span>
               <strong className="num" style={{ fontSize: 'var(--text-sm)', color: 'var(--color-carbs)' }}>
                 {(selected.carbohydrates * (Number(servings) || 1)).toFixed(1)}g
               </strong>
             </div>
             <div>
-              <span className="muted" style={{ fontSize: 'var(--text-xs)', display: 'block' }}>Grasa</span>
-              <strong className="num" style={{ fontSize: 'var(--text-sm)', color: 'var(--color-fat)' }}>
+              <span className="muted" style={{ fontSize: '0.65rem', display: 'block', fontFamily: 'var(--font-mono)' }}>FAT</span>
+              <strong className="num" style={{ fontSize: 'var(--text-sm)', color: 'var(--color-fats)' }}>
                 {(selected.fat * (Number(servings) || 1)).toFixed(1)}g
               </strong>
             </div>
             <div>
-              <span className="muted" style={{ fontSize: 'var(--text-xs)', display: 'block' }}>Fibra</span>
+              <span className="muted" style={{ fontSize: '0.65rem', display: 'block', fontFamily: 'var(--font-mono)' }}>FIB</span>
               <strong className="num" style={{ fontSize: 'var(--text-sm)' }}>
                 {((selected.fiber || 0) * (Number(servings) || 1)).toFixed(1)}g
               </strong>
