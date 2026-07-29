@@ -307,8 +307,50 @@ try {
     await page.waitForSelector('.barcode-scanner-overlay', { timeout: 5_000 });
     await shot('12-barcode-scanner');
 
-    await page.getByRole('button', { name: 'Cerrar ✕' }).click();
+    await page.getByRole('button', { name: 'Cerrar' }).click();
     assert.equal(await page.locator('.barcode-scanner-overlay').count(), 0);
+  });
+
+  /**
+   * Safari de iOS no tiene BarcodeDetector. Antes se encendía la cámara igual y
+   * el usuario quedaba apuntando a un código que nunca se iba a leer, sin un
+   * mensaje que lo explicara.
+   */
+  await step('sin lector nativo, el escáner lo dice y no pide cámara', async () => {
+    // Contexto aparte para que el borrado de BarcodeDetector no contamine los
+    // pasos siguientes; el token se copia a mano porque no comparten storage.
+    const token = await page.evaluate(() => localStorage.getItem('fittrack.token'));
+    const contexto = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    const sinLector = await contexto.newPage();
+    let pidioCamara = false;
+
+    await sinLector.addInitScript((t) => {
+      localStorage.setItem('fittrack.token', t);
+      delete window.BarcodeDetector;
+      const original = navigator.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices);
+      if (original) {
+        navigator.mediaDevices.getUserMedia = (...args) => {
+          window.__pidioCamara = true;
+          return original(...args);
+        };
+      }
+    }, token);
+
+    await sinLector.goto(`${BASE}/#/diario`);
+    await sinLector.waitForSelector('.view-diario', { timeout: 10_000 });
+    await sinLector.getByRole('button', { name: 'Escanear código de barras' }).click();
+    await sinLector.waitForSelector('.barcode-scanner-overlay', { timeout: 5_000 });
+
+    const aviso = await sinLector.locator('.barcode-scanner-overlay .alert').innerText();
+    assert.match(aviso, /no puede leer códigos con la cámara/i);
+
+    // El ingreso manual tiene que quedar disponible: es la única salida.
+    assert.equal(await sinLector.getByLabel('Código de barras manual').count(), 1);
+
+    pidioCamara = await sinLector.evaluate(() => Boolean(window.__pidioCamara));
+    assert.equal(pidioCamara, false, 'pidió permiso de cámara sin poder usarla');
+
+    await contexto.close();
   });
 
   await step('el registro rápido permite agregar calorías directamente', async () => {
@@ -316,7 +358,7 @@ try {
     await page.waitForSelector('.view-diario', { timeout: 10_000 });
 
     await page.getByRole('button', { name: /Registro rápido/i }).click();
-    await page.getByPlaceholder('Descripción (ej: Almuerzo afuero)').fill('Empanada al paso');
+    await page.getByPlaceholder('Descripción (ej: Almuerzo afuera)').fill('Empanada al paso');
     await page.getByPlaceholder('Calorías *').fill('350');
     await page.getByRole('button', { name: 'Agregar Registro Rápido' }).click();
 

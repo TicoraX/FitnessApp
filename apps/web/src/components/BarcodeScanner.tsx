@@ -14,6 +14,15 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState('');
   const [manualCode, setManualCode] = useState('');
+  /** Sin lector no se muestra el recuadro de video: no habría nada que mirar. */
+  const [sinCamara, setSinCamara] = useState(false);
+
+  // Escape cierra, como cualquier capa que tape la pantalla.
+  useEffect(() => {
+    const cerrar = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', cerrar);
+    return () => window.removeEventListener('keydown', cerrar);
+  }, [onClose]);
 
   useEffect(() => {
     let stream: MediaStream | null = null;
@@ -22,7 +31,21 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
 
     async function startCamera() {
       try {
+        /**
+         * Se chequea el detector ANTES de pedir la cámara. Safari de iOS no
+         * tiene BarcodeDetector, y encender la cámara igual dejaba al usuario
+         * apuntando a un código que nunca se iba a leer, sin un solo mensaje
+         * que se lo dijera. Pedir un permiso que no se puede aprovechar es
+         * peor que no pedirlo: acá se va directo al ingreso manual.
+         */
+        if (!('BarcodeDetector' in window)) {
+          setSinCamara(true);
+          setError('Este navegador no puede leer códigos con la cámara. Escribí el código y listo.');
+          return;
+        }
+
         if (!navigator.mediaDevices?.getUserMedia) {
+          setSinCamara(true);
           setError('Tu navegador no permite acceso a la cámara. Ingresá el código manualmente.');
           return;
         }
@@ -36,33 +59,30 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
           await videoRef.current.play();
         }
 
-        // Si BarcodeDetector nativo está disponible (Chrome/Android)
-        if ('BarcodeDetector' in window) {
-          const Detector = (window as any).BarcodeDetector;
-          const detector = new Detector({
-            formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39'],
-          });
+        const Detector = (window as any).BarcodeDetector;
+        const detector = new Detector({
+          formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39'],
+        });
 
-          const scanLoop = async () => {
-            if (!active || !videoRef.current) return;
-            try {
-              if (videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
-                const barcodes = await detector.detect(videoRef.current);
-                if (barcodes.length > 0 && barcodes[0].rawValue) {
-                  onDetected(barcodes[0].rawValue);
-                  return; // detiene el loop tras detectar
-                }
+        const scanLoop = async () => {
+          if (!active || !videoRef.current) return;
+          try {
+            if (videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
+              const barcodes = await detector.detect(videoRef.current);
+              if (barcodes.length > 0 && barcodes[0].rawValue) {
+                onDetected(barcodes[0].rawValue);
+                return; // detiene el loop tras detectar
               }
-            } catch {
-              // Ignorar errores de frame para continuar el loop de detección
             }
-            if (active) {
-              animationFrameId = requestAnimationFrame(scanLoop);
-            }
-          };
+          } catch {
+            // Ignorar errores de frame para continuar el loop de detección
+          }
+          if (active) {
+            animationFrameId = requestAnimationFrame(scanLoop);
+          }
+        };
 
-          animationFrameId = requestAnimationFrame(scanLoop);
-        }
+        animationFrameId = requestAnimationFrame(scanLoop);
       } catch (err) {
         if (!active) return;
         const msg = err instanceof Error ? err.message : String(err);
@@ -100,6 +120,9 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
   return (
     <div
       className="barcode-scanner-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Escanear código de barras"
       style={{
         position: 'fixed',
         inset: 0,
@@ -122,11 +145,12 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
           onClick={onClose}
           style={{ padding: '0.4rem 0.8rem', borderRadius: 'var(--radius-md)' }}
         >
-          Cerrar ✕
+          Cerrar
         </button>
       </div>
 
       <div
+        hidden={sinCamara}
         style={{
           position: 'relative',
           width: '100%',
