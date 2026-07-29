@@ -51,16 +51,24 @@ export class FoodsService {
     return { status: 'success', data: rows.map(toResponse) };
   }
 
-  /** Lo que el usuario ya registró, sin repetir, lo más reciente primero. */
+  /**
+   * Lo que el usuario ya registró, sin repetir, lo más reciente primero.
+   *
+   * El filtro de foodItemId no es cosmético: desde el quick add hay entradas
+   * sin alimento detrás, y sin él distinct devolvería una fila con foodItem en
+   * null que revienta al mapearla. Un quick add tampoco es un alimento del
+   * catálogo, así que no tiene nada que hacer en los recientes.
+   */
   async recent(userId: string, limit: number) {
     const entries = await this.prisma.mealEntry.findMany({
-      where: { dailyLog: { userId } },
+      where: { dailyLog: { userId }, foodItemId: { not: null } },
       distinct: ['foodItemId'],
       orderBy: { loggedAt: 'desc' },
       take: limit,
       include: { foodItem: true },
     });
-    return { status: 'success', data: entries.map((e) => toResponse(e.foodItem)) };
+    // El `!` lo sostiene el filtro de arriba: sin alimento no entra a la lista.
+    return { status: 'success', data: entries.map((e) => toResponse(e.foodItem!)) };
   }
 
   /**

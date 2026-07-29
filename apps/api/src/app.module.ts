@@ -8,6 +8,7 @@ import { LogsModule } from './logs/logs.module';
 import { FoodsModule } from './foods/foods.module';
 import { WeightModule } from './weight/weight.controller';
 import { ProfileModule } from './profile/profile.controller';
+import { RecipesModule } from './recipes/recipes.controller';
 import { GoalsModule } from './nutrition/goals.service';
 import { HealthModule } from './health/health.controller';
 import { validateEnv } from './config/env.validation';
@@ -22,6 +23,7 @@ import { validateEnv } from './config/env.validation';
     AuthModule,
     LogsModule,
     FoodsModule,
+    RecipesModule,
     WeightModule,
     ProfileModule,
     GoalsModule,

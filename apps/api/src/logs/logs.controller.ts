@@ -14,6 +14,7 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateMealEntryDto } from './dto/create-meal-entry.dto';
 import { UpdateServingsDto, UpdateWaterDto } from './dto/update-entry.dto';
+import { CopyDto, LogRecipeDto, QuickAddDto, UpdateRecipeServingsDto } from './dto/shortcuts.dto';
 import { parseLogDate } from '../common/log-date';
 import { LogsService } from './logs.service';
 
@@ -40,6 +41,36 @@ export class LogsController {
     @Body() dto: UpdateServingsDto,
   ) {
     return this.logs.updateMealEntry(req.user.userId, id, dto.servings_consumed);
+  }
+
+  @Post('recipe')
+  logRecipe(@Req() req: AuthedRequest, @Body() dto: LogRecipeDto) {
+    return this.logs.logRecipe(req.user.userId, dto);
+  }
+
+  @Patch('recipe/:groupId')
+  updateRecipeGroup(
+    @Req() req: AuthedRequest,
+    @Param('groupId', ParseUUIDPipe) groupId: string,
+    @Body() dto: UpdateRecipeServingsDto,
+  ) {
+    return this.logs.updateRecipeGroup(req.user.userId, groupId, dto.servings);
+  }
+
+  @Delete('recipe/:groupId')
+  @HttpCode(204)
+  deleteRecipeGroup(@Req() req: AuthedRequest, @Param('groupId', ParseUUIDPipe) groupId: string) {
+    return this.logs.deleteRecipeGroup(req.user.userId, groupId);
+  }
+
+  @Post('quick')
+  quickAdd(@Req() req: AuthedRequest, @Body() dto: QuickAddDto) {
+    return this.logs.quickAdd(req.user.userId, dto);
+  }
+
+  @Post('copy')
+  copy(@Req() req: AuthedRequest, @Body() dto: CopyDto) {
+    return this.logs.copy(req.user.userId, dto);
   }
 
   @Patch(':date/water')

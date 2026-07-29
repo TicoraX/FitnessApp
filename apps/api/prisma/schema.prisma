@@ -49,6 +49,7 @@ model User {
   createdFoods  FoodItem[]
   dailyLogs     DailyLog[]
   weights       WeightEntry[]
+  recipes       Recipe[]
 
   @@map("users")
 }
@@ -96,7 +97,8 @@ model FoodItem {
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   createdBy   User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  mealEntries MealEntry[]
+  mealEntries      MealEntry[]
+  recipeComponents RecipeComponent[]
 
   @@map("food_items")
 }
@@ -142,17 +144,93 @@ model WeightEntry {
   @@map("weight_entries")
 }
 
+/**
+ * Receta: colección con nombre de (alimento, cantidad) que rinde N porciones.
+ *
+ * No se borra nunca, se archiva. Hay meal_entries históricas que la referencian
+ * y el historial no se reescribe, igual que user_goals se desactiva en vez de
+ * borrarse.
+ */
+model Recipe {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  name          String   @db.VarChar(255)
+  /// En cuántas porciones rinde la receta entera. Loguear una porción de un
+  /// guiso que rinde seis escala cada componente por 1/6.
+  totalServings Decimal  @map("total_servings") @db.Decimal(6, 2)
+  isArchived    Boolean  @default(false) @map("is_archived")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  components RecipeComponent[]
+  entries    MealEntry[]
+
+  @@index([userId, isArchived])
+  @@map("recipes")
+}
+
+/**
+ * quantity va en PORCIONES del alimento, no en gramos: misma unidad que
+ * meal_entries.servings_consumed. Así el alta de un componente reusa el mismo
+ * buscador y el mismo input que el alta de una comida, y expandir la receta al
+ * loguearla es una multiplicación sin conversión de unidades.
+ */
+model RecipeComponent {
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  recipeId   String  @map("recipe_id") @db.Uuid
+  foodItemId String  @map("food_item_id") @db.Uuid
+  quantity   Decimal @db.Decimal(6, 2)
+  /// Orden estable de la lista; sin esto depende del plan del planner.
+  position   Int     @default(0)
+
+  recipe   Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  foodItem FoodItem @relation(fields: [foodItemId], references: [id])
+
+  @@index([recipeId])
+  @@map("recipe_components")
+}
+
 model MealEntry {
   id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   dailyLogId       String   @map("daily_log_id") @db.Uuid
   mealType         MealType @map("meal_type")
-  foodItemId       String   @map("food_item_id") @db.Uuid
+  /// Nullable desde el quick add: unas calorías sueltas no tienen alimento
+  /// detrás. Un CHECK en la base garantiza que hay food_item_id O los campos
+  /// quick_*, nunca ninguno ni los dos.
+  foodItemId       String?  @map("food_item_id") @db.Uuid
   servingsConsumed Decimal  @map("servings_consumed") @db.Decimal(6, 2)
   loggedAt         DateTime @default(now()) @map("logged_at") @db.Timestamptz(6)
 
-  dailyLog DailyLog @relation(fields: [dailyLogId], references: [id], onDelete: Cascade)
-  foodItem FoodItem @relation(fields: [foodItemId], references: [id])
+  quickName     String?  @map("quick_name") @db.VarChar(100)
+  quickCalories Int?     @map("quick_calories")
+  quickProtein  Decimal? @map("quick_protein") @db.Decimal(6, 2)
+  quickCarbs    Decimal? @map("quick_carbs") @db.Decimal(6, 2)
+  quickFat      Decimal? @map("quick_fat") @db.Decimal(6, 2)
+
+  /// Qué receta generó esta fila. Solo para mostrar el nombre y ofrecer volver
+  /// a loguearla: los números NO se releen de acá.
+  recipeId       String?  @map("recipe_id") @db.Uuid
+  /// Un uuid por EVENTO de logueo, que agrupa las N filas expandidas para
+  /// poder colapsarlas en una línea, editarlas y borrarlas como una unidad.
+  /// No alcanza con recipeId porque la misma receta puede loguearse dos veces
+  /// el mismo día.
+  recipeGroupId  String?  @map("recipe_group_id") @db.Uuid
+  /// Porciones de receta que representa el grupo, repetido en cada fila.
+  /// Desnormalizado a propósito: reescalar es servings * (nuevo / este valor)
+  /// fila por fila, sin volver a mirar la receta, que puede haber cambiado
+  /// desde que se logueó.
+  recipeServings Decimal? @map("recipe_servings") @db.Decimal(6, 2)
+
+  dailyLog DailyLog  @relation(fields: [dailyLogId], references: [id], onDelete: Cascade)
+  /// Restrict explícito: en una relación opcional Prisma pondría SetNull, y eso
+  /// dejaría una fila con food_item_id en null y sin campos quick_*, que es
+  /// exactamente lo que el CHECK meal_entries_food_or_quick_chk prohíbe. Un
+  /// alimento con historial detrás no se borra.
+  foodItem FoodItem? @relation(fields: [foodItemId], references: [id], onDelete: Restrict)
+  recipe   Recipe?   @relation(fields: [recipeId], references: [id], onDelete: Restrict)
 
   @@index([dailyLogId])
+  @@index([recipeGroupId])
   @@map("meal_entries")
 }

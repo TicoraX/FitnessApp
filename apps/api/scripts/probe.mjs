@@ -283,6 +283,190 @@ await probe('el peso de un usuario nuevo trae solo la pesada del registro', asyn
   return body.data.length === 1 ? null : `trajo ${body.data.length} pesadas`;
 });
 
+console.log('\nRecetas y atajos');
+
+/** Dos alimentos redondos para que las cuentas se puedan verificar a mano. */
+const alimento = async (nombre, kcal) => {
+  const { body } = await call('POST', '/foods', {
+    name: `${nombre} ${Date.now()}${Math.random().toString(36).slice(2, 5)}`,
+    serving_size_amount: 100,
+    serving_size_unit: 'g',
+    calories: kcal,
+    protein: 10,
+    carbohydrates: 10,
+    fat: 10,
+  });
+  return body.data.id;
+};
+
+const arroz = await alimento('Arroz probe', 100);
+const pollo = await alimento('Pollo probe', 200);
+
+// Rinde 4 porciones: 2 de arroz (200 kcal) + 1 de pollo (200) = 400 en total,
+// 100 por porción.
+let receta;
+await probe('una receta calcula sus totales y su rendimiento por porción', async () => {
+  const { status, body } = await call('POST', '/recipes', {
+    name: 'Guiso probe',
+    total_servings: 4,
+    components: [
+      { food_item_id: arroz, quantity: 2 },
+      { food_item_id: pollo, quantity: 1 },
+    ],
+  });
+  if (status !== 201) return `status ${status}: ${JSON.stringify(body)}`;
+  receta = body.data;
+  if (receta.total.calories !== 400) return `total ${receta.total.calories} != 400`;
+  if (receta.per_serving.calories !== 100) return `por porción ${receta.per_serving.calories} != 100`;
+  return null;
+});
+
+const diaReceta = '2026-06-01';
+let grupo;
+await probe('loguear una receta suma al día y se ve como una sola línea', async () => {
+  const { status, body } = await call('POST', '/logs/recipe', {
+    log_date: diaReceta,
+    meal_type: 'dinner',
+    recipe_id: receta.id,
+    servings: 2,
+  });
+  if (status !== 201) return `status ${status}: ${JSON.stringify(body)}`;
+  grupo = body.data.recipe_group_id;
+
+  // 2 de 4 porciones = la mitad de 400.
+  if (body.data.totals.calories !== 200) return `totales ${body.data.totals.calories} != 200`;
+
+  const filas = body.data.entries;
+  if (filas.length !== 1) return `el diario muestra ${filas.length} líneas, esperaba 1`;
+  if (filas[0].kind !== 'recipe') return `kind ${filas[0].kind}`;
+  if (filas[0].id !== grupo) return 'el id de la línea no es el del grupo';
+  if (filas[0].components?.length !== 2) return 'la línea no trae sus componentes';
+  return null;
+});
+
+await probe('reescalar el grupo dos veces no acumula error', async () => {
+  await call('PATCH', `/logs/recipe/${grupo}`, { servings: 3 });
+  await call('PATCH', `/logs/recipe/${grupo}`, { servings: 1 });
+  const { body } = await call('GET', `/logs/${diaReceta}`);
+  // Volver a 1 porción de 4 tiene que dar exactamente un cuarto de 400.
+  if (body.data.totals.calories !== 100) return `${body.data.totals.calories} != 100 tras 2 -> 3 -> 1`;
+  if (body.data.entries[0].servings_consumed !== 1) return 'las porciones del grupo no siguieron';
+  return null;
+});
+
+/**
+ * El bug que este check existe para atrapar: si al copiar se arrastra el mismo
+ * recipe_group_id, reescalar la copia reescala también el día original.
+ */
+await probe('reescalar una receta copiada no toca el día original', async () => {
+  const destino = '2026-06-02';
+  const copia = await call('POST', '/logs/copy', { from_date: diaReceta, to_date: destino });
+  if (copia.status !== 201) return `copiar dio ${copia.status}: ${JSON.stringify(copia.body)}`;
+
+  const grupoCopia = copia.body.data.entries[0]?.id;
+  if (!grupoCopia) return 'la copia no trajo la receta';
+  if (grupoCopia === grupo) return 'la copia reusó el recipe_group_id del original';
+  // Copiar es copiar: mismo total y misma cantidad de líneas que el origen.
+  if (copia.body.data.entries.length !== 1) {
+    return `la copia quedó con ${copia.body.data.entries.length} líneas, esperaba 1`;
+  }
+  if (copia.body.data.totals.calories !== 100) {
+    return `la copia sumó ${copia.body.data.totals.calories}, el origen tenía 100`;
+  }
+
+  await call('PATCH', `/logs/recipe/${grupoCopia}`, { servings: 4 });
+
+  const origen = await call('GET', `/logs/${diaReceta}`);
+  if (origen.body.data.totals.calories !== 100) {
+    return `el día original cambió a ${origen.body.data.totals.calories}, esperaba 100`;
+  }
+  const dest = await call('GET', `/logs/${destino}`);
+  if (dest.body.data.totals.calories !== 400) {
+    return `la copia quedó en ${dest.body.data.totals.calories}, esperaba 400`;
+  }
+  return null;
+});
+
+await probe('borrar el grupo se lleva todas sus filas', async () => {
+  const { status } = await call('DELETE', `/logs/recipe/${grupo}`);
+  if (status !== 204) return `status ${status}`;
+  const { body } = await call('GET', `/logs/${diaReceta}`);
+  if (body.data.entries.length !== 0) return `quedaron ${body.data.entries.length} filas`;
+  if (body.data.totals.calories !== 0) return `los totales quedaron en ${body.data.totals.calories}`;
+  return null;
+});
+
+await probe('el grupo de otro usuario no se puede tocar', async () => {
+  const guardado = token;
+  const otro = await nuevoUsuario();
+  token = otro.body.data.token;
+  const patch = await call('PATCH', `/logs/recipe/${grupo}`, { servings: 2 });
+  const del = await call('DELETE', `/logs/recipe/${grupo}`);
+  token = guardado;
+  return patch.status === 404 && del.status === 404 ? null : `patch ${patch.status}, delete ${del.status}`;
+});
+
+await probe('la receta de otro usuario no se puede loguear ni leer', async () => {
+  const guardado = token;
+  const otro = await nuevoUsuario();
+  token = otro.body.data.token;
+  const leer = await call('GET', `/recipes/${receta.id}`);
+  const loguear = await call('POST', '/logs/recipe', {
+    log_date: hoy, meal_type: 'lunch', recipe_id: receta.id, servings: 1,
+  });
+  token = guardado;
+  return leer.status === 404 && loguear.status === 404 ? null : `leer ${leer.status}, loguear ${loguear.status}`;
+});
+
+const diaQuick = '2026-06-03';
+await probe('un quick add suma sin alimento detrás', async () => {
+  const { status, body } = await call('POST', '/logs/quick', {
+    log_date: diaQuick, meal_type: 'snack', name: 'Asado en lo de mi viejo', calories: 700,
+  });
+  if (status !== 201) return `status ${status}: ${JSON.stringify(body)}`;
+  if (body.data.totals.calories !== 700) return `totales ${body.data.totals.calories}`;
+  const fila = body.data.entries[0];
+  if (fila.kind !== 'quick') return `kind ${fila.kind}`;
+  if (fila.food.id !== null) return 'un quick add no debería traer id de alimento';
+  // Los macros no declarados valen cero, no se estiman.
+  if (body.data.totals.protein_g !== 0) return `proteína ${body.data.totals.protein_g}`;
+  return null;
+});
+
+/**
+ * distinct por foodItemId incluiría las filas de quick add, que lo tienen en
+ * null, y mapearlas reventaba con un 500.
+ */
+await probe('los recientes no se rompen con un quick add en el historial', async () => {
+  const { status, body } = await call('GET', '/foods/recent');
+  if (status !== 200) return `status ${status}`;
+  if (body.data.some((f) => f === null || f.id === undefined)) return 'devolvió un alimento nulo';
+  return null;
+});
+
+await probe('el quick add se edita y se borra por la ruta de siempre', async () => {
+  const { body } = await call('GET', `/logs/${diaQuick}`);
+  const id = body.data.entries[0].id;
+  const patch = await call('PATCH', `/logs/meal/${id}`, { servings_consumed: 2 });
+  const doble = await call('GET', `/logs/${diaQuick}`);
+  if (doble.body.data.totals.calories !== 1400) return `${doble.body.data.totals.calories} != 1400`;
+  const del = await call('DELETE', `/logs/meal/${id}`);
+  return patch.status === 200 && del.status === 204 ? null : `patch ${patch.status}, delete ${del.status}`;
+});
+
+await probe('copiar un día sobre sí mismo sin cambiar de comida se rechaza', async () => {
+  const { status } = await call('POST', '/logs/copy', { from_date: hoy, to_date: hoy });
+  return status === 400 ? null : `status ${status}: duplicaría el día en silencio`;
+});
+
+await probe('una receta sin componentes o con porciones cero se rechaza', async () => {
+  const vacia = await call('POST', '/recipes', { name: 'Vacia', total_servings: 4, components: [] });
+  const cero = await call('POST', '/recipes', {
+    name: 'Cero', total_servings: 0, components: [{ food_item_id: arroz, quantity: 1 }],
+  });
+  return vacia.status === 400 && cero.status === 400 ? null : `vacia ${vacia.status}, cero ${cero.status}`;
+});
+
 if (hallazgos.length) {
   // Todos los bordes de acá están cerrados: un hallazgo nuevo es una regresión.
   console.error(`\n${hallazgos.length} hallazgo(s):\n  ${hallazgos.join('\n  ')}\n`);

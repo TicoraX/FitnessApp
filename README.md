@@ -78,14 +78,24 @@ lo encuentra o la consulta tarda más de 2s, responde 404 como siempre.
 | POST | `/api/v1/logs/meal` | JWT | Registra una comida y devuelve los totales del día |
 | PATCH | `/api/v1/logs/meal/:id` | JWT | Cambia las porciones de una entrada |
 | DELETE | `/api/v1/logs/meal/:id` | JWT | Quita una entrada propia |
+| POST | `/api/v1/logs/recipe` | JWT | Registra una receta, expandida a una fila por componente |
+| PATCH | `/api/v1/logs/recipe/:groupId` | JWT | Reescala todas las filas de una receta registrada |
+| DELETE | `/api/v1/logs/recipe/:groupId` | JWT | Quita una receta registrada entera |
+| POST | `/api/v1/logs/quick` | JWT | Calorías sueltas, sin alimento detrás |
+| POST | `/api/v1/logs/copy` | JWT | Copia un día o una comida a otra fecha |
 | PATCH | `/api/v1/logs/:date/water` | JWT | Registra el agua del día |
 | GET | `/api/v1/logs/:date` | JWT | Resumen del día: entradas, totales y restante vs. objetivo |
 | GET | `/api/v1/foods/search?q=` | JWT | Búsqueda difusa por nombre y marca |
 | GET | `/api/v1/foods/recent` | JWT | Últimos alimentos registrados, sin repetir |
 | POST | `/api/v1/weight` | JWT | Registra el peso del día, suaviza EMA y recalcula el objetivo |
 | GET | `/api/v1/weight?days=` | JWT | Serie de peso con su tendencia |
-| GET | `/api/v1/foods/barcode/:barcode` | JWT | Lookup exacto por EAN/UPC |
+| GET | `/api/v1/foods/barcode/:barcode` | JWT | Lookup por EAN/UPC, con búsqueda en OpenFoodFacts si no está |
 | POST | `/api/v1/foods` | JWT | Alta de alimento (queda `verified: false`) |
+| GET | `/api/v1/recipes` | JWT | Recetas propias con sus calorías por porción |
+| POST | `/api/v1/recipes` | JWT | Crea una receta con sus componentes |
+| GET | `/api/v1/recipes/:id` | JWT | Detalle con totales, por porción y componentes |
+| PATCH | `/api/v1/recipes/:id` | JWT | Edita nombre, rendimiento o la lista entera de componentes |
+| DELETE | `/api/v1/recipes/:id` | JWT | Archiva la receta (el historial no se toca) |
 
 ## Despliegue
 

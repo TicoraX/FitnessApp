@@ -131,10 +131,10 @@ a un reload con la fecha correcta, y que el toggle aplique `data-theme`.
 
 ## Fase 1 — Escáner de código de barras
 
-**Estado del backend: `GET /api/v1/foods/barcode/:barcode` ya existe** y ya valida
-`/^\d{8,14}$/`. En paralelo estoy cargando el catálogo real desde OpenFoodFacts y
-agregando un fallback: si el código no está en la base, el backend lo busca en vivo, lo
-guarda y lo devuelve. Para vos no cambia nada, solo va a haber muchos menos 404.
+**Estado del backend: listo.** `GET /api/v1/foods/barcode/:barcode` existe, valida
+`/^\d{8,14}$/`, y si el código no está en la base lo busca en vivo en OpenFoodFacts, lo
+guarda y lo devuelve. Probado con Nutella real: 783 ms la primera vez, 4 ms la segunda.
+Falta correr el import masivo del dump, que es una decisión operativa aparte.
 
 ### El problema de compatibilidad, que hay que resolver y no ignorar
 
@@ -185,8 +185,8 @@ se vuelve más útil, no menos.
 
 ## Fase 2 — Recetas y atajos de registro
 
-**Estado del backend: todavía no.** Los contratos de abajo son el diseño acordado; los
-implemento antes de que los necesites.
+**Estado del backend: listo y andando.** Todos los endpoints de abajo existen. El
+contrato del día ya cambió, así que leé primero la sección que sigue.
 
 ### Cambio de contrato en el día, que afecta código existente
 

@@ -58,6 +58,50 @@ export function sumEntries(entries: EntryForTotals[]): Totals {
   return t;
 }
 
+/**
+ * Escala unos totales por un factor. Existe para las porciones de una receta:
+ * se suman los componentes con sumEntries y se divide por cuánto rinde.
+ */
+export function scaleTotals(t: Totals, factor: number): Totals {
+  return {
+    calories: Math.round(t.calories * factor),
+    protein_g: Number((t.protein_g * factor).toFixed(1)),
+    carbs_g: Number((t.carbs_g * factor).toFixed(1)),
+    fat_g: Number((t.fat_g * factor).toFixed(1)),
+    fiber_g: Number((t.fiber_g * factor).toFixed(1)),
+    sugar_g: Number((t.sugar_g * factor).toFixed(1)),
+    sodium_mg: Number((t.sodium_mg * factor).toFixed(1)),
+  };
+}
+
+/**
+ * Los nutrientes de una entrada, venga de un alimento o de un quick add.
+ *
+ * Un quick add es estructuralmente "un alimento con estos macros, una porción
+ * consumida", así que sintetizar acá la forma de foodItem deja a sumEntries sin
+ * enterarse de que existen dos clases de entrada.
+ */
+export function nutrientsOf(e: {
+  foodItem: EntryForTotals['foodItem'] | null;
+  quickCalories: number | null;
+  quickProtein: Numeric | null;
+  quickCarbs: Numeric | null;
+  quickFat: Numeric | null;
+}): EntryForTotals['foodItem'] {
+  if (e.foodItem) return e.foodItem;
+  // El quick add no pide fibra, azúcar ni sodio: existe para cuando no se
+  // saben ni los macros. Cero es el valor honesto, no una estimación.
+  return {
+    calories: e.quickCalories ?? 0,
+    protein: e.quickProtein ?? 0,
+    carbohydrates: e.quickCarbs ?? 0,
+    fat: e.quickFat ?? 0,
+    fiber: 0,
+    sugar: 0,
+    sodiumMg: 0,
+  };
+}
+
 /** Lo que queda del objetivo diario. Negativo = se pasó. */
 export function remaining(goal: { dailyCalories: number; proteinGrams: number; carbsGrams: number; fatGrams: number }, totals: Totals) {
   return {
