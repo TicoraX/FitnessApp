@@ -75,8 +75,8 @@ export function NewFood({ name, onCreated }: { name: string; onCreated: (food: F
             name="serving_size_amount"
             type="number"
             inputMode="decimal"
-            step="0.01"
-            min="0.01"
+            step="1"
+            min="0"
             required
             defaultValue={100}
           />

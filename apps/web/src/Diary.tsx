@@ -746,7 +746,7 @@ function Entry({
           className="num entry__servings"
           inputMode="decimal"
           step="0.25"
-          min="0.01"
+          min="0"
           value={servings}
           disabled={busy}
           aria-label={`Porciones de ${entry.food.name}`}
@@ -1050,7 +1050,7 @@ function AddFood({ date, onAdded }: { date: string; onAdded: () => void }) {
                 type="number"
                 className="num"
                 step={unitMode === 'serving' ? '0.25' : '1'}
-                min="0.01"
+                min="0"
                 value={qty}
                 onChange={(e) => {
                   const val = e.target.value;
