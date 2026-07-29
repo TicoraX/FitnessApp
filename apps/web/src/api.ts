@@ -156,6 +156,48 @@ export interface DaySummary {
   entries: MealEntry[];
 }
 
+export interface StreakReport {
+  current_streak: number;
+  longest_streak: number;
+  last_logged_on: string | null;
+}
+
+export interface SummaryReport {
+  range: { from: string; to: string; days_in_range: number };
+  days_logged: number;
+  averages: {
+    calories: number;
+    protein_g: number;
+    carbs_g: number;
+    fat_g: number;
+    fiber_g?: number;
+    sugar_g?: number;
+    sodium_mg?: number;
+  };
+  adherence: {
+    goal_calories: number;
+    days_with_goal: number;
+    days_on_target: number;
+    pct_on_target: number;
+    avg_delta_calories: number;
+  };
+  days: { log_date: string; calories: number; protein_g: number; carbs_g?: number; fat_g?: number }[];
+}
+
+export interface WeightReport {
+  series: { logged_on: string; weight_kg: number; ema_kg: number }[];
+  trend: {
+    points: number;
+    start_ema_kg: number;
+    end_ema_kg: number;
+    change_kg: number;
+    weekly_rate_kg: number;
+    goal_weekly_kg: number;
+    target_weight_kg: number | null;
+    projected_target_date: string | null;
+  };
+}
+
 /**
  * Día local, no UTC. Con toISOString() directo, un usuario en UTC-3 ve el
  * diario del día siguiente desde las 21:00.

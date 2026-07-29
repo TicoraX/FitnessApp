@@ -2,7 +2,10 @@ import { BadRequestException, ConflictException, Injectable, Logger, Unauthorize
 import { JwtService } from '@nestjs/jwt';
 import { Prisma } from '@prisma/client';
 import * as argon2 from 'argon2';
+import { createHash, randomBytes } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { Mailer } from '../mail/mailer';
+import { ForgotDto, ResetDto } from './dto/password-reset.dto';
 import { calculateAge, calculateTargets } from '../nutrition/metabolic';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -17,6 +20,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly mailer: Mailer,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -85,7 +89,7 @@ export class AuthService {
       data: {
         user_id: user.id,
         is_guest: false,
-        token: await this.signToken(user.id, user.email),
+        token: await this.signToken(user.id, user.email, user.tokenVersion),
         calculated_goals: {
           bmr: targets.bmr,
           tdee: targets.tdee,
@@ -151,7 +155,7 @@ export class AuthService {
       data: {
         user_id: user.id,
         is_guest: true,
-        token: await this.signToken(user.id, null),
+        token: await this.signToken(user.id, null, user.tokenVersion),
         calculated_goals: {
           bmr: targets.bmr,
           tdee: targets.tdee,
@@ -201,9 +205,85 @@ export class AuthService {
         user_id: updated.id,
         email: updated.email,
         is_guest: false,
-        token: await this.signToken(updated.id, updated.email),
+        token: await this.signToken(updated.id, updated.email, updated.tokenVersion),
       },
     };
+  }
+
+  /**
+   * Siempre responde igual, exista o no la cuenta. Si contestara distinto sería
+   * un oráculo para averiguar qué emails están registrados, que es la misma
+   * razón por la que el login verifica contra un hash dummy.
+   *
+   * El mail se manda sin esperarlo. Además de responder rápido, cierra el
+   * canal lateral de tiempo: si se esperara, el caso "existe" tardaría lo que
+   * tarda la red y el caso "no existe" volvería al instante.
+   */
+  async forgotPassword(dto: ForgotDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email.toLowerCase() },
+    });
+
+    // Los invitados no tienen contraseña que recuperar; lo que les sirve es
+    // vincular la cuenta, y eso lo empuja la UI.
+    if (user?.email && !user.isGuest) {
+      const token = randomBytes(32).toString('hex');
+
+      await this.prisma.passwordReset.create({
+        data: {
+          userId: user.id,
+          tokenHash: sha256(token),
+          expiresAt: new Date(Date.now() + 3_600_000),
+        },
+      });
+
+      const link = `${process.env.APP_URL ?? 'http://localhost:5177'}/#/reset?token=${token}`;
+      void this.mailer
+        .send({
+          to: user.email,
+          subject: 'Restablecer tu contraseña de FitTrack',
+          text: `Entrá acá para elegir una contraseña nueva. El link vence en una hora y sirve una sola vez.\n\n${link}\n\nSi no lo pediste vos, ignorá este mensaje.`,
+        })
+        .catch((e) => this.logger.error(`no se pudo enviar el reset: ${e.message}`));
+    }
+
+    return { status: 'success', data: { message: 'Si el email está registrado, te llega un link' } };
+  }
+
+  async resetPassword(dto: ResetDto) {
+    const reset = await this.prisma.passwordReset.findUnique({
+      where: { tokenHash: sha256(dto.token) },
+    });
+
+    // Un solo mensaje para las tres causas (no existe, vencido, ya usado): al
+    // que tiene el link le da igual el detalle, y al que prueba tokens no se le
+    // regala información.
+    if (!reset || reset.usedAt || reset.expiresAt < new Date()) {
+      this.logger.warn('intento de reset con token inválido o vencido');
+      throw new BadRequestException('El link no sirve o ya venció. Pedí uno nuevo.');
+    }
+
+    const passwordHash = await argon2.hash(dto.password, { type: argon2.argon2id });
+
+    await this.prisma.$transaction(async (tx) => {
+      // Marcar el uso dentro de la transacción y con usedAt en null en el
+      // where: si dos pedidos entran a la vez, solo uno cambia la contraseña.
+      const { count } = await tx.passwordReset.updateMany({
+        where: { id: reset.id, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+      if (count === 0) throw new BadRequestException('El link ya se usó');
+
+      // tokenVersion sube: los tokens que estaban dando vueltas dejan de valer.
+      // Es el punto de todo esto, cambiar la contraseña tiene que echar al que
+      // se metió.
+      await tx.user.update({
+        where: { id: reset.userId },
+        data: { passwordHash, tokenVersion: { increment: 1 } },
+      });
+    });
+
+    return { status: 'success', data: { message: 'Listo, ya podés entrar con la contraseña nueva' } };
   }
 
   async login(dto: LoginDto) {
@@ -221,14 +301,25 @@ export class AuthService {
 
     return {
       status: 'success',
-      data: { user_id: user.id, is_guest: user.isGuest, token: await this.signToken(user.id, user.email) },
+      data: { user_id: user.id, is_guest: user.isGuest, token: await this.signToken(user.id, user.email, user.tokenVersion) },
     };
   }
 
-  private signToken(sub: string, email?: string | null) {
-    return this.jwt.signAsync({ sub, email: email ?? undefined });
+  /**
+   * tv es la versión del token. Va dentro del JWT y el guard la compara contra
+   * la del usuario: si cambió, este token dejó de valer.
+   */
+  private signToken(sub: string, email: string | null | undefined, tokenVersion: number) {
+    return this.jwt.signAsync({ sub, email: email ?? undefined, tv: tokenVersion });
   }
 }
+
+/**
+ * sha256 y no argon2 acá a propósito: el token son 32 bytes aleatorios, no una
+ * contraseña. No hay nada que adivinar por fuerza bruta, así que el costo alto
+ * de argon2 no compra nada y encarecería cada intento de reset.
+ */
+const sha256 = (v: string) => createHash('sha256').update(v).digest('hex');
 
 /** Hash de una password arbitraria; solo existe para igualar el costo del login fallido. */
 const DUMMY_HASH =

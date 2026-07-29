@@ -87,6 +87,10 @@ lo encuentra o la consulta tarda más de 2s, responde 404 como siempre.
 | Método | Ruta | Auth | Qué hace |
 | :--- | :--- | :--- | :--- |
 | POST | `/api/v1/auth/register` | no | Crea usuario + objetivos calculados (BMR/TDEE/macros) |
+| POST | `/api/v1/auth/forgot` | no | Pide el link de recuperacion. Siempre 202, exista o no la cuenta |
+| POST | `/api/v1/auth/reset` | no | Cambia la contrasena con el token del mail e invalida las sesiones abiertas |
+| GET | `/api/v1/account/export` | JWT | Descarga todo el historial en JSON |
+| DELETE | `/api/v1/account` | JWT | Borra la cuenta, pidiendo la contrasena actual |
 | POST | `/api/v1/auth/login` | no | Devuelve JWT |
 | GET | `/api/v1/auth/me` | JWT | Identidad del token |
 | GET | `/api/v1/profile` | JWT | Perfil y objetivo activo |

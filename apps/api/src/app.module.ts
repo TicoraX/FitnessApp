@@ -10,6 +10,8 @@ import { WeightModule } from './weight/weight.controller';
 import { ProfileModule } from './profile/profile.controller';
 import { RecipesModule } from './recipes/recipes.controller';
 import { ReportsModule } from './reports/reports.controller';
+import { AccountModule } from './account/account.controller';
+import { MailModule } from './mail/mailer';
 import { GoalsModule } from './nutrition/goals.service';
 import { HealthModule } from './health/health.controller';
 import { validateEnv } from './config/env.validation';
@@ -21,7 +23,9 @@ import { validateEnv } from './config/env.validation';
     // a 5/15min con @Throttle en su controller.
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     PrismaModule,
+    MailModule,
     AuthModule,
+    AccountModule,
     LogsModule,
     FoodsModule,
     RecipesModule,

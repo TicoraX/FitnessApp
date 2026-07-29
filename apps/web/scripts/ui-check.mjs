@@ -375,6 +375,20 @@ try {
     await page.getByRole('button', { name: '✕' }).click();
   });
 
+  await step('el tablero de progreso muestra rachas, adherencia y gráfico de barras', async () => {
+    await page.goto(`${BASE}/#/progreso`);
+    await page.waitForSelector('.view-progreso', { timeout: 10_000 });
+
+    await page.waitForSelector('text=Tablero de Progreso', { timeout: 5_000 });
+    await page.getByRole('button', { name: '7 Días' }).click();
+    await shot('14-progreso-7d');
+
+    await page.getByRole('button', { name: '3 Meses' }).click();
+    await shot('15-progreso-3m');
+
+    assert.equal(await page.locator('text=Racha Activa').count(), 1);
+  });
+
   await step('el toggle de tema aplica data-theme', async () => {
     await page.goto(`${BASE}/#/perfil`);
     await page.getByRole('button', { name: 'Oscuro' }).click();

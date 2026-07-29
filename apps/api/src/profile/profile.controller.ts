@@ -44,6 +44,15 @@ class UpdateProfileDto {
   @Max(70)
   @ValidateIf((_, value) => value !== null)
   body_fat_pct?: number | null;
+
+  /**
+   * Solo cambia cómo se muestra y cómo se ingresa. Lo almacenado sigue siendo
+   * métrico siempre: guardar en unidades mixtas convierte cada consulta y cada
+   * cálculo en un campo minado.
+   */
+  @IsOptional()
+  @IsIn(['metric', 'imperial'])
+  unit_preference?: 'metric' | 'imperial';
 }
 
 type AuthedRequest = { user: { userId: string } };
@@ -72,6 +81,7 @@ export class ProfileService {
         height_cm: Number(user.heightCm),
         activity_level: Number(user.activityLevel),
         body_fat_pct: user.bodyFatPct === null ? null : Number(user.bodyFatPct),
+        unit_preference: user.unitPreference,
         target_weight_kg: goal ? Number(goal.targetWeightKg) : null,
         weekly_goal_kg: goal ? Number(goal.weeklyChangeKg) : null,
         daily_calories: goal?.dailyCalories ?? null,
@@ -89,7 +99,8 @@ export class ProfileService {
       if (
         dto.height_cm !== undefined ||
         dto.activity_level !== undefined ||
-        dto.body_fat_pct !== undefined
+        dto.body_fat_pct !== undefined ||
+        dto.unit_preference !== undefined
       ) {
         await tx.user.update({
           where: { id: userId },
@@ -97,6 +108,7 @@ export class ProfileService {
             ...(dto.height_cm !== undefined && { heightCm: dto.height_cm }),
             ...(dto.activity_level !== undefined && { activityLevel: dto.activity_level }),
             ...(dto.body_fat_pct !== undefined && { bodyFatPct: dto.body_fat_pct }),
+            ...(dto.unit_preference !== undefined && { unitPreference: dto.unit_preference }),
           },
         });
       }

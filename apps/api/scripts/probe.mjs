@@ -4,8 +4,14 @@
  *
  * Uso: node scripts/probe.mjs   (con el API levantado)
  */
+import { createHash, randomBytes } from 'node:crypto';
+import { PrismaClient } from '@prisma/client';
+
 const BASE = process.env.PROBE_BASE ?? 'http://localhost:3100/api/v1';
 let token = '';
+
+/** Solo lo usa el check de reset; ver el comentario ahí. */
+const prisma = new PrismaClient();
 
 async function call(method, path, body, override) {
   const res = await fetch(BASE + path, {
@@ -466,6 +472,132 @@ await probe('una receta sin componentes o con porciones cero se rechaza', async 
   });
   return vacia.status === 400 && cero.status === 400 ? null : `vacia ${vacia.status}, cero ${cero.status}`;
 });
+
+console.log('\nCuenta y recuperación');
+
+await probe('forgot responde igual exista o no la cuenta', async () => {
+  const guardado = token;
+  token = '';
+  const existe = await call('POST', '/auth/forgot', { email: reg.body.data.email ?? 'nadie@t.test' });
+  const noExiste = await call('POST', '/auth/forgot', { email: `fantasma-${Date.now()}@t.test` });
+  token = guardado;
+
+  if (existe.status !== noExiste.status) {
+    return `distingue por status: ${existe.status} vs ${noExiste.status}`;
+  }
+  if (JSON.stringify(existe.body) !== JSON.stringify(noExiste.body)) {
+    return 'el cuerpo revela si el email está registrado';
+  }
+  return existe.status === 202 ? null : `status ${existe.status}, esperaba 202`;
+});
+
+await probe('un token de reset inventado no sirve', async () => {
+  const guardado = token;
+  token = '';
+  const r = await call('POST', '/auth/reset', {
+    token: 'a'.repeat(64), password: 'NuevaClave123',
+  });
+  token = guardado;
+  return r.status === 400 ? null : `status ${r.status}`;
+});
+
+/**
+ * El punto de todo el mecanismo: si restablecer la contraseña no echa a las
+ * sesiones abiertas, el que te robó el token se queda adentro días.
+ *
+ * El token del mail no se puede recuperar: la tabla guarda solo su sha256, que
+ * es exactamente lo que se quiere. Así que se planta un pedido con un token
+ * elegido acá y su hash, que es lo mismo que haría el servicio, y se sigue el
+ * camino real de ahí en adelante. Es el único check de la sonda que toca la
+ * base; sin eso no habría forma de probar la propiedad que importa.
+ */
+await probe('restablecer la contraseña invalida los tokens viejos', async () => {
+  const email = `reset-${Date.now()}@t.test`;
+  const alta = await nuevoUsuario({ email });
+  if (alta.status !== 201) return `no se pudo crear: ${alta.status}`;
+
+  const tokenViejo = alta.body.data.token;
+  const guardado = token;
+
+  token = tokenViejo;
+  if ((await call('GET', '/profile')).status !== 200) return 'el token nuevo no servía de entrada';
+
+  const secreto = randomBytes(32).toString('hex');
+  await prisma.passwordReset.create({
+    data: {
+      userId: alta.body.data.user_id,
+      tokenHash: createHash('sha256').update(secreto).digest('hex'),
+      expiresAt: new Date(Date.now() + 3_600_000),
+    },
+  });
+
+  token = '';
+  const reset = await call('POST', '/auth/reset', { token: secreto, password: 'ClaveNueva123' });
+  if (reset.status !== 200) return `el reset dio ${reset.status}: ${JSON.stringify(reset.body)}`;
+
+  // El de un solo uso: el mismo link no puede volver a funcionar.
+  const repetido = await call('POST', '/auth/reset', { token: secreto, password: 'OtraMas1234' });
+  if (repetido.status !== 400) return `el token se pudo usar dos veces: ${repetido.status}`;
+
+  // Y la contraseña nueva es la que entra.
+  const login = await call('POST', '/auth/login', { email, password: 'ClaveNueva123' });
+  if (login.status !== 200) return `no se puede entrar con la contraseña nueva: ${login.status}`;
+  const vieja = await call('POST', '/auth/login', { email, password: 'ProbeTest123' });
+  if (vieja.status !== 401) return `la contraseña vieja sigue entrando: ${vieja.status}`;
+
+  token = tokenViejo;
+  const despues = await call('GET', '/profile');
+  token = guardado;
+
+  return despues.status === 401
+    ? null
+    : `el token de antes del reset sigue sirviendo (${despues.status})`;
+});
+
+await probe('un token de una cuenta borrada deja de servir', async () => {
+  const guardado = token;
+  const email = `borrar-${Date.now()}@t.test`;
+  const alta = await nuevoUsuario({ email });
+  token = alta.body.data.token;
+
+  const sinPassword = await call('DELETE', '/account', {});
+  const conPasswordMala = await call('DELETE', '/account', { password: 'OtraClave123' });
+  if (sinPassword.status !== 401 || conPasswordMala.status !== 401) {
+    return `borró sin confirmar la contraseña: ${sinPassword.status}, ${conPasswordMala.status}`;
+  }
+
+  const borrado = await call('DELETE', '/account', { password: 'ProbeTest123' });
+  if (borrado.status !== 204) return `borrar dio ${borrado.status}`;
+
+  // El token sigue siendo válido criptográficamente y no tiene que servir.
+  const despues = await call('GET', '/profile');
+  token = guardado;
+  return despues.status === 401 ? null : `el token de la cuenta borrada dio ${despues.status}`;
+});
+
+await probe('el export trae los datos y no el hash de la contraseña', async () => {
+  const { status, body } = await call('GET', '/account/export');
+  if (status !== 200) return `status ${status}`;
+  const crudo = JSON.stringify(body);
+  if (/argon2|password_hash|passwordHash|token_version/i.test(crudo)) {
+    return 'el export filtra material de autenticación';
+  }
+  if (!body.profile || !Array.isArray(body.days) || !Array.isArray(body.weights)) {
+    return 'al export le faltan secciones';
+  }
+  return null;
+});
+
+await probe('la preferencia de unidades se guarda y vuelve', async () => {
+  const p = await call('PATCH', '/profile', { unit_preference: 'imperial' });
+  if (p.status !== 200) return `patch dio ${p.status}`;
+  if (p.body.data.unit_preference !== 'imperial') return 'no la devolvió';
+  const malo = await call('PATCH', '/profile', { unit_preference: 'piedras' });
+  await call('PATCH', '/profile', { unit_preference: 'metric' });
+  return malo.status === 400 ? null : `aceptó una unidad inventada: ${malo.status}`;
+});
+
+await prisma.$disconnect();
 
 if (hallazgos.length) {
   // Todos los bordes de acá están cerrados: un hallazgo nuevo es una regresión.

@@ -20,6 +20,26 @@ enum UnitPreference {
   imperial
 }
 
+/**
+ * Pedido de recuperación de contraseña.
+ *
+ * Se guarda el sha256 del token, nunca el token: si alguien lee esta tabla no
+ * puede entrar a ninguna cuenta. Un solo uso y vence en una hora.
+ */
+model PasswordReset {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash") @db.VarChar(64)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_resets")
+}
+
 enum FoodSource {
   user
   openfoodfacts
@@ -42,14 +62,19 @@ model User {
   bodyFatPct     Decimal?       @map("body_fat_pct") @db.Decimal(4, 1)
   activityLevel  Decimal        @default(1.200) @map("activity_level") @db.Decimal(4, 3)
   unitPreference UnitPreference @default(metric) @map("unit_preference")
+  /// Sube con cada cambio de contraseña y viaja dentro del token. Sin esto,
+  /// resetear la contraseña no echaría al que te robó la cuenta: su token
+  /// seguiría sirviendo hasta vencer, que son días.
+  tokenVersion   Int            @default(0) @map("token_version")
   createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  goals         UserGoal[]
-  createdFoods  FoodItem[]
-  dailyLogs     DailyLog[]
-  weights       WeightEntry[]
-  recipes       Recipe[]
+  goals          UserGoal[]
+  createdFoods   FoodItem[]
+  dailyLogs      DailyLog[]
+  weights        WeightEntry[]
+  recipes        Recipe[]
+  passwordResets PasswordReset[]
 
   @@map("users")
 }
