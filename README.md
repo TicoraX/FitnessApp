@@ -151,7 +151,15 @@ contraseña nueva no sirve y el API no puede conectarse.
 | 2 | `daily_logs`, `meal_entries`, `POST /api/v1/logs/meal` | listo |
 | 3 | Catálogo y búsqueda de alimentos (pg_trgm) | listo |
 | 4 | Peso con suavizado EMA y ajuste dinámico del objetivo | listo |
-| 5 | Sync offline-first, wearables, visión por IA | pendiente |
+| 5 | Cuentas de invitado y vinculación posterior | listo |
+| 6 | Catálogo real de OpenFoodFacts y lectura de código de barras | listo |
+| 7 | Recetas, registro rápido y copiar comidas entre días | listo |
+| 8 | Reportes por rango, tendencia de peso y rachas | listo |
+| 9 | Recuperar contraseña, exportar y borrar cuenta, unidades | listo |
+| 10 | Sync offline-first, wearables, visión por IA | pendiente |
+
+El plan del cliente web vive en [`PLAN-FRONTEND.md`](./PLAN-FRONTEND.md), con el
+contrato de cada endpoint y qué falta construir de la interfaz.
 
 Redis, Typesense, Kong y los microservicios de §2 no están: con un servicio y
 cero tráfico no aportan nada todavía. Entran cuando la latencia lo pida.

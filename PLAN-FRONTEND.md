@@ -329,7 +329,10 @@ Barras y una línea no justifican una librería de charts con lo que pesa.
 
 ## Fase 4 — Cuenta y datos personales
 
-**Estado del backend: todavía no.**
+**Estado del backend: listo y andando.** Dos cosas que la UI tiene que contemplar:
+restablecer la contraseña **cierra las demás sesiones**, así que si el usuario tenía otra
+pestaña abierta va a caer al login (el manejo global del 401 ya lo resuelve). Y el link
+del mail apunta a `#/reset?token=...`, o sea que falta esa ruta en el hash router.
 
 | Ruta | Nota |
 |---|---|
