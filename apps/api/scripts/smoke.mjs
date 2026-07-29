@@ -440,4 +440,119 @@ await check('un perfil inválido se rechaza entero', async () => {
   assert.equal((await call('PATCH', '/profile', { weekly_goal_kg: -5 })).status, 400);
 });
 
+console.log('\nReportes');
+
+/**
+ * Usuario aparte con días controlados: 1 y 2 de mayo seguidos, hueco el 3, y
+ * el 4 otra vez. Así la racha tiene una isla de dos y otra de uno.
+ */
+const principalRep = token;
+token = '';
+{
+  const alta = await call('POST', '/auth/guest', {
+    first_name: 'Reportes', dob: '1992-08-14', gender: 'male', height_cm: 178.5,
+    current_weight_kg: 82, target_weight_kg: 75, activity_level: 1.55,
+    weekly_goal_kg: -0.5, logged_on: '2026-05-01',
+  });
+  assert.equal(alta.status, 201, JSON.stringify(alta.body));
+  token = alta.body.data.token;
+
+  const comida = (await call('POST', '/foods', {
+    name: `Barra reportes ${Date.now()}`,
+    serving_size_amount: 100, serving_size_unit: 'g',
+    calories: 300, protein: 20, carbohydrates: 30, fat: 10,
+  })).body.data.id;
+
+  const DIAS = { '2026-05-01': 1, '2026-05-02': 2, '2026-05-04': 3 };
+  for (const [fecha, porciones] of Object.entries(DIAS)) {
+    await call('POST', '/logs/meal', {
+      log_date: fecha, meal_type: 'lunch', food_item_id: comida, servings_consumed: porciones,
+    });
+  }
+  // Día solo con agua: no cuenta como día registrado en ningún reporte.
+  await call('PATCH', '/logs/2026-05-03/water', { water_ml: 500 });
+
+  await check('el resumen por día coincide con lo que muestra el diario', async () => {
+    const { status, body } = await call('GET', '/reports/summary?from=2026-05-01&to=2026-05-04');
+    assert.equal(status, 200, JSON.stringify(body));
+
+    assert.equal(body.data.range.days_in_range, 4);
+    // Tres días, no cuatro: el 3 solo tiene agua.
+    assert.equal(body.data.days_logged, 3, 'el día de solo agua se contó como registrado');
+    assert.equal(body.data.days.length, 3);
+
+    // El punto del check: la agregación en SQL tiene que dar exactamente lo
+    // mismo que el sumEntries en JS que alimenta el diario.
+    for (const dia of body.data.days) {
+      const delDiario = (await call('GET', `/logs/${dia.log_date}`)).body.data.totals;
+      for (const campo of ['calories', 'protein_g', 'carbs_g', 'fat_g', 'fiber_g', 'sugar_g', 'sodium_mg']) {
+        assert.equal(
+          dia[campo], delDiario[campo],
+          `${dia.log_date} ${campo}: reporte ${dia[campo]} vs diario ${delDiario[campo]}`,
+        );
+      }
+    }
+  });
+
+  await check('los promedios son sobre días registrados, no sobre el rango', async () => {
+    const { body } = await call('GET', '/reports/summary?from=2026-05-01&to=2026-05-04');
+    // 300 + 600 + 900 = 1800 entre 3 días = 600. Entre 4 daría 450.
+    assert.equal(body.data.averages.calories, 600, 'promedió sobre el rango y no sobre lo registrado');
+    assert.equal(body.data.averages.protein_g, 40);
+  });
+
+  await check('la adherencia se mide contra el objetivo del día', async () => {
+    const { body } = await call('GET', '/reports/summary?from=2026-05-01&to=2026-05-04');
+    assert.equal(body.data.adherence.days_with_goal, 3);
+    // El objetivo ronda 2200 kcal y ningún día pasa de 900: cero en la banda.
+    assert.equal(body.data.adherence.days_on_target, 0);
+    assert.ok(body.data.adherence.avg_delta_calories < 0, 'el déficit promedio debería ser negativo');
+  });
+
+  await check('la racha cuenta días consecutivos y respeta el hueco', async () => {
+    const { status, body } = await call('GET', '/reports/streak?today=2026-05-04');
+    assert.equal(status, 200);
+    // Islas: [01, 02] de largo 2 y [04] de largo 1. El 3 solo tuvo agua.
+    assert.equal(body.data.current_streak, 1, 'la racha actual atravesó el hueco');
+    assert.equal(body.data.longest_streak, 2);
+    assert.equal(body.data.last_logged_on, '2026-05-04');
+  });
+
+  await check('la racha admite que hoy todavía no se haya cargado nada', async () => {
+    const { body } = await call('GET', '/reports/streak?today=2026-05-05');
+    assert.equal(body.data.current_streak, 1, 'cortó la racha por no haber desayunado aún');
+    // Dos días sin cargar sí la cortan.
+    const pasado = await call('GET', '/reports/streak?today=2026-05-06');
+    assert.equal(pasado.body.data.current_streak, 0);
+  });
+
+  await check('la tendencia de peso sale de la EMA y proyecta el objetivo', async () => {
+    await call('POST', '/weight', { logged_on: '2026-05-10', weight_kg: 80 });
+    const { status, body } = await call('GET', '/reports/weight?from=2026-05-01&to=2026-05-31');
+    assert.equal(status, 200, JSON.stringify(body));
+    assert.equal(body.data.series.length, 2);
+    assert.equal(body.data.trend.points, 2);
+    assert.ok(body.data.trend.change_kg < 0, 'bajó de peso y el cambio no es negativo');
+    assert.equal(body.data.trend.target_weight_kg, 75);
+    assert.equal(typeof body.data.trend.projected_target_date, 'string');
+  });
+
+  await check('un rango vacío devuelve ceros y no null', async () => {
+    const { status, body } = await call('GET', '/reports/summary?from=2020-01-01&to=2020-01-31');
+    assert.equal(status, 200);
+    assert.equal(body.data.days_logged, 0);
+    assert.equal(body.data.averages.calories, 0);
+    assert.deepEqual(body.data.days, []);
+    assert.equal(body.data.adherence.pct_on_target, null);
+  });
+
+  await check('un rango inválido o desmedido se rechaza', async () => {
+    assert.equal((await call('GET', '/reports/summary?from=2026-05-04&to=2026-05-01')).status, 400);
+    assert.equal((await call('GET', '/reports/summary?from=2024-01-01&to=2026-01-01')).status, 400);
+    assert.equal((await call('GET', '/reports/summary?from=ayer&to=2026-05-01')).status, 400);
+    assert.equal((await call('GET', '/reports/streak?today=2026-02-31')).status, 400);
+  });
+}
+token = principalRep;
+
 console.log('\nTodo verde.\n');

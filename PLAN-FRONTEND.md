@@ -276,7 +276,7 @@ pantalla se actualiza con la misma respuesta.
 
 ## Fase 3 — Reportes, tendencias y rachas
 
-**Estado del backend: todavía no.**
+**Estado del backend: listo y andando.**
 
 | Ruta | Devuelve |
 |---|---|

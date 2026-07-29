@@ -107,6 +107,9 @@ lo encuentra o la consulta tarda más de 2s, responde 404 como siempre.
 | GET | `/api/v1/weight?days=` | JWT | Serie de peso con su tendencia |
 | GET | `/api/v1/foods/barcode/:barcode` | JWT | Lookup por EAN/UPC, con búsqueda en OpenFoodFacts si no está |
 | POST | `/api/v1/foods` | JWT | Alta de alimento (queda `verified: false`) |
+| GET | `/api/v1/reports/summary?from=&to=` | JWT | Promedios, adherencia y totales por día del rango |
+| GET | `/api/v1/reports/weight?from=&to=` | JWT | Serie de peso y tendencia sobre la EMA, con proyección |
+| GET | `/api/v1/reports/streak?today=` | JWT | Racha actual y la más larga |
 | GET | `/api/v1/recipes` | JWT | Recetas propias con sus calorías por porción |
 | POST | `/api/v1/recipes` | JWT | Crea una receta con sus componentes |
 | GET | `/api/v1/recipes/:id` | JWT | Detalle con totales, por porción y componentes |
