@@ -75,10 +75,9 @@ function DockLabel({ children, className = '', ...rest }: { children: ReactNode;
 
   useEffect(() => {
     if (!isHovered) return;
-    const unsubscribe = isHovered.on('change', (latest) => {
+    return isHovered.on('change', (latest) => {
       setIsVisible(latest === 1);
     });
-    return () => unsubscribe();
   }, [isHovered]);
 
   return (

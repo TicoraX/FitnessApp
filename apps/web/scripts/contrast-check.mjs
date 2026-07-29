@@ -18,6 +18,9 @@ const BASE = process.env.UI_BASE ?? 'http://localhost:5177';
 // 4.5 donde el token se pinta como texto, 3 para bordes y trazos.
 const PARES = [
   ['botón primario', '--color-btn-text', '--color-primary', 4.5],
+  // El botón de confirmar un borrado usa danger de fondo con el mismo color de
+  // texto que el primario, así que es un par propio y hay que medirlo.
+  ['botón de peligro', '--color-btn-text', '--color-danger', 4.5],
   ['texto principal', '--text-main', '--bg-surface', 4.5],
   ['texto muted', '--text-muted', '--bg-surface', 4.5],
   ['texto faint', '--text-faint', '--bg-surface', 4.5],

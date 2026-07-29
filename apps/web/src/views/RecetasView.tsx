@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, notificarCambio, today, type Food, type Recipe } from '../api';
-import InfiniteMenu from '../components/InfiniteMenu';
 
 interface SelectedIngredient {
   food: Food;
@@ -21,6 +20,8 @@ export function RecetasView() {
   const [foodQuery, setFoodQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Food[]>([]);
   const [busy, setBusy] = useState(false);
+  /** Id de la receta cuya tarjeta está pidiendo confirmación para borrarse. */
+  const [confirmandoBorrar, setConfirmandoBorrar] = useState<string | null>(null);
 
   // Modal para registrar receta en el diario
   const [loggingRecipe, setLoggingRecipe] = useState<Recipe | null>(null);
@@ -114,8 +115,14 @@ export function RecetasView() {
     }
   };
 
+  /**
+   * Confirmación en dos pasos sobre la propia tarjeta, en vez del confirm() del
+   * navegador: aquel bloquea el hilo, no se puede estilar, y en móvil aparece
+   * como un cartel del sistema que no se parece en nada al resto de la app. Es
+   * el único lugar que lo usaba.
+   */
   const handleDeleteRecipe = async (id: string, name: string) => {
-    if (!confirm(`¿Borrar la receta "${name}"?`)) return;
+    setConfirmandoBorrar(null);
     try {
       await api.del(`/recipes/${id}`);
       setMessage({ text: `Receta "${name}" eliminada.`, ok: true });
@@ -175,56 +182,23 @@ export function RecetasView() {
       {loading ? (
         <p className="muted">Cargando recetas...</p>
       ) : recipes.length === 0 ? (
-        <div className="stack" style={{ gap: 'var(--space-md)' }}>
-          <div>
-            <span className="eyebrow" style={{ color: 'var(--color-primary)', display: 'block', marginBottom: '0.4rem' }}>
-              Ideas de Recetas & Inspiración
-            </span>
-            <InfiniteMenu
-              items={[
-                { title: 'Wok de Pollo y Vegetales', description: '450 kcal · 42g P / porción', image: 'https://picsum.photos/300/300?random=101' },
-                { title: 'Bowl Proteico de Atún', description: '520 kcal · 38g P / porción', image: 'https://picsum.photos/300/300?random=102' },
-                { title: 'Smoothie Verde Fit', description: '210 kcal · 15g P / porción', image: 'https://picsum.photos/300/300?random=103' },
-                { title: 'Omelette de Claras', description: '290 kcal · 30g P / porción', image: 'https://picsum.photos/300/300?random=104' },
-                { title: 'Ensalada Caesar Fit', description: '380 kcal · 35g P / porción', image: 'https://picsum.photos/300/300?random=105' },
-              ].map((s) => ({
-                ...s,
-                onClick: () => {
-                  setRecipeName(s.title);
-                  setShowCreateModal(true);
-                },
-              }))}
-            />
-          </div>
-
-          <section className="card" style={{ textAlign: 'center', padding: 'var(--space-xl)' }}>
-            <h3 className="card__title" style={{ marginBottom: 'var(--space-xs)' }}>
-              Aún no guardaste ninguna receta
-            </h3>
-            <p className="muted" style={{ maxWidth: '44ch', margin: '0 auto 1.5rem' }}>
-              Toca una idea de arriba o creá una personalizada para agrupar tus ingredientes frecuentes.
-            </p>
-            <button type="button" className="btn" onClick={() => setShowCreateModal(true)}>
-              Crear mi primera receta
-            </button>
-          </section>
-        </div>
+        // Sin recetas de ejemplo: un plato con "450 kcal / 42g proteína" que
+        // nadie calculó se lee como un dato del catálogo, y el usuario no tiene
+        // forma de saber que es inventado.
+        <section className="card" style={{ textAlign: 'center', padding: 'var(--space-xl)' }}>
+          <h3 className="card__title" style={{ marginBottom: 'var(--space-xs)' }}>
+            Aún no guardaste ninguna receta
+          </h3>
+          <p className="muted" style={{ maxWidth: '44ch', margin: '0 auto 1.5rem' }}>
+            Agrupá los ingredientes que usás seguido para ver cuánto rinde cada
+            porción y cargar el plato entero de una.
+          </p>
+          <button type="button" className="btn" onClick={() => setShowCreateModal(true)}>
+            Crear mi primera receta
+          </button>
+        </section>
       ) : (
         <>
-          <div style={{ marginBottom: 'var(--space-sm)' }}>
-            <span className="eyebrow" style={{ color: 'var(--color-primary)', display: 'block', marginBottom: '0.4rem' }}>
-              Destacados & Selección Rápida
-            </span>
-            <InfiniteMenu
-              items={recipes.map((r, i) => ({
-                image: `https://picsum.photos/300/300?random=${(i % 10) + 1}`,
-                title: r.name,
-                description: `${Math.round(r.per_serving.calories)} kcal / porción`,
-                onClick: () => setLoggingRecipe(r),
-              }))}
-            />
-          </div>
-
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 'var(--space-md)' }}>
           {recipes.map((r) => (
             <div key={r.id} className="card card--raised" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
@@ -253,13 +227,34 @@ export function RecetasView() {
                 >
                   + Al Diario
                 </button>
-                <button
-                  type="button"
-                  className="btn btn--quiet"
-                  onClick={() => handleDeleteRecipe(r.id, r.name)}
-                >
-                  Borrar
-                </button>
+                {confirmandoBorrar === r.id ? (
+                  <>
+                    <button
+                      type="button"
+                      className="btn"
+                      style={{ background: 'var(--color-danger)' }}
+                      onClick={() => handleDeleteRecipe(r.id, r.name)}
+                    >
+                      Confirmar
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn--quiet"
+                      onClick={() => setConfirmandoBorrar(null)}
+                    >
+                      Cancelar
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn--quiet"
+                    aria-label={`Borrar la receta ${r.name}`}
+                    onClick={() => setConfirmandoBorrar(r.id)}
+                  >
+                    Borrar
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -336,11 +331,16 @@ export function RecetasView() {
                           {Math.round(ing.food.calories * ing.quantity)} kcal
                         </div>
                       </div>
+                      {/* step="any": con step="0.25" y min="0.1" los únicos
+                          valores válidos eran 0.1, 0.35, 0.6, 0.85... y la
+                          cantidad por defecto es 1, que no está entre ellos. El
+                          navegador rechazaba el envío y no se podía crear
+                          ninguna receta. */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <input
                           type="number"
-                          step="0.25"
-                          min="0.1"
+                          step="any"
+                          min="0.01"
                           style={{ width: '60px', padding: '0.2rem', fontFamily: 'var(--font-mono)' }}
                           value={ing.quantity}
                           onChange={(e) => handleUpdateQuantity(ing.food.id, Number(e.target.value))}

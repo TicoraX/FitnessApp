@@ -375,6 +375,39 @@ try {
     await page.getByRole('button', { name: '✕' }).click();
   });
 
+  /**
+   * Cubre el alta completa y el borrado en dos pasos. Antes el borrado usaba el
+   * confirm() del navegador, que además de quedar fuera del diseño bloquea el
+   * hilo y ningún test lo podía atravesar.
+   */
+  await step('una receta se crea y se borra confirmando en la tarjeta', async () => {
+    await page.goto(`${BASE}/#/recetas`);
+    await page.waitForSelector('.view-recetas', { timeout: 10_000 });
+
+    await page.getByRole('button', { name: '+ Crear Receta' }).click();
+    await page.waitForSelector('.modal-overlay', { timeout: 5_000 });
+
+    await page.getByPlaceholder('Ej: Guiso de lentejas').fill('Guiso de prueba');
+    await page.getByPlaceholder('Buscar ingrediente para agregar...').fill('pollo');
+    await page.locator('.modal-overlay .result').first().click({ timeout: 10_000 });
+    await page.getByRole('button', { name: 'Guardar Receta' }).click();
+
+    await page.waitForSelector('text=Guiso de prueba', { timeout: 10_000 });
+
+    // Un solo clic no borra: primero pide confirmación.
+    await page.getByRole('button', { name: 'Borrar la receta Guiso de prueba' }).click();
+    assert.equal(await page.getByRole('button', { name: 'Confirmar' }).count(), 1);
+    assert.ok(await page.locator('text=Guiso de prueba').count(), 'se borró sin confirmar');
+
+    // Cancelar la deja donde estaba.
+    await page.getByRole('button', { name: 'Cancelar' }).click();
+    assert.equal(await page.getByRole('button', { name: 'Confirmar' }).count(), 0);
+
+    await page.getByRole('button', { name: 'Borrar la receta Guiso de prueba' }).click();
+    await page.getByRole('button', { name: 'Confirmar' }).click();
+    await page.waitForSelector('text=Guiso de prueba', { state: 'detached', timeout: 10_000 });
+  });
+
   await step('el tablero de progreso muestra rachas, adherencia y gráfico de barras', async () => {
     await page.goto(`${BASE}/#/progreso`);
     await page.waitForSelector('.view-progreso', { timeout: 10_000 });

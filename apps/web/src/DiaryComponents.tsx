@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState, type CSSProperties, type RefObject } 
 import { api, notificarCambio, today, type DaySummary, type Food } from './api';
 import Counter from './components/Counter';
 import { BarcodeScanner } from './components/BarcodeScanner';
-import InfiniteMenu from './components/InfiniteMenu';
 import { NewFood } from './NewFood';
 
 export const MEALS = [
@@ -847,19 +846,9 @@ export function AddFood({
       )}
 
       {query.trim().length < 2 && recent.length > 0 && (
-        <div style={{ marginBottom: '0.75rem' }}>
-          <p className="hint muted" style={{ marginTop: 'var(--space-xs)', marginBottom: '0.4rem', fontSize: '0.75rem' }}>
-            Comidas que registraste antes:
-          </p>
-          <InfiniteMenu
-            items={recent.map((f, i) => ({
-              image: `https://picsum.photos/240/140?random=${(i % 8) + 20}`,
-              title: f.name,
-              description: `${f.calories} kcal / ${f.serving_size_amount}${f.serving_size_unit}`,
-              onClick: () => handleSelectFood(f),
-            }))}
-          />
-        </div>
+        <p className="hint muted" style={{ marginTop: 'var(--space-xs)', marginBottom: '0.4rem', fontSize: '0.75rem' }}>
+          Comidas que registraste antes:
+        </p>
       )}
 
       {visibles.length > 0 && (

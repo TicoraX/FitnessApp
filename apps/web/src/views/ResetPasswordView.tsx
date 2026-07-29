@@ -70,6 +70,7 @@ export function ResetPasswordView({
                 type="password"
                 required
                 minLength={8}
+                maxLength={255}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
