@@ -109,9 +109,14 @@ export function ProgresoView({ onGoalChanged }: { onGoalChanged: () => void }) {
       {/* Racha y Adherencia Highlights */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-md)' }}>
         <div className="card card--raised" style={{ textAlign: 'center', border: '1px solid var(--border-subtle)' }}>
-          <span className="eyebrow" style={{ color: 'var(--color-primary)' }}>Racha Activa</span>
+          <span className="eyebrow" style={{ color: 'var(--color-primary)', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+              <path d="M12 23c-4.97 0-9-3.58-9-8 0-4.5 4.5-9 6.5-12.5 1.5 2.5 4 4.5 4 7 0-3.5 3-6 5.5-8 1 2 2 4.5 2 7.5 0 4.42-4.03 8-9 8z" />
+            </svg>
+            Racha Activa
+          </span>
           <div className="num" style={{ fontSize: '2rem', fontWeight: 900, fontFamily: 'var(--font-mono)', margin: '0.2rem 0' }}>
-            🔥 {streak ? streak.current_streak : 0} <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>días</span>
+            {streak ? streak.current_streak : 0} <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>días</span>
           </div>
           <span className="muted" style={{ fontSize: '0.75rem' }}>
             Récord: {streak?.longest_streak ?? 0} días consecutivos
@@ -129,9 +134,16 @@ export function ProgresoView({ onGoalChanged }: { onGoalChanged: () => void }) {
         </div>
 
         <div className="card card--raised" style={{ textAlign: 'center', border: '1px solid var(--border-subtle)' }}>
-          <span className="eyebrow" style={{ color: 'var(--color-primary)' }}>Adherencia al Objetivo</span>
+          <span className="eyebrow" style={{ color: 'var(--color-primary)', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <circle cx="12" cy="12" r="6" />
+              <circle cx="12" cy="12" r="2" />
+            </svg>
+            Adherencia al Objetivo
+          </span>
           <div className="num" style={{ fontSize: '2rem', fontWeight: 900, fontFamily: 'var(--font-mono)', margin: '0.2rem 0' }}>
-            🎯 {summary?.adherence ? `${Math.round(summary.adherence.pct_on_target)}%` : '—'}
+            {summary?.adherence ? `${Math.round(summary.adherence.pct_on_target)}%` : '—'}
           </div>
           <span className="muted" style={{ fontSize: '0.75rem' }}>
             {summary?.adherence ? `${summary.adherence.days_on_target} días en meta (${summary.adherence.avg_delta_calories > 0 ? '+' : ''}${Math.round(summary.adherence.avg_delta_calories)} kcal)` : '—'}

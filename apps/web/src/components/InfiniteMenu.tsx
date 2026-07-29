@@ -37,7 +37,10 @@ export function InfiniteMenu({ items, onSelect }: InfiniteMenuProps) {
               </div>
             ) : (
               <div className="infinite-menu-image-wrapper" style={{ background: 'var(--color-primary-dim)', color: 'var(--color-primary)' }}>
-                <span style={{ fontSize: '2rem', fontWeight: 900 }}>🥗</span>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 2a10 10 0 100 20 10 10 0 000-20z" />
+                  <path d="M12 6a6 6 0 100 12 6 6 0 000-12z" />
+                </svg>
               </div>
             )}
             <div className="infinite-menu-content">

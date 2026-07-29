@@ -193,7 +193,18 @@ export function PerfilView({
           Descargá todo tu historial de peso, comidas y registros diarios en formato JSON portable.
         </p>
         <button type="button" className="btn btn--quiet" onClick={handleExportData} disabled={exporting}>
-          {exporting ? 'Generando archivo...' : '📥 Descargar mis datos (JSON)'}
+          {exporting ? (
+            'Generando archivo...'
+          ) : (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Descargar mis datos (JSON)
+            </span>
+          )}
         </button>
       </section>
 
@@ -206,7 +217,13 @@ export function PerfilView({
           Eliminar tu cuenta borrará de forma permanente todo tu historial de pesajes, comidas y recetas. Esta acción no se puede deshacer.
         </p>
         <button type="button" className="btn" style={{ background: 'var(--color-danger)', border: 'none' }} onClick={() => setShowDeleteModal(true)}>
-          🗑️ Eliminar cuenta permanente
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+            </svg>
+            Eliminar cuenta permanente
+          </span>
         </button>
       </section>
 
