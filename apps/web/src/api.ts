@@ -86,6 +86,60 @@ export interface Food {
   sodium_mg?: number;
 }
 
+export interface RecipeComponent {
+  id?: string;
+  food_item_id: string;
+  quantity: number;
+  calories?: number;
+  food?: {
+    id: string;
+    name: string;
+    brand: string | null;
+    serving_size_amount: number;
+    serving_size_unit: string;
+  };
+}
+
+export interface Recipe {
+  id: string;
+  name: string;
+  total_servings: number;
+  component_count?: number;
+  per_serving: {
+    calories: number;
+    protein_g: number;
+    carbs_g: number;
+    fat_g: number;
+    fiber_g?: number;
+    sugar_g?: number;
+    sodium_mg?: number;
+  };
+  total?: { calories: number };
+  components?: RecipeComponent[];
+}
+
+export interface MealEntry {
+  id: string;
+  kind?: 'food' | 'quick' | 'recipe';
+  recipe_id?: string | null;
+  meal_type: string;
+  servings_consumed: number;
+  logged_at: string;
+  calories: number;
+  food: {
+    id: string | null;
+    name: string;
+    brand: string | null;
+    serving_size_amount: number;
+    serving_size_unit: string;
+  };
+  components?: {
+    id: string;
+    calories: number;
+    food: { id: string; name: string; brand: string | null; serving_size_amount: number; serving_size_unit: string };
+  }[];
+}
+
 export interface DaySummary {
   log_date: string;
   water_ml: number;
@@ -99,14 +153,7 @@ export interface DaySummary {
     sodium_mg: number;
   };
   remaining: { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null;
-  entries: {
-    id: string;
-    meal_type: string;
-    servings_consumed: number;
-    logged_at: string;
-    calories: number;
-    food: { id: string; name: string; brand: string | null; serving_size_amount: number; serving_size_unit: string };
-  }[];
+  entries: MealEntry[];
 }
 
 /**

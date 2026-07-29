@@ -30,7 +30,7 @@ export function DiarioView({
                 <Macros day={day} />
                 <Water date={date} day={day} onChanged={() => loadDate(date)} />
               </div>
-              <Meals day={day} onChanged={() => loadDate(date)} />
+              <Meals day={day} date={date} onChanged={() => loadDate(date)} />
             </>
           ) : (
             <p className="muted">Cargando el día.</p>

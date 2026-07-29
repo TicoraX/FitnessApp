@@ -304,8 +304,27 @@ export function Water({
   );
 }
 
-export function Meals({ day, onChanged }: { day: DaySummary; onChanged: () => void }) {
+export function Meals({ day, date, onChanged }: { day: DaySummary; date: string; onChanged: () => void }) {
   const [busy, setBusy] = useState<string | null>(null);
+  const [copyingMeal, setCopyingMeal] = useState<string | null>(null);
+
+  async function handleCopyYesterday(mealType: string) {
+    setCopyingMeal(mealType);
+    try {
+      const yesterday = shiftDate(date, -1);
+      await api.post('/logs/copy', {
+        from_date: yesterday,
+        to_date: date,
+        meal_type: mealType,
+      });
+      notificarCambio('diario-cambiado');
+      onChanged();
+    } catch {
+      // Ignorar si no había comidas ayer
+    } finally {
+      setCopyingMeal(null);
+    }
+  }
 
   return (
     <div className="meals">
@@ -314,8 +333,20 @@ export function Meals({ day, onChanged }: { day: DaySummary; onChanged: () => vo
         const subtotal = Math.round(entries.reduce((sum, e) => sum + e.calories, 0));
         return (
           <div key={key} className="meal__card">
-            <div className="meal__head">
-              <p className="eyebrow">{label}</p>
+            <div className="meal__head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
+                <p className="eyebrow">{label}</p>
+                <button
+                  type="button"
+                  className="btn btn--quiet"
+                  style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', height: 'auto' }}
+                  disabled={copyingMeal === key}
+                  onClick={() => handleCopyYesterday(key)}
+                  title="Copiar comidas de ayer"
+                >
+                  {copyingMeal === key ? 'Copiando...' : 'Copiar de ayer'}
+                </button>
+              </div>
               <span className="muted num">{subtotal > 0 ? `${subtotal} kcal` : '—'}</span>
             </div>
             {entries.length > 0 ? (
@@ -347,8 +378,11 @@ export function Entry({
 }) {
   const formatVal = (v: number) => Number(Math.round(v * 100) / 100).toString();
   const [servings, setServings] = useState(formatVal(entry.servings_consumed));
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => setServings(formatVal(entry.servings_consumed)), [entry.servings_consumed]);
+
+  const isRecipe = entry.kind === 'recipe';
 
   async function commit() {
     const value = Math.round(Number(servings) * 100) / 100;
@@ -358,7 +392,11 @@ export function Entry({
     }
     setBusy(entry.id);
     try {
-      await api.patch(`/logs/meal/${entry.id}`, { servings_consumed: value });
+      if (isRecipe) {
+        await api.patch(`/logs/recipe/${entry.id}`, { servings: value });
+      } else {
+        await api.patch(`/logs/meal/${entry.id}`, { servings_consumed: value });
+      }
       notificarCambio('diario-cambiado');
       onChanged();
     } catch {
@@ -371,48 +409,75 @@ export function Entry({
   async function remove() {
     setBusy(entry.id);
     try {
-      await api.del(`/logs/meal/${entry.id}`);
+      if (isRecipe) {
+        await api.del(`/logs/recipe/${entry.id}`);
+      } else {
+        await api.del(`/logs/meal/${entry.id}`);
+      }
       notificarCambio('diario-cambiado');
       onChanged();
+    } catch {
+      setServings(formatVal(entry.servings_consumed));
     } finally {
       setBusy(null);
     }
   }
 
   return (
-    <li className="entry">
-      <span className="entry__label">
-        <span className="entry__name">{entry.food.name}</span>
-        {entry.food.brand && <span className="muted"> · {entry.food.brand}</span>}
-      </span>
-      <span className="entry__right">
-        <input
-          type="number"
-          className="num entry__servings"
-          inputMode="decimal"
-          step="0.25"
-          min="0"
-          value={servings}
-          disabled={busy}
-          aria-label={`Porciones de ${entry.food.name}`}
-          onChange={(e) => setServings(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-        />
-        <span className="muted num entry__meta">
-          × {entry.food.serving_size_amount}
-          {entry.food.serving_size_unit} · {Math.round(entry.calories)} kcal
+    <li className="entry" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+        <span className="entry__label" style={{ cursor: isRecipe ? 'pointer' : 'default' }} onClick={() => isRecipe && setExpanded(!expanded)}>
+          <span className="entry__name">
+            {isRecipe && (expanded ? '▼ ' : '▶ ')}
+            {entry.food.name}
+          </span>
+          {entry.food.brand && <span className="muted"> · {entry.food.brand}</span>}
+          {isRecipe && <span className="badge" style={{ marginLeft: '6px', fontSize: '0.65rem' }}>Receta</span>}
+          {entry.kind === 'quick' && <span className="badge" style={{ marginLeft: '6px', fontSize: '0.65rem' }}>Rápido</span>}
         </span>
-        <button
-          type="button"
-          className="entry__delete"
-          aria-label={`Quitar ${entry.food.name}`}
-          disabled={busy}
-          onClick={remove}
-        >
-          Quitar
-        </button>
-      </span>
+        <span className="entry__right">
+          <input
+            type="number"
+            className="num entry__servings"
+            inputMode="decimal"
+            step="0.25"
+            min="0"
+            value={servings}
+            disabled={busy}
+            aria-label={`Porciones de ${entry.food.name}`}
+            onChange={(e) => setServings(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+          />
+          <span className="muted num entry__meta">
+            {isRecipe
+              ? `× porción · ${Math.round(entry.calories)} kcal`
+              : entry.kind === 'quick'
+              ? `× registro · ${Math.round(entry.calories)} kcal`
+              : `× ${entry.food.serving_size_amount}${entry.food.serving_size_unit} · ${Math.round(entry.calories)} kcal`}
+          </span>
+          <button
+            type="button"
+            className="entry__delete"
+            aria-label={`Quitar ${entry.food.name}`}
+            disabled={busy}
+            onClick={remove}
+          >
+            Quitar
+          </button>
+        </span>
+      </div>
+
+      {isRecipe && expanded && entry.components && entry.components.length > 0 && (
+        <div style={{ marginTop: '0.5rem', paddingLeft: '1rem', borderLeft: '2px solid var(--border-subtle)', fontSize: '0.8rem' }} className="muted num">
+          {entry.components.map((c) => (
+            <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
+              <span>• {c.food.name}</span>
+              <span>{Math.round(c.calories)} kcal</span>
+            </div>
+          ))}
+        </div>
+      )}
     </li>
   );
 }
@@ -439,6 +504,49 @@ export function AddFood({
   const [activo, setActivo] = useState(-1);
   const [showScanner, setShowScanner] = useState(false);
   const [showNewFood, setShowNewFood] = useState(false);
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [quickName, setQuickName] = useState('');
+  const [quickCalories, setQuickCalories] = useState('');
+  const [quickProtein, setQuickProtein] = useState('');
+  const [quickCarbs, setQuickCarbs] = useState('');
+  const [quickFat, setQuickFat] = useState('');
+
+  const handleQuickSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cals = Number(quickCalories);
+    if (!cals || cals <= 0) {
+      setMessage({ text: 'Ingresá una cantidad de calorías válida.', ok: false });
+      return;
+    }
+    setBusy(true);
+    setMessage(null);
+    try {
+      const payload: Record<string, unknown> = {
+        log_date: date,
+        meal_type: meal,
+        name: quickName.trim() || 'Registro rápido',
+        calories: cals,
+      };
+      if (quickProtein) payload.protein = Number(quickProtein);
+      if (quickCarbs) payload.carbohydrates = Number(quickCarbs);
+      if (quickFat) payload.fat = Number(quickFat);
+
+      await api.post('/logs/quick', payload);
+      setMessage({ text: 'Registro rápido agregado con éxito.', ok: true });
+      setShowQuickAdd(false);
+      setQuickName('');
+      setQuickCalories('');
+      setQuickProtein('');
+      setQuickCarbs('');
+      setQuickFat('');
+      notificarCambio('diario-cambiado');
+      onAdded();
+    } catch (err) {
+      setMessage({ text: err instanceof Error ? err.message : 'No se pudo agregar', ok: false });
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const visibles = query.trim().length < 2 ? recent : results;
 
@@ -586,6 +694,77 @@ export function AddFood({
           );
         })}
       </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 'var(--space-sm)' }}>
+        <button
+          type="button"
+          className="btn btn--quiet"
+          style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
+          onClick={() => setShowQuickAdd(!showQuickAdd)}
+        >
+          {showQuickAdd ? '✕ Cancelar registro rápido' : '⚡ Registro rápido (Calorías directas)'}
+        </button>
+      </div>
+
+      {showQuickAdd && (
+        <form onSubmit={handleQuickSubmit} className="card" style={{ marginBottom: 'var(--space-md)', background: 'var(--bg-elevated)', padding: '1rem' }}>
+          <p className="eyebrow" style={{ color: 'var(--color-primary)', marginBottom: '0.5rem' }}>Registro Rápido de Calorías</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+            <input
+              type="text"
+              placeholder="Descripción (ej: Almuerzo afuero)"
+              aria-label="Descripción del registro rápido"
+              value={quickName}
+              onChange={(e) => setQuickName(e.target.value)}
+              style={{ gridColumn: '1 / -1' }}
+            />
+            <input
+              type="number"
+              inputMode="numeric"
+              placeholder="Calorías *"
+              aria-label="Calorías del registro rápido"
+              required
+              min="1"
+              value={quickCalories}
+              onChange={(e) => setQuickCalories(e.target.value)}
+              style={{ fontFamily: 'var(--font-mono)' }}
+            />
+            <input
+              type="number"
+              inputMode="decimal"
+              placeholder="Proteína (g) - Opcional"
+              aria-label="Proteína opcional"
+              min="0"
+              value={quickProtein}
+              onChange={(e) => setQuickProtein(e.target.value)}
+              style={{ fontFamily: 'var(--font-mono)' }}
+            />
+            <input
+              type="number"
+              inputMode="decimal"
+              placeholder="Carbos (g) - Opcional"
+              aria-label="Carbohidratos opcionales"
+              min="0"
+              value={quickCarbs}
+              onChange={(e) => setQuickCarbs(e.target.value)}
+              style={{ fontFamily: 'var(--font-mono)' }}
+            />
+            <input
+              type="number"
+              inputMode="decimal"
+              placeholder="Grasas (g) - Opcional"
+              aria-label="Grasas opcionales"
+              min="0"
+              value={quickFat}
+              onChange={(e) => setQuickFat(e.target.value)}
+              style={{ fontFamily: 'var(--font-mono)' }}
+            />
+          </div>
+          <button type="submit" className="btn btn--block" disabled={busy}>
+            {busy ? 'Guardando...' : 'Agregar Registro Rápido'}
+          </button>
+        </form>
+      )}
 
       <div style={{ display: 'flex', gap: '0.4rem', marginBottom: 'var(--space-xs)' }}>
         <input

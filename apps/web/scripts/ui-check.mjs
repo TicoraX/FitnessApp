@@ -311,6 +311,28 @@ try {
     assert.equal(await page.locator('.barcode-scanner-overlay').count(), 0);
   });
 
+  await step('el registro rápido permite agregar calorías directamente', async () => {
+    await page.goto(`${BASE}/#/diario`);
+    await page.waitForSelector('.view-diario', { timeout: 10_000 });
+
+    await page.getByRole('button', { name: /Registro rápido/i }).click();
+    await page.getByPlaceholder('Descripción (ej: Almuerzo afuero)').fill('Empanada al paso');
+    await page.getByPlaceholder('Calorías *').fill('350');
+    await page.getByRole('button', { name: 'Agregar Registro Rápido' }).click();
+
+    await page.waitForSelector('text=Empanada al paso', { timeout: 10_000 });
+  });
+
+  await step('la vista de recetas permite consultar y abrir la modal de creación', async () => {
+    await page.goto(`${BASE}/#/recetas`);
+    await page.waitForSelector('.view-recetas', { timeout: 10_000 });
+
+    await page.getByRole('button', { name: '+ Crear Receta' }).click();
+    await page.waitForSelector('.modal-overlay', { timeout: 5_000 });
+    await shot('13-crear-receta-modal');
+    await page.getByRole('button', { name: '✕' }).click();
+  });
+
   await step('el toggle de tema aplica data-theme', async () => {
     await page.goto(`${BASE}/#/perfil`);
     await page.getByRole('button', { name: 'Oscuro' }).click();
