@@ -172,22 +172,26 @@ export class AuthService {
       throw new BadRequestException('Esta cuenta no existe o ya fue registrada');
     }
 
-    const emailTaken = await this.prisma.user.findUnique({
-      where: { email: dto.email.toLowerCase() },
-    });
-    if (emailTaken) {
-      throw new ConflictException('El email ya está registrado');
-    }
-
     const passwordHash = await argon2.hash(dto.password, { type: argon2.argon2id });
-    const updated = await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        email: dto.email.toLowerCase(),
-        passwordHash,
-        isGuest: false,
-      },
-    });
+
+    // Sin chequeo previo: entre el SELECT y el UPDATE el email se puede ocupar
+    // igual. La constraint UNIQUE es la que decide, como en register().
+    let updated;
+    try {
+      updated = await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          email: dto.email.toLowerCase(),
+          passwordHash,
+          isGuest: false,
+        },
+      });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+        throw new ConflictException('El email ya está registrado');
+      }
+      throw e;
+    }
 
     return {
       status: 'success',

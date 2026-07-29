@@ -61,9 +61,11 @@ body {
   border: 1px solid var(--border-subtle);
 }
 
-.badge-protein { color: var(--color-protein); border-color: oklch(0.72 0.20 230 / 0.3); }
-.badge-carbs   { color: var(--color-carbs);   border-color: oklch(0.80 0.19 65 / 0.3); }
-.badge-fats    { color: var(--color-fats);    border-color: oklch(0.75 0.21 320 / 0.3); }
+/* El borde sale del propio token: hardcodeado se quedaba con el valor oscuro
+   cuando el tema cambiaba a claro. */
+.badge-protein { color: var(--color-protein); border-color: color-mix(in oklch, var(--color-protein) 30%, transparent); }
+.badge-carbs   { color: var(--color-carbs);   border-color: color-mix(in oklch, var(--color-carbs) 30%, transparent); }
+.badge-fats    { color: var(--color-fats);    border-color: color-mix(in oklch, var(--color-fats) 30%, transparent); }
 
 /* Todas las cifras en tabular para que no bailen al actualizarse. */
 .num {

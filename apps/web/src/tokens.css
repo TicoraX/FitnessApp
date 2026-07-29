@@ -58,7 +58,8 @@
   /* Typography Colors */
   --text-main: oklch(0.98 0.005 260);
   --text-muted: oklch(0.65 0.02 260);
-  --text-faint: oklch(0.45 0.02 260);
+  /* Ver la nota del tema claro: en 0.45 daba 2.58:1 sobre la superficie. */
+  --text-faint: oklch(0.60 0.02 260);
 
   --color-ink: var(--text-main);
   --color-ink-2: var(--text-muted);
@@ -105,7 +106,9 @@
 
   --text-main: oklch(0.18 0.02 260);
   --text-muted: oklch(0.48 0.02 260);
-  --text-faint: oklch(0.68 0.02 260);
+  /* Se usa como texto en badges y ayudas, no de adorno: tiene que pasar 4.5:1
+     sobre blanco. En 0.68 daba 2.88:1. */
+  --text-faint: oklch(0.55 0.02 260);
 
   --color-ink: var(--text-main);
   --color-ink-2: var(--text-muted);
@@ -114,6 +117,23 @@
   --color-primary: oklch(0.38 0.15 152);
   --color-accent: var(--color-primary);
   --color-btn-text: oklch(0.99 0.005 260);
+
+  /* Los acentos del tema oscuro viven arriba de 0.70 de lightness: sobre papel
+     blanco quedaban entre 1.6:1 y 2.7:1. Se conserva el matiz y se baja la
+     lightness. El escalonado (0.50 / 0.42 / 0.34) es para que proteína, carbos
+     y grasas no se apoyen solo en el matiz, que es lo que colapsa en deuteranopía. */
+  --color-calories: oklch(0.45 0.16 145);
+  --color-protein: oklch(0.50 0.15 230);
+  --color-carbs: oklch(0.42 0.13 65);
+  --color-fats: oklch(0.34 0.19 320);
+  --color-fat: var(--color-fats);
+  --color-water: oklch(0.46 0.16 240);
+
+  --color-danger: oklch(0.48 0.19 27);
+  --color-danger-soft: oklch(0.48 0.19 27 / 0.10);
+  --color-accent-soft: oklch(0.38 0.15 152 / 0.10);
+  --color-focus: oklch(0.38 0.15 152);
+  --border-glow: oklch(0.38 0.15 152 / 0.25);
 
   --shadow-card: 0 10px 30px -5px oklch(0 0 0 / 0.06);
   --shadow-glow: 0 0 20px -3px oklch(0.38 0.15 152 / 0.1);
