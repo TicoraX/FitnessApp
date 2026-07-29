@@ -18,6 +18,7 @@ interface ProfileData {
   weekly_goal_kg: number | null;
   daily_calories: number | null;
   body_fat_pct?: number | null;
+  unit_preference?: 'metric' | 'imperial';
 }
 
 /**
@@ -45,11 +46,22 @@ export function Profile({ onSaved, onClose }: { onSaved: () => void; onClose: ()
     const raw = Object.fromEntries(new FormData(e.currentTarget));
 
     try {
+      const unitPref = (raw.unit_preference as 'metric' | 'imperial') || 'metric';
+      let heightCm = Number(raw.height_cm);
+      let targetWeightKg = Number(raw.target_weight_kg);
+
+      // Si el input estaba en imperial, convertir a metrico para el API
+      if (unitPref === 'imperial') {
+        heightCm = heightCm * 2.54;
+        targetWeightKg = targetWeightKg / 2.20462;
+      }
+
       const payload: Record<string, unknown> = {
-        height_cm: Number(raw.height_cm),
+        height_cm: Math.round(heightCm * 10) / 10,
         activity_level: Number(raw.activity_level),
-        target_weight_kg: Number(raw.target_weight_kg),
+        target_weight_kg: Math.round(targetWeightKg * 10) / 10,
         weekly_goal_kg: Number(raw.weekly_goal_kg),
+        unit_preference: unitPref,
       };
       if (raw.body_fat_pct !== '' && raw.body_fat_pct !== undefined) {
         payload.body_fat_pct = Number(raw.body_fat_pct);

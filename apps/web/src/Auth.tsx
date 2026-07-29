@@ -12,17 +12,26 @@ const ACTIVITY = [
 ] as const;
 
 export function Auth({ onAuthed }: { onAuthed: () => void }) {
-  const [mode, setMode] = useState<'login' | 'register' | 'guest'>('login');
+  const [mode, setMode] = useState<'login' | 'register' | 'guest' | 'forgot'>('login');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [forgotMsg, setForgotMsg] = useState('');
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true);
     setError('');
+    setForgotMsg('');
     const raw = Object.fromEntries(new FormData(e.currentTarget));
 
     try {
+      if (mode === 'forgot') {
+        await api.post('/auth/forgot', { email: raw.email });
+        setForgotMsg('Si el email está registrado, te llegará un link para restablecer tu contraseña.');
+        setBusy(false);
+        return;
+      }
+
       const payload =
         mode === 'login'
           ? { email: raw.email, password: raw.password }
@@ -87,7 +96,7 @@ export function Auth({ onAuthed }: { onAuthed: () => void }) {
             </div>
           )}
 
-          {mode !== 'guest' && (
+          {mode !== 'guest' && mode !== 'forgot' && (
             <div className="field">
               <label htmlFor="password">Contraseña</label>
               <input
@@ -101,10 +110,24 @@ export function Auth({ onAuthed }: { onAuthed: () => void }) {
               {mode === 'register' && (
                 <span className="muted">Mínimo 10 caracteres, con mayúscula, minúscula y número.</span>
               )}
+              {mode === 'login' && (
+                <button
+                  type="button"
+                  className="btn btn--quiet"
+                  style={{ fontSize: '0.75rem', marginTop: '0.2rem', padding: '0' }}
+                  onClick={() => {
+                    setMode('forgot');
+                    setError('');
+                    setForgotMsg('');
+                  }}
+                >
+                  ¿Olvidaste tu contraseña?
+                </button>
+              )}
             </div>
           )}
 
-          {mode !== 'login' && (
+          {mode !== 'login' && mode !== 'forgot' && (
             <>
               <div className="field">
                 <label htmlFor="first_name">Nombre</label>
@@ -134,7 +157,16 @@ export function Auth({ onAuthed }: { onAuthed: () => void }) {
 
               <div className="field">
                 <label htmlFor="height_cm">Altura (cm)</label>
-                <input id="height_cm" name="height_cm" type="number" step="0.5" min={80} max={260} required />
+                <input
+                  id="height_cm"
+                  name="height_cm"
+                  type="number"
+                  step="0.5"
+                  min={100}
+                  max={250}
+                  defaultValue={175}
+                  required
+                />
               </div>
 
               <div className="field">
@@ -144,8 +176,9 @@ export function Auth({ onAuthed }: { onAuthed: () => void }) {
                   name="current_weight_kg"
                   type="number"
                   step="0.1"
-                  min={25}
-                  max={500}
+                  min={30}
+                  max={300}
+                  defaultValue={70}
                   required
                 />
               </div>
@@ -157,17 +190,18 @@ export function Auth({ onAuthed }: { onAuthed: () => void }) {
                   name="target_weight_kg"
                   type="number"
                   step="0.1"
-                  min={25}
-                  max={500}
+                  min={30}
+                  max={300}
+                  defaultValue={70}
                   required
                 />
               </div>
 
               <div className="field">
                 <label htmlFor="activity_level">Nivel de actividad</label>
-                <select id="activity_level" name="activity_level" defaultValue="1.55">
-                  {ACTIVITY.map(([value, label]) => (
-                    <option key={value} value={value}>
+                <select id="activity_level" name="activity_level" required defaultValue="1.375">
+                  {ACTIVITY.map(([val, label]) => (
+                    <option key={val} value={val}>
                       {label}
                     </option>
                   ))}
@@ -175,7 +209,7 @@ export function Auth({ onAuthed }: { onAuthed: () => void }) {
               </div>
 
               <div className="field">
-                <label htmlFor="weekly_goal_kg">Cambio semanal (kg)</label>
+                <label htmlFor="weekly_goal_kg">Ritmo semanal (kg/sem)</label>
                 <input
                   id="weekly_goal_kg"
                   name="weekly_goal_kg"
@@ -197,6 +231,12 @@ export function Auth({ onAuthed }: { onAuthed: () => void }) {
             </p>
           )}
 
+          {forgotMsg && (
+            <p className="alert alert--ok" role="status">
+              {forgotMsg}
+            </p>
+          )}
+
           <div className="stack">
             <button
               className="btn btn--block"
@@ -210,8 +250,24 @@ export function Auth({ onAuthed }: { onAuthed: () => void }) {
                   ? 'Entrar'
                   : mode === 'register'
                     ? 'Crear cuenta'
-                    : 'Entrar como invitado'}
+                    : mode === 'forgot'
+                      ? 'Enviar link de recuperación'
+                      : 'Entrar como invitado'}
             </button>
+
+            {mode === 'forgot' && (
+              <button
+                className="btn btn--quiet btn--block"
+                type="button"
+                onClick={() => {
+                  setMode('login');
+                  setError('');
+                  setForgotMsg('');
+                }}
+              >
+                Volver al inicio de sesión
+              </button>
+            )}
 
             {mode === 'login' && (
               <>

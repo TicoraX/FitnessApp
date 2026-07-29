@@ -7,6 +7,7 @@ import { DiarioView } from './views/DiarioView';
 import { PerfilView } from './views/PerfilView';
 import { ProgresoView } from './views/ProgresoView';
 import { RecetasView } from './views/RecetasView';
+import { ResetPasswordView } from './views/ResetPasswordView';
 
 export function Diary({ onLogout }: { onLogout: () => void }) {
   const { route, navigate } = useHashRoute();
@@ -184,6 +185,10 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
 
       {route.view === 'progreso' && <ProgresoView onGoalChanged={() => load(date)} />}
 
+      {route.view === 'reset' && (
+        <ResetPasswordView token={route.param} onSuccess={() => navigate('diario')} />
+      )}
+
       {route.view === 'perfil' && (
         <PerfilView
           isGuest={isGuest}
@@ -197,6 +202,7 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
           claimBusy={claimBusy}
           handleClaim={handleClaim}
           onSaved={() => load(date)}
+          onLogout={onLogout}
         />
       )}
 

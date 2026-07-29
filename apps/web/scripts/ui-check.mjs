@@ -389,6 +389,13 @@ try {
     assert.equal(await page.locator('text=Racha Activa').count(), 1);
   });
 
+  await step('la ruta de restablecimiento de contraseña abre el formulario de reset', async () => {
+    await page.goto(`${BASE}/#/reset?token=test-token-123`);
+    await page.waitForSelector('.view-reset', { timeout: 10_000 });
+    assert.equal(await page.locator('#reset-pass').count(), 1);
+    await shot('16-reset-password-view');
+  });
+
   await step('el toggle de tema aplica data-theme', async () => {
     await page.goto(`${BASE}/#/perfil`);
     await page.getByRole('button', { name: 'Oscuro' }).click();

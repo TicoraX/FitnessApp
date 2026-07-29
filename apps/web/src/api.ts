@@ -63,7 +63,8 @@ export const api = {
     request<T>(path, { method: 'POST', body: JSON.stringify(body) }),
   patch: <T,>(path: string, body: unknown) =>
     request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
-  del: (path: string) => request<null>(path, { method: 'DELETE' }),
+  del: <T = null>(path: string, body?: unknown) =>
+    request<T>(path, { method: 'DELETE', body: body !== undefined ? JSON.stringify(body) : undefined }),
 };
 
 /* ---------- Tipos del contrato REST ---------- */
