@@ -304,8 +304,28 @@ try {
     await page.getByRole('button', { name: 'Claro' }).click();
     assert.equal(await page.evaluate(() => document.documentElement.getAttribute('data-theme')), 'light');
 
+    // "Sistema" tiene que resolver a un tema concreto, no dejar el atributo
+    // vacío: tokens.css declara el oscuro como `:root, [data-theme="dark"]`,
+    // así que sin atributo el modo automático da oscuro siempre y alguien con
+    // el sistema en claro nunca vería la paleta clara.
     await page.getByRole('button', { name: 'Sistema' }).click();
-    assert.equal(await page.evaluate(() => document.documentElement.getAttribute('data-theme')), null);
+
+    // waitForFunction y no assert directo: el atributo lo escribe un listener
+    // de matchMedia, que corre después de que emulateMedia resuelve.
+    const temaResuelto = (esperado) =>
+      page.waitForFunction(
+        (t) => document.documentElement.getAttribute('data-theme') === t,
+        esperado,
+        { timeout: 5_000 },
+      );
+
+    await page.emulateMedia({ colorScheme: 'light' });
+    await temaResuelto('light');
+
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await temaResuelto('dark');
+
+    await page.emulateMedia({ colorScheme: null });
 
     await page.goto(`${BASE}/#/diario`);
   });
