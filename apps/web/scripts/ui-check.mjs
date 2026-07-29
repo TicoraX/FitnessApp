@@ -270,7 +270,44 @@ try {
       { timeout: 10_000 },
     );
     await shot('11-perfil');
-    await page.getByRole('button', { name: 'Cerrar' }).click();
+  });
+
+  await step('navegar entre las cuatro vistas por hash router', async () => {
+    await page.goto(`${BASE}/#/recetas`);
+    await page.waitForSelector('.view-recetas', { timeout: 10_000 });
+    assert.match(page.url(), /#\/recetas/);
+
+    await page.goto(`${BASE}/#/progreso`);
+    await page.waitForSelector('.view-progreso', { timeout: 10_000 });
+    assert.match(page.url(), /#\/progreso/);
+
+    await page.goto(`${BASE}/#/perfil`);
+    await page.waitForSelector('.view-perfil', { timeout: 10_000 });
+    assert.match(page.url(), /#\/perfil/);
+
+    await page.goto(`${BASE}/#/diario`);
+    await page.waitForSelector('.view-diario', { timeout: 10_000 });
+  });
+
+  await step('el hash sobrevive a un reload con la fecha correcta', async () => {
+    await page.goto(`${BASE}/#/diario/2026-07-28`);
+    await page.reload();
+    await page.waitForSelector('.view-diario', { timeout: 10_000 });
+    assert.match(page.url(), /#\/diario\/2026-07-28/);
+  });
+
+  await step('el toggle de tema aplica data-theme', async () => {
+    await page.goto(`${BASE}/#/perfil`);
+    await page.getByRole('button', { name: 'Oscuro' }).click();
+    assert.equal(await page.evaluate(() => document.documentElement.getAttribute('data-theme')), 'dark');
+
+    await page.getByRole('button', { name: 'Claro' }).click();
+    assert.equal(await page.evaluate(() => document.documentElement.getAttribute('data-theme')), 'light');
+
+    await page.getByRole('button', { name: 'Sistema' }).click();
+    assert.equal(await page.evaluate(() => document.documentElement.getAttribute('data-theme')), null);
+
+    await page.goto(`${BASE}/#/diario`);
   });
 
   await step('la búsqueda se maneja con flechas y Enter', async () => {

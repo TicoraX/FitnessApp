@@ -17,6 +17,7 @@ interface ProfileData {
   target_weight_kg: number | null;
   weekly_goal_kg: number | null;
   daily_calories: number | null;
+  body_fat_pct?: number | null;
 }
 
 /**
@@ -44,12 +45,19 @@ export function Profile({ onSaved, onClose }: { onSaved: () => void; onClose: ()
     const raw = Object.fromEntries(new FormData(e.currentTarget));
 
     try {
-      const res = await api.patch<{ data: ProfileData }>('/profile', {
+      const payload: Record<string, unknown> = {
         height_cm: Number(raw.height_cm),
         activity_level: Number(raw.activity_level),
         target_weight_kg: Number(raw.target_weight_kg),
         weekly_goal_kg: Number(raw.weekly_goal_kg),
-      });
+      };
+      if (raw.body_fat_pct !== '' && raw.body_fat_pct !== undefined) {
+        payload.body_fat_pct = Number(raw.body_fat_pct);
+      } else {
+        payload.body_fat_pct = null;
+      }
+
+      const res = await api.patch<{ data: ProfileData }>('/profile', payload);
       setData(res.data);
       setMessage({ text: `Objetivo actualizado: ${res.data.daily_calories} kcal.`, ok: true });
       onSaved();
@@ -122,6 +130,21 @@ export function Profile({ onSaved, onClose }: { onSaved: () => void; onClose: ()
           defaultValue={data.weekly_goal_kg ?? ''}
         />
         <span className="muted">Negativo para bajar, positivo para subir.</span>
+      </div>
+
+      <div className="field">
+        <label htmlFor="pf-fat-pct">% Grasa corporal (opcional)</label>
+        <input
+          id="pf-fat-pct"
+          name="body_fat_pct"
+          type="number"
+          inputMode="decimal"
+          step="0.1"
+          min={3}
+          max={70}
+          defaultValue={data.body_fat_pct ?? ''}
+        />
+        <span className="muted">Cambia la fórmula del cálculo metabólico a Katch-McArdle (masa magra). Dejar en blanco vuelve a Mifflin-St Jeor.</span>
       </div>
 
       {message && (
