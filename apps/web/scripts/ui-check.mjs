@@ -296,6 +296,21 @@ try {
     assert.match(page.url(), /#\/diario\/2026-07-28/);
   });
 
+  await step('el botón de código de barras abre el escáner y la búsqueda por código responde', async () => {
+    await page.goto(`${BASE}/#/diario`);
+    await page.waitForSelector('.view-diario', { timeout: 10_000 });
+
+    const btnScanner = page.getByRole('button', { name: 'Escanear código de barras' });
+    assert.equal(await btnScanner.count(), 1);
+
+    await btnScanner.click();
+    await page.waitForSelector('.barcode-scanner-overlay', { timeout: 5_000 });
+    await shot('12-barcode-scanner');
+
+    await page.getByRole('button', { name: 'Cerrar ✕' }).click();
+    assert.equal(await page.locator('.barcode-scanner-overlay').count(), 0);
+  });
+
   await step('el toggle de tema aplica data-theme', async () => {
     await page.goto(`${BASE}/#/perfil`);
     await page.getByRole('button', { name: 'Oscuro' }).click();

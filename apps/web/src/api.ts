@@ -73,6 +73,8 @@ export interface Food {
   name: string;
   brand: string | null;
   verified: boolean;
+  source?: 'user' | 'openfoodfacts' | 'curated';
+  barcode?: string | null;
   serving_size_amount: number;
   serving_size_unit: string;
   calories: number;

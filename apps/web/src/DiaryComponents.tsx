@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type CSSProperties, type RefObject } from 'react';
 import { api, notificarCambio, today, type DaySummary, type Food } from './api';
 import Counter from './components/Counter';
+import { BarcodeScanner } from './components/BarcodeScanner';
 import { NewFood } from './NewFood';
 
 export const MEALS = [
@@ -436,6 +437,7 @@ export function AddFood({
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
   const [recent, setRecent] = useState<Food[]>([]);
   const [activo, setActivo] = useState(-1);
+  const [showScanner, setShowScanner] = useState(false);
   const [showNewFood, setShowNewFood] = useState(false);
 
   const visibles = query.trim().length < 2 ? recent : results;
@@ -454,11 +456,30 @@ export function AddFood({
     void loadRecent();
   }, [loadRecent]);
 
+  const handleBarcodeDetected = useCallback(async (barcode: string) => {
+    setShowScanner(false);
+    setMessage(null);
+    try {
+      const res = await api.get<{ data: Food }>(`/foods/barcode/${encodeURIComponent(barcode)}`);
+      handleSelectFood(res.data);
+      setMessage({ text: `Alimento encontrado por código de barras: ${res.data.name}`, ok: true });
+    } catch {
+      setQuery(barcode);
+      setMessage({ text: `Código ${barcode} no encontrado. Podés darlo de alta.`, ok: false });
+    }
+  }, []);
+
   useEffect(() => {
     if (query.trim().length < 2) {
       setResults((prev) => (prev.length === 0 ? prev : []));
       return;
     }
+    // Si la búsqueda es un código de barras numérico (8-14 dígitos)
+    if (/^\d{8,14}$/.test(query.trim())) {
+      const id = setTimeout(() => void handleBarcodeDetected(query.trim()), 300);
+      return () => clearTimeout(id);
+    }
+
     const id = setTimeout(async () => {
       try {
         const res = await api.get<{ data: Food[] }>(`/foods/search?q=${encodeURIComponent(query)}`);
@@ -471,7 +492,7 @@ export function AddFood({
       }
     }, 250);
     return () => clearTimeout(id);
-  }, [query]);
+  }, [query, handleBarcodeDetected]);
 
   const handleSelectFood = (food: Food) => {
     setSelected(food);
@@ -566,37 +587,59 @@ export function AddFood({
         })}
       </div>
 
-      <input
-        ref={searchInputRef}
-        type="search"
-        placeholder="Buscar alimento"
-        aria-label="Buscar alimento"
-        role="combobox"
-        aria-expanded={visibles.length > 0}
-        aria-controls="resultados-busqueda"
-        aria-autocomplete="list"
-        aria-activedescendant={activo >= 0 ? `alimento-${visibles[activo].id}` : undefined}
-        style={{ width: '100%' }}
-        value={query}
-        onChange={(e) => {
-          setQuery(e.target.value);
-          setMessage(null);
-        }}
-        onKeyDown={(e) => {
-          if (visibles.length === 0) return;
-          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-            e.preventDefault();
-            const paso = e.key === 'ArrowDown' ? 1 : -1;
-            setActivo((i) => (i + paso + visibles.length) % visibles.length);
-          } else if (e.key === 'Enter' && activo >= 0) {
-            e.preventDefault();
-            handleSelectFood(visibles[activo]);
-          } else if (e.key === 'Escape') {
-            setActivo(-1);
-            setSelected(null);
-          }
-        }}
-      />
+      <div style={{ display: 'flex', gap: '0.4rem', marginBottom: 'var(--space-xs)' }}>
+        <input
+          ref={searchInputRef}
+          type="search"
+          placeholder="Buscar alimento o código de barras"
+          aria-label="Buscar alimento"
+          role="combobox"
+          aria-expanded={visibles.length > 0}
+          aria-controls="resultados-busqueda"
+          aria-autocomplete="list"
+          aria-activedescendant={activo >= 0 ? `alimento-${visibles[activo].id}` : undefined}
+          style={{ flex: 1 }}
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setMessage(null);
+          }}
+          onKeyDown={(e) => {
+            if (visibles.length === 0) return;
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+              e.preventDefault();
+              const paso = e.key === 'ArrowDown' ? 1 : -1;
+              setActivo((i) => (i + paso + visibles.length) % visibles.length);
+            } else if (e.key === 'Enter' && activo >= 0) {
+              e.preventDefault();
+              handleSelectFood(visibles[activo]);
+            } else if (e.key === 'Escape') {
+              setActivo(-1);
+              setSelected(null);
+            }
+          }}
+        />
+        <button
+          type="button"
+          className="btn btn--quiet"
+          aria-label="Escanear código de barras"
+          title="Escanear código de barras"
+          onClick={() => setShowScanner(true)}
+          style={{ padding: '0 0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2" />
+            <line x1="7" y1="12" x2="17" y2="12" />
+          </svg>
+        </button>
+      </div>
+
+      {showScanner && (
+        <BarcodeScanner
+          onDetected={handleBarcodeDetected}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
 
       <p className="visually-hidden" role="status">
         {query.trim().length >= 2 &&
