@@ -333,6 +333,53 @@ await check('el objetivo se recalcula con el peso nuevo', async () => {
   assert.equal(objetivo, Math.round(bmr * 1.55) - 550);
 });
 
+/**
+ * La grasa corporal cambia la fórmula del BMR (Katch-McArdle en vez de
+ * Mifflin-St Jeor). Antes el dato se usaba en el registro y no se guardaba, así
+ * que el primer recálculo volvía a Mifflin y le movía las calorías al usuario
+ * sin que hubiera tocado nada. Va sobre una cuenta aparte para no ensuciar la
+ * del recorrido principal.
+ */
+await check('la grasa corporal sobrevive al recálculo del objetivo', async () => {
+  const principal = token;
+  token = '';
+
+  const katch = (kg, pct) => Math.round(370 + 21.6 * (kg * (1 - pct / 100)));
+
+  const alta = await call('POST', '/auth/guest', {
+    first_name: 'Katch',
+    dob: '1992-08-14',
+    gender: 'male',
+    height_cm: 178.5,
+    current_weight_kg: 90,
+    target_weight_kg: 80,
+    activity_level: 1.55,
+    weekly_goal_kg: -0.5,
+    body_fat_pct: 25,
+  });
+  assert.equal(alta.status, 201, JSON.stringify(alta.body));
+  token = alta.body.data.token;
+  assert.equal(alta.body.data.calculated_goals.bmr, katch(90, 25));
+
+  assert.equal((await call('GET', '/profile')).body.data.body_fat_pct, 25);
+
+  // Pesarse dispara GoalsService.refresh. Con una sola pesada la EMA es el
+  // valor crudo, así que el objetivo tiene que salir de Katch sobre 88 kg.
+  await call('POST', '/weight', { logged_on: day, weight_kg: 88 });
+
+  const despues = (await call('GET', '/profile')).body.data.daily_calories;
+  const esperado = Math.round(katch(88, 25) * 1.55) - 550;
+  assert.equal(despues, esperado, `${despues} != ${esperado}: el recálculo volvió a Mifflin`);
+
+  // Borrar el dato devuelve el cálculo a Mifflin-St Jeor.
+  const sinGrasa = await call('PATCH', '/profile', { body_fat_pct: null });
+  assert.equal(sinGrasa.status, 200, JSON.stringify(sinGrasa.body));
+  assert.equal(sinGrasa.body.data.body_fat_pct, null);
+  assert.notEqual(sinGrasa.body.data.daily_calories, esperado);
+
+  token = principal;
+});
+
 await check('un peso fuera de rango se rechaza', async () => {
   assert.equal((await call('POST', '/weight', { logged_on: day, weight_kg: 5 })).status, 400);
   assert.equal((await call('POST', '/weight', { logged_on: 'ayer', weight_kg: 80 })).status, 400);

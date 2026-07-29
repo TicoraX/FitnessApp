@@ -46,6 +46,7 @@ export class AuthService {
             gender: dto.gender,
             heightCm: dto.height_cm,
             activityLevel: dto.activity_level,
+            bodyFatPct: dto.body_fat_pct,
             isGuest: false,
           },
         });
@@ -119,6 +120,7 @@ export class AuthService {
           gender: dto.gender,
           heightCm: dto.height_cm,
           activityLevel: dto.activity_level,
+          bodyFatPct: dto.body_fat_pct,
           isGuest: true,
         },
       });

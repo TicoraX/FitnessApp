@@ -29,6 +29,11 @@ model User {
   dob            DateTime       @db.Date
   gender         Gender
   heightCm       Decimal        @map("height_cm") @db.Decimal(5, 2)
+  /// Opcional: con este dato el BMR sale por Katch-McArdle en vez de
+  /// Mifflin-St Jeor. Se guarda porque el objetivo se recalcula cada vez que
+  /// el usuario se pesa; sin persistirlo, el primer recálculo cambiaría de
+  /// fórmula y le movería las calorías sin que nadie tocara nada.
+  bodyFatPct     Decimal?       @map("body_fat_pct") @db.Decimal(4, 1)
   activityLevel  Decimal        @default(1.200) @map("activity_level") @db.Decimal(4, 3)
   unitPreference UnitPreference @default(metric) @map("unit_preference")
   createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)

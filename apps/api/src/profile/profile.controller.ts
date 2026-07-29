@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Injectable, Module, Patch, Req, UseGuards } from '@nestjs/common';
 import { Type } from 'class-transformer';
-import { IsIn, IsNumber, IsOptional, Max, Min } from 'class-validator';
+import { IsIn, IsNumber, IsOptional, Max, Min, ValidateIf } from 'class-validator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { GoalsService } from '../nutrition/goals.service';
@@ -31,6 +31,19 @@ class UpdateProfileDto {
   @Min(-1)
   @Max(1)
   weekly_goal_kg?: number;
+
+  /**
+   * null borra el dato y devuelve el cálculo a Mifflin-St Jeor. Sin esa opción
+   * un porcentaje cargado mal quedaría pegado para siempre, porque el resto de
+   * los campos opcionales interpretan undefined como "no tocar".
+   */
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 1 })
+  @Min(3)
+  @Max(70)
+  @ValidateIf((_, value) => value !== null)
+  body_fat_pct?: number | null;
 }
 
 type AuthedRequest = { user: { userId: string } };
@@ -58,6 +71,7 @@ export class ProfileService {
         gender: user.gender,
         height_cm: Number(user.heightCm),
         activity_level: Number(user.activityLevel),
+        body_fat_pct: user.bodyFatPct === null ? null : Number(user.bodyFatPct),
         target_weight_kg: goal ? Number(goal.targetWeightKg) : null,
         weekly_goal_kg: goal ? Number(goal.weeklyChangeKg) : null,
         daily_calories: goal?.dailyCalories ?? null,
@@ -66,18 +80,23 @@ export class ProfileService {
   }
 
   /**
-   * Altura y actividad viven en users; peso objetivo y cambio semanal, en el
-   * objetivo activo. Los cuatro alteran el cálculo, así que se recalcula
-   * después de escribir, dentro de la misma transacción.
+   * Altura, actividad y grasa corporal viven en users; peso objetivo y cambio
+   * semanal, en el objetivo activo. Los cinco alteran el cálculo, así que se
+   * recalcula después de escribir, dentro de la misma transacción.
    */
   async update(userId: string, dto: UpdateProfileDto) {
     await this.prisma.$transaction(async (tx) => {
-      if (dto.height_cm !== undefined || dto.activity_level !== undefined) {
+      if (
+        dto.height_cm !== undefined ||
+        dto.activity_level !== undefined ||
+        dto.body_fat_pct !== undefined
+      ) {
         await tx.user.update({
           where: { id: userId },
           data: {
             ...(dto.height_cm !== undefined && { heightCm: dto.height_cm }),
             ...(dto.activity_level !== undefined && { activityLevel: dto.activity_level }),
+            ...(dto.body_fat_pct !== undefined && { bodyFatPct: dto.body_fat_pct }),
           },
         });
       }

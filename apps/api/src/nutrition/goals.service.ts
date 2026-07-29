@@ -12,6 +12,9 @@ export class GoalsService {
    * Usa la EMA del peso, que siempre existe: el registro siembra la serie con
    * el peso declarado. Solo escribe un objetivo nuevo si las calorías
    * cambiaron; si no, la tabla se llena de filas idénticas.
+   *
+   * bodyFatPct se arrastra desde el usuario para no cambiar de fórmula a mitad
+   * de camino: si el registro calculó con Katch-McArdle, el recálculo también.
    */
   async refresh(tx: Prisma.TransactionClient, userId: string) {
     const [user, goal, latest] = await Promise.all([
@@ -29,6 +32,7 @@ export class GoalsService {
       gender: user.gender as Gender,
       activityLevel: Number(user.activityLevel),
       weeklyChangeKg: Number(goal.weeklyChangeKg),
+      bodyFatPct: user.bodyFatPct === null ? undefined : Number(user.bodyFatPct),
     });
 
     if (targets.dailyCalories === goal.dailyCalories) return;

@@ -143,6 +143,12 @@ jobs:
         working-directory: apps/web
         run: npm run tabs:check
 
+      # Un rediseño de paleta ya dejó el tema claro en 1.6:1 sin que nadie lo
+      # notara. Mide los dos temas, así que no depende de cuál esté activo.
+      - name: Contraste WCAG
+        working-directory: apps/web
+        run: npm run contrast:check
+
       # Cuando algo falla, la captura dice más que el stack trace.
       - name: Guardar capturas
         if: always()
