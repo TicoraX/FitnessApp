@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 
 export type ViewRoute = 'diario' | 'recetas' | 'progreso' | 'perfil' | 'reset';
 
@@ -30,27 +30,25 @@ function parseHash(hash: string): ParsedRoute {
   return { view, param };
 }
 
+function subscribeHash(callback: () => void) {
+  window.addEventListener('hashchange', callback);
+  return () => window.removeEventListener('hashchange', callback);
+}
+
+function getSnapshot() {
+  return window.location.hash;
+}
+
 /**
- * Hook ligero de enrutamiento por hash sin librerías de terceros.
- * Soporta #/diario, #/diario/YYYY-MM-DD, #/recetas, #/progreso, #/perfil.
+ * Hook ligero de enrutamiento por hash usando useSyncExternalStore nativo.
  */
 export function useHashRoute() {
-  const [route, setRoute] = useState<ParsedRoute>(() => parseHash(window.location.hash));
-
-  useEffect(() => {
-    const handleHashChange = () => {
-      setRoute(parseHash(window.location.hash));
-    };
-
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
+  const hash = useSyncExternalStore(subscribeHash, getSnapshot, () => '#/diario');
+  const route = parseHash(hash);
 
   const navigate = (path: string) => {
     const targetHash = path.startsWith('#') ? path : `#/${path.replace(/^\//, '')}`;
-    if (window.location.hash === targetHash) {
-      setRoute(parseHash(targetHash));
-    } else {
+    if (window.location.hash !== targetHash) {
       window.location.hash = targetHash;
     }
   };

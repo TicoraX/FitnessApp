@@ -182,13 +182,12 @@ export function Dial({ day }: { day: DaySummary }) {
 
   return (
     <div className="dial">
-      <div
+      <meter
         className="ring"
-        role="meter"
         aria-label="Calorías del día"
-        aria-valuenow={totals.calories}
-        aria-valuemin={0}
-        aria-valuemax={goal || undefined}
+        value={totals.calories}
+        min={0}
+        max={goal || undefined}
         style={
           { '--pct': pct, '--ring-color': over ? 'var(--color-danger)' : undefined } as CSSProperties
         }
@@ -235,16 +234,15 @@ export function Macros({ day }: { day: DaySummary }) {
                 {m.eaten} g{goal > 0 && ` / ${Math.round(goal)} g`}
               </span>
             </div>
-            <div
+            <meter
               className="macro__track"
-              role="meter"
               aria-label={m.label}
-              aria-valuenow={m.eaten}
-              aria-valuemin={0}
-              aria-valuemax={goal || undefined}
+              value={m.eaten}
+              min={0}
+              max={goal || undefined}
             >
               <div className="macro__fill" data-over={goal > 0 && m.eaten > goal} style={{ width: `${pct}%` }} />
-            </div>
+            </meter>
           </div>
         );
       })}
@@ -365,6 +363,8 @@ export function Meals({ day, date, onChanged }: { day: DaySummary; date: string;
   );
 }
 
+const formatEntryVal = (v: number) => Number(Math.round(v * 100) / 100).toString();
+
 export function Entry({
   entry,
   busy,
@@ -376,18 +376,17 @@ export function Entry({
   onChanged: () => void;
   setBusy: (id: string | null) => void;
 }) {
-  const formatVal = (v: number) => Number(Math.round(v * 100) / 100).toString();
-  const [servings, setServings] = useState(formatVal(entry.servings_consumed));
+  const [servings, setServings] = useState(() => formatEntryVal(entry.servings_consumed));
   const [expanded, setExpanded] = useState(false);
 
-  useEffect(() => setServings(formatVal(entry.servings_consumed)), [entry.servings_consumed]);
+  useEffect(() => setServings(formatEntryVal(entry.servings_consumed)), [entry.servings_consumed]);
 
   const isRecipe = entry.kind === 'recipe';
 
   async function commit() {
     const value = Math.round(Number(servings) * 100) / 100;
     if (!Number.isFinite(value) || value <= 0 || value === entry.servings_consumed) {
-      setServings(formatVal(entry.servings_consumed));
+      setServings(formatEntryVal(entry.servings_consumed));
       return;
     }
     setBusy(entry.id);
@@ -400,7 +399,7 @@ export function Entry({
       notificarCambio('diario-cambiado');
       onChanged();
     } catch {
-      setServings(formatVal(entry.servings_consumed));
+      setServings(formatEntryVal(entry.servings_consumed));
     } finally {
       setBusy(null);
     }
@@ -417,7 +416,7 @@ export function Entry({
       notificarCambio('diario-cambiado');
       onChanged();
     } catch {
-      setServings(formatVal(entry.servings_consumed));
+      setServings(formatEntryVal(entry.servings_consumed));
     } finally {
       setBusy(null);
     }
@@ -426,7 +425,19 @@ export function Entry({
   return (
     <li className="entry" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-        <span className="entry__label" style={{ cursor: isRecipe ? 'pointer' : 'default' }} onClick={() => isRecipe && setExpanded(!expanded)}>
+        <span
+          className="entry__label"
+          style={{ cursor: isRecipe ? 'pointer' : 'default' }}
+          role={isRecipe ? 'button' : undefined}
+          tabIndex={isRecipe ? 0 : undefined}
+          onClick={() => isRecipe && setExpanded(!expanded)}
+          onKeyDown={(e) => {
+            if (isRecipe && (e.key === 'Enter' || e.key === ' ')) {
+              e.preventDefault();
+              setExpanded(!expanded);
+            }
+          }}
+        >
           <span className="entry__name">
             {isRecipe && (expanded ? '▼ ' : '▶ ')}
             {entry.food.name}
