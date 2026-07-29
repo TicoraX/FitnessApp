@@ -54,6 +54,28 @@ const RESUME_FROM = Number(arg('resume-from') ?? 0);
 const BATCH = Number(arg('batch') ?? 1000);
 const DRY_RUN = flag('dry-run');
 
+/**
+ * --countries argentina,chile,uruguay
+ *
+ * Sin esto entra el catálogo mundial: unos 3,5 millones de productos, de los
+ * que Argentina son ~15.600. Los otros no aparecen en ninguna góndola de acá y
+ * lo único que hacen es competirle a los buenos en el ORDER BY de la búsqueda.
+ * Lo que el filtro deja afuera igual queda cubierto: si se escanea un código
+ * que no está, GET /foods/barcode lo trae de OpenFoodFacts en el momento.
+ */
+const COUNTRIES = (arg('countries') ?? '')
+  .split(',')
+  .map((c) => c.trim().toLowerCase())
+  .filter(Boolean);
+
+/**
+ * Los tags viajan en el JSON como ["en:argentina","en:france"], así que
+ * buscarlos con comillas en la línea CRUDA descarta el 99,6% de los productos
+ * sin construir el objeto. Un indexOf sobre 30 KB de texto cuesta órdenes de
+ * magnitud menos que un JSON.parse, y el parseo es el grueso del trabajo.
+ */
+const TAGS_CRUDOS = COUNTRIES.map((c) => `"en:${c}"`);
+
 if (!FILE) {
   console.error('Falta --file con la ruta al dump (.jsonl o .jsonl.gz)');
   process.exit(1);
@@ -64,6 +86,8 @@ let leidas = 0;
 let insertadas = 0;
 let descartadas = 0;
 let ilegibles = 0;
+let otroPais = 0;
+let saltadasSinParsear = 0;
 
 /**
  * Un lote entero por statement: 1000 productos en un round trip en vez de 1000.
@@ -138,12 +162,30 @@ async function main() {
     if (leidas - RESUME_FROM > LIMIT) break;
     if (!linea.trim()) continue;
 
+    // Descarte barato, antes de parsear.
+    if (TAGS_CRUDOS.length && !TAGS_CRUDOS.some((t) => linea.includes(t))) {
+      otroPais++;
+      saltadasSinParsear++;
+      continue;
+    }
+
     let producto: OffProduct;
     try {
       producto = JSON.parse(linea);
     } catch {
       ilegibles++;
       continue;
+    }
+
+    // El filtro de arriba mira la línea entera, así que también matchea un
+    // origins_tags que diga en:argentina en un producto que se vende en otro
+    // lado. Con el objeto ya armado, se confirma contra el campo correcto.
+    if (COUNTRIES.length) {
+      const paises = (producto.countries_tags ?? []).map((t) => t.replace(/^en:/, ''));
+      if (!paises.some((p) => COUNTRIES.includes(p))) {
+        otroPais++;
+        continue;
+      }
     }
 
     const r = mapOffProduct(producto);
@@ -166,6 +208,9 @@ main()
     const pct = procesadas ? ((insertadas / procesadas) * 100).toFixed(1) : '0';
     console.log(`\n${DRY_RUN ? 'Simulacro' : 'Importación'} terminada.`);
     console.log(`  leidas      ${leidas}`);
+    if (COUNTRIES.length) {
+      console.log(`  otro pais   ${otroPais} (${saltadasSinParsear} saltadas sin parsear)`);
+    }
     console.log(`  guardadas   ${insertadas} (${pct}% de las procesadas)`);
     console.log(`  descartadas ${descartadas}`);
     if (ilegibles) console.log(`  json roto   ${ilegibles}`);

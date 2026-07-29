@@ -21,6 +21,7 @@ export interface OffProduct {
   quantity?: string;
   serving_size?: string;
   states_tags?: string[];
+  countries_tags?: string[];
   nutriments?: Record<string, unknown>;
 }
 

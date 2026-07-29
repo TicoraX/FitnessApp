@@ -51,15 +51,31 @@ El seed trae 30 alimentos de referencia. Para un catálogo real se importa el
 dump de OpenFoodFacts, que se procesa en streaming:
 
 ```bash
+curl -O https://static.openfoodfacts.org/data/openfoodfacts-products.jsonl.gz
+
 cd apps/api
-npm run import:off -- --file ./openfoodfacts-products.jsonl.gz --limit 5000 --dry-run
-npm run import:off -- --file ./openfoodfacts-products.jsonl.gz
+npm run import:off -- --file ../../openfoodfacts-products.jsonl.gz \
+  --countries argentina,chile,uruguay --dry-run
+npm run import:off -- --file ../../openfoodfacts-products.jsonl.gz \
+  --countries argentina,chile,uruguay
 ```
 
+El dump son unos 12 GB comprimidos y no se descomprime nunca a disco: se lee en
+streaming. Casi todo ese peso es metadato que no usamos (analítica de escaneos,
+historial de fotos, nombres en decenas de idiomas); de un producto tipo se
+aprovecha menos del 1%.
+
+`--countries` filtra por país mirando la línea cruda antes de parsearla, así que
+descarta el 99% de los productos sin construir el objeto. Sin el flag entra el
+catálogo mundial, unos 3,5 millones de productos contra los ~24.000 del Cono
+Sur, que además le compiten a los buenos en el orden de la búsqueda. Lo que el
+filtro deja afuera queda cubierto igual: escanear un código que no está lo trae
+de OpenFoodFacts en el momento.
+
 El `--dry-run` cuenta cuánto entra y cuánto se descarta por cada filtro de
-calidad sin escribir nada. Antes de una carga masiva hay que bajar los dos
-índices GIN de búsqueda a mano: el encabezado del script tiene el runbook y
-explica por qué no está automatizado.
+calidad sin escribir nada. Solo para una carga mundial hay que bajar los dos
+índices GIN a mano antes: el encabezado del script tiene el runbook y explica
+por qué no está automatizado. Con el filtro por país no hace falta.
 
 Un alimento cargado por un usuario nunca se pisa, aunque comparta código de
 barras con uno del dump. Aparte, si se consulta un código que no está en la
