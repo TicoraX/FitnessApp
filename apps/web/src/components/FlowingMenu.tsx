@@ -50,6 +50,14 @@ export function FlowingMenu({
   );
 }
 
+const animationDefaults = { duration: 0.5, ease: 'expo' };
+
+const distMetric = (x: number, y: number, x2: number, y2: number) => {
+  const xDiff = x - x2;
+  const yDiff = y - y2;
+  return xDiff * xDiff + yDiff * yDiff;
+};
+
 interface MenuItemProps extends FlowingMenuItem {
   speed: number;
   textColor: string;
@@ -76,14 +84,6 @@ function MenuItem({
   const marqueeInnerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<gsap.core.Tween | null>(null);
   const [repetitions, setRepetitions] = useState(4);
-
-  const animationDefaults = { duration: 0.5, ease: 'expo' };
-
-  const distMetric = (x: number, y: number, x2: number, y2: number) => {
-    const xDiff = x - x2;
-    const yDiff = y - y2;
-    return xDiff * xDiff + yDiff * yDiff;
-  };
 
   const findClosestEdge = (mouseX: number, mouseY: number, width: number, height: number) => {
     const topEdgeDist = distMetric(mouseX, mouseY, width / 2, 0);

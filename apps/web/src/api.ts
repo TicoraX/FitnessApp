@@ -207,3 +207,62 @@ export const today = () => {
   const dia = String(d.getDate()).padStart(2, '0');
   return `${d.getFullYear()}-${mes}-${dia}`;
 };
+
+export const MEALS = [
+  ['breakfast', 'Desayuno'],
+  ['lunch', 'Almuerzo'],
+  ['dinner', 'Cena'],
+  ['snack', 'Snack'],
+] as const;
+
+export function formatDateLabel(dateStr: string) {
+  if (!dateStr) return '';
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const target = new Date(y, m - 1, d);
+  const now = new Date();
+  const todayStr = today();
+
+  const yesterday = new Date();
+  yesterday.setDate(now.getDate() - 1);
+  const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+
+  if (dateStr === todayStr) return 'Hoy';
+  if (dateStr === yesterdayStr) return 'Ayer';
+
+  const options: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'short' };
+  const formatted = target.toLocaleDateString('es-ES', options);
+  return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+}
+
+export function shiftDate(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() + days);
+  const ny = dt.getFullYear();
+  const nm = String(dt.getMonth() + 1).padStart(2, '0');
+  const nd = String(dt.getDate()).padStart(2, '0');
+  return `${ny}-${nm}-${nd}`;
+}
+
+export function getWeekDays(centerDateStr: string): Array<{ iso: string; dayName: string; dayNum: number; isToday: boolean; isFuture: boolean }> {
+  const [y, m, d] = centerDateStr.split('-').map(Number);
+  const center = new Date(y, m - 1, d);
+  const todayStr = today();
+
+  const result = [];
+  for (let i = -3; i <= 3; i++) {
+    const dt = new Date(center);
+    dt.setDate(center.getDate() + i);
+    const iso = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+    const dayName = dt.toLocaleDateString('es-ES', { weekday: 'short' }).slice(0, 3).toUpperCase();
+    const dayNum = dt.getDate();
+    result.push({
+      iso,
+      dayName,
+      dayNum,
+      isToday: iso === todayStr,
+      isFuture: iso > todayStr,
+    });
+  }
+  return result;
+}

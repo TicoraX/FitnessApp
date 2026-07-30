@@ -312,7 +312,15 @@ export function RecetasView() {
               <div key={r.id} className="card card--raised" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                    <h3 style={{ fontSize: '1.1rem', margin: 0, color: 'var(--text-main)', cursor: 'pointer' }} onClick={() => setDetailRecipe(r)}>{r.name}</h3>
+                    <h3
+                      tabIndex={0}
+                      role="button"
+                      style={{ fontSize: '1.1rem', margin: 0, color: 'var(--text-main)', cursor: 'pointer' }}
+                      onClick={() => setDetailRecipe(r)}
+                      onKeyDown={(e) => e.key === 'Enter' && setDetailRecipe(r)}
+                    >
+                      {r.name}
+                    </h3>
                     <span className="badge">{r.total_servings} porciones</span>
                   </div>
                   <div className="num" style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-primary)', fontFamily: 'var(--font-mono)', marginBottom: '0.5rem' }}>
@@ -371,7 +379,7 @@ export function RecetasView() {
             </span>
             <InfiniteMenu
               items={recipes.map((r) => {
-                const ingNames = r.components?.map(c => c.food?.name).filter(Boolean).join(', ');
+                const ingNames = r.components?.flatMap((c) => (c.food?.name ? [c.food.name] : [])).join(', ');
                 return {
                   title: r.name,
                   description: ingNames ? `${Math.round(r.per_serving.calories)} kcal · ${ingNames}` : `${Math.round(r.per_serving.calories)} kcal / porción`,
@@ -386,7 +394,15 @@ export function RecetasView() {
             <div key={r.id} className="card card--raised" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                  <h3 style={{ fontSize: '1.1rem', margin: 0, color: 'var(--text-main)', cursor: 'pointer' }} onClick={() => setDetailRecipe(r)}>{r.name}</h3>
+                  <h3
+                    tabIndex={0}
+                    role="button"
+                    style={{ fontSize: '1.1rem', margin: 0, color: 'var(--text-main)', cursor: 'pointer' }}
+                    onClick={() => setDetailRecipe(r)}
+                    onKeyDown={(e) => e.key === 'Enter' && setDetailRecipe(r)}
+                  >
+                    {r.name}
+                  </h3>
                   <span className="badge">{r.total_servings} porciones</span>
                 </div>
                 <div className="num" style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-primary)', fontFamily: 'var(--font-mono)', marginBottom: '0.5rem' }}>
@@ -567,7 +583,11 @@ export function RecetasView() {
                               min="0.01"
                               style={{ width: '70px', padding: '0.2rem 0.4rem', fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}
                               value={Math.round(ing.quantity * 100) / 100}
-                              onChange={(e) => handleUpdateQuantity(ing.food.id, Number(e.target.value))}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const num = val ? Number(val) : 0;
+                                if (!isNaN(num) && num > 0) handleUpdateQuantity(ing.food.id, num);
+                              }}
                             />
                             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>× {ing.food.serving_size_amount}{ing.food.serving_size_unit}</span>
                           </div>
@@ -584,9 +604,10 @@ export function RecetasView() {
                                 style={{ width: '75px', padding: '0.2rem 0.4rem', fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}
                                 value={totalGrams}
                                 onChange={(e) => {
-                                  const g = Number(e.target.value);
+                                  const val = e.target.value;
+                                  const g = val ? Number(val) : 0;
                                   const base = ing.food.serving_size_amount || 100;
-                                  if (g > 0 && base > 0) {
+                                  if (!isNaN(g) && g > 0 && base > 0) {
                                     handleUpdateQuantity(ing.food.id, g / base);
                                   }
                                 }}

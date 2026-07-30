@@ -83,7 +83,11 @@ function MacroPresetCalculator() {
           max={6000}
           step={50}
           value={cals}
-          onChange={(e) => setCals(Number(e.target.value))}
+          onChange={(e) => {
+            const val = e.target.value;
+            const num = val ? Number(val) : 0;
+            if (!isNaN(num)) setCals(num);
+          }}
           style={{ fontFamily: 'var(--font-mono)' }}
         />
       </div>

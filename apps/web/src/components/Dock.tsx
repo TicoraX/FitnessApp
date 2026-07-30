@@ -1,5 +1,5 @@
-import { motion, useMotionValue, useSpring, useTransform, AnimatePresence, type SpringOptions, type MotionValue } from 'motion/react';
-import { Children, cloneElement, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import { motion, useMotionValue, useSpring, useTransform, useMotionValueEvent, AnimatePresence, type SpringOptions, type MotionValue } from 'motion/react';
+import { Children, cloneElement, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import './Dock.css';
 
 export interface DockItemData {
@@ -73,14 +73,9 @@ function DockLabel({ children, className = '', ...rest }: { children: ReactNode;
   const isHovered = rest.isHovered as MotionValue<number> | undefined;
   const [isVisible, setIsVisible] = useState(false);
 
-  useEffect(() => {
-    const unsub = isHovered?.on('change', (latest) => {
-      setIsVisible(latest === 1);
-    });
-    return () => {
-      if (unsub) unsub();
-    };
-  }, [isHovered]);
+  useMotionValueEvent(isHovered as MotionValue<number>, 'change', (latest) => {
+    setIsVisible(latest === 1);
+  });
 
   return (
     <AnimatePresence>

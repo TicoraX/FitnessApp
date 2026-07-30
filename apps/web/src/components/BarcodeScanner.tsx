@@ -44,7 +44,7 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
         if (videoRef.current && active) {
           videoRef.current.srcObject = stream;
           await videoRef.current.play();
-          setCameraActive(true);
+          if (active) setCameraActive(true);
         }
 
         // 1. Intentar BarcodeDetector nativo si está disponible
