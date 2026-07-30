@@ -13,7 +13,7 @@ COPY src ./src
 RUN npm run build
 # El seed se compila aparte: nest build solo toma src/, y la imagen final no
 # lleva ts-node. Sin esto no hay forma de cargar el catálogo en producción.
-RUN npx tsc prisma/seed.ts --outDir dist-seed --module commonjs --target ES2022 \
+RUN npx tsc prisma/seed.ts prisma/foods-dataset.ts --outDir dist-seed --module commonjs --target ES2022 \
     --esModuleInterop --skipLibCheck --resolveJsonModule
 
 FROM node:22-alpine AS deps
