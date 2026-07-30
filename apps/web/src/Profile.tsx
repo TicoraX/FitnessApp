@@ -79,7 +79,21 @@ export function Profile({ onSaved, onClose }: { onSaved: () => void; onClose: ()
     setBusy(false);
   }
 
+  const [unitPref, setUnitPref] = useState<'metric' | 'imperial'>(data?.unit_preference || 'metric');
+
+  useEffect(() => {
+    if (data?.unit_preference) setUnitPref(data.unit_preference);
+  }, [data?.unit_preference]);
+
   if (!data) return <p className="muted">Cargando el perfil.</p>;
+
+  const isImperial = unitPref === 'imperial';
+  const displayHeight = isImperial ? Math.round((data.height_cm / 2.54) * 10) / 10 : data.height_cm;
+  const displayTargetWeight = data.target_weight_kg
+    ? isImperial
+      ? Math.round(data.target_weight_kg * 2.20462 * 10) / 10
+      : data.target_weight_kg
+    : '';
 
   return (
     <form className="stack" onSubmit={submit}>
@@ -88,17 +102,41 @@ export function Profile({ onSaved, onClose }: { onSaved: () => void; onClose: ()
       </p>
 
       <div className="field">
-        <label htmlFor="pf-height">Altura (cm)</label>
+        <label>Sistema de unidades</label>
+        <div style={{ display: 'flex', gap: 'var(--space-xs)' }}>
+          <button
+            type="button"
+            className={!isImperial ? 'btn' : 'btn btn--quiet'}
+            onClick={() => setUnitPref('metric')}
+            style={{ flex: 1, fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}
+          >
+            Métrico (kg / cm)
+          </button>
+          <button
+            type="button"
+            className={isImperial ? 'btn' : 'btn btn--quiet'}
+            onClick={() => setUnitPref('imperial')}
+            style={{ flex: 1, fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}
+          >
+            Imperial (lb / in)
+          </button>
+        </div>
+        <input type="hidden" name="unit_preference" value={unitPref} />
+      </div>
+
+      <div className="field">
+        <label htmlFor="pf-height">Altura ({isImperial ? 'pulgadas / in' : 'cm'})</label>
         <input
           id="pf-height"
           name="height_cm"
           type="number"
           inputMode="decimal"
           step="0.5"
-          min={80}
-          max={260}
+          min={isImperial ? 30 : 80}
+          max={isImperial ? 100 : 260}
           required
-          defaultValue={data.height_cm}
+          key={`height-${unitPref}`}
+          defaultValue={displayHeight}
         />
       </div>
 
@@ -114,17 +152,18 @@ export function Profile({ onSaved, onClose }: { onSaved: () => void; onClose: ()
       </div>
 
       <div className="field">
-        <label htmlFor="pf-target">Peso objetivo (kg)</label>
+        <label htmlFor="pf-target">Peso objetivo ({isImperial ? 'libras / lb' : 'kg'})</label>
         <input
           id="pf-target"
           name="target_weight_kg"
           type="number"
           inputMode="decimal"
           step="0.1"
-          min={25}
-          max={500}
+          min={isImperial ? 50 : 25}
+          max={isImperial ? 1100 : 500}
           required
-          defaultValue={data.target_weight_kg ?? ''}
+          key={`weight-${unitPref}`}
+          defaultValue={displayTargetWeight}
         />
       </div>
 
