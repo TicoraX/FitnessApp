@@ -33,7 +33,7 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
       try {
         if (!navigator.mediaDevices?.getUserMedia) {
           setSinCamara(true);
-          setError('Tu navegador no permite acceso a la cámara. Ingresá el código manualmente.');
+          setError('Este navegador no puede leer códigos con la cámara. Escribí el código y listo.');
           return;
         }
 
@@ -194,6 +194,7 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
             type="button"
             className="btn btn--quiet"
             onClick={onClose}
+            aria-label="Cerrar"
             style={{ padding: '0.3rem 0.6rem', fontSize: '0.85rem' }}
           >
             ✕ Cerrar
