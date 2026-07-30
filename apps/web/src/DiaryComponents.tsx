@@ -877,9 +877,9 @@ export function AddFood({
         </div>
       )}
 
-      {visibles.length > 0 && (
+      {query.trim().length >= 2 && results.length > 0 && (
         <ul id="resultados-busqueda" className="results" role="listbox" aria-label="Resultados de búsqueda">
-          {visibles.map((f, i) => (
+          {results.map((f, i) => (
             <li
               key={f.id}
               id={`alimento-${f.id}`}

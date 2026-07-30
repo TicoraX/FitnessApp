@@ -1,13 +1,57 @@
+name: fittrack
+
 services:
   db:
+    container_name: fittrack-db
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: fittrack
-      POSTGRES_PASSWORD: fittrack
-      POSTGRES_DB: fittrack
-    # 5433 en el host: el 5432 ya lo usa otro proyecto.
-    ports: ['5433:5432']
-    volumes: ['pgdata:/var/lib/postgresql/data']
+      POSTGRES_USER: ${POSTGRES_USER:-fittrack}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fittrack}
+      POSTGRES_DB: ${POSTGRES_DB:-fittrack}
+    ports:
+      - '5433:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-fittrack}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    container_name: fittrack-api
+    build:
+      context: ./apps/api
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-fittrack}:${POSTGRES_PASSWORD:-fittrack}@db:5432/${POSTGRES_DB:-fittrack}?schema=public
+      JWT_SECRET: ${JWT_SECRET:-desarrollo_secret_key_fit_track_123456789}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      PORT: '3100'
+    ports:
+      - '3100:3100'
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        ['CMD', 'node', '-e', "fetch('http://localhost:3100/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    restart: unless-stopped
+
+  web:
+    container_name: fittrack-web
+    build:
+      context: ./apps/web
+    ports:
+      - '${WEB_PORT:-8080}:80'
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   pgdata:
