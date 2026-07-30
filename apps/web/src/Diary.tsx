@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, escucharCambios, setToken, today, type DaySummary } from './api';
 import Dock, { type DockItemData } from './components/Dock';
-import { StaggeredMenu } from './components/StaggeredMenu';
 import { useHashRoute } from './hooks/useHashRoute';
 import { Profile } from './Profile';
 import { DiarioView } from './views/DiarioView';
