@@ -1,0 +1,18 @@
+{
+  "short_name": "FitTrack",
+  "name": "FitTrack - Diario Nutricional y Progreso",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "512x512 192x192 96x96 48x48",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "./",
+  "background_color": "#12171e",
+  "theme_color": "#12171e",
+  "display": "standalone",
+  "orientation": "portrait",
+  "description": "Seguimiento nutricional inteligente, diario de alimentos, metas de macros y progreso físico."
+}
