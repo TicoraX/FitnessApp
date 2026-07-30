@@ -895,8 +895,7 @@ export function AddFood({
             Comidas que registraste antes:
           </p>
           <InfiniteMenu
-            items={recent.map((f, i) => ({
-              image: `https://picsum.photos/240/140?random=${(i % 8) + 20}`,
+            items={recent.map((f) => ({
               title: f.name,
               description: `${f.calories} kcal / ${f.serving_size_amount}${f.serving_size_unit}`,
               onClick: () => handleSelectFood(f),

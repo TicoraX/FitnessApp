@@ -222,10 +222,9 @@ export function RecetasView() {
               Ideas & Inspiración de Recetas
             </span>
             <InfiniteMenu
-              items={RECIPE_IDEAS.map((r, i) => {
+              items={RECIPE_IDEAS.map((r) => {
                 const ingNames = r.components?.map(c => c.food?.name).filter(Boolean).join(', ');
                 return {
-                  image: `https://picsum.photos/300/300?random=${(i % 10) + 1}`,
                   title: r.name,
                   description: ingNames ? `${Math.round(r.per_serving.calories)} kcal · ${ingNames}` : `${Math.round(r.per_serving.calories)} kcal / porción`,
                   onClick: () => setShowCreateModal(true),
@@ -234,18 +233,52 @@ export function RecetasView() {
             />
           </div>
 
-          <section className="card" style={{ textAlign: 'center', padding: 'var(--space-xl)' }}>
-            <h3 className="card__title" style={{ marginBottom: 'var(--space-xs)' }}>
-              Aún no guardaste ninguna receta personal
-            </h3>
-            <p className="muted" style={{ maxWidth: '44ch', margin: '0 auto 1.5rem' }}>
-              Agrupá los ingredientes que usás seguido para ver cuánto rinde cada
-              porción y cargar el plato entero de una.
-            </p>
-            <button type="button" className="btn" onClick={() => setShowCreateModal(true)}>
-              Crear mi primera receta
-            </button>
-          </section>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 'var(--space-md)' }}>
+            {RECIPE_IDEAS.map((r) => (
+              <div key={r.id} className="card card--raised" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                    <h3 style={{ fontSize: '1.1rem', margin: 0, color: 'var(--text-main)' }}>{r.name}</h3>
+                    <span className="badge">{r.total_servings} porciones</span>
+                  </div>
+                  <div className="num" style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-primary)', fontFamily: 'var(--font-mono)', marginBottom: '0.5rem' }}>
+                    {Math.round(r.per_serving.calories)} kcal <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-muted)' }}>/ porción</span>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }} className="num">
+                    <span>P: {Math.round(r.per_serving.protein_g)}g</span>
+                    <span>C: {Math.round(r.per_serving.carbs_g)}g</span>
+                    <span>G: {Math.round(r.per_serving.fat_g)}g</span>
+                  </div>
+
+                  {r.components && r.components.length > 0 && (
+                    <div style={{ marginTop: '0.5rem', marginBottom: '0.75rem', fontSize: '0.8rem', background: 'var(--bg-surface)', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+                      <span className="eyebrow" style={{ color: 'var(--text-muted)', fontSize: '0.65rem', marginBottom: '0.3rem', display: 'block' }}>
+                        Ingredientes ({r.components.length})
+                      </span>
+                      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                        {r.components.map((c, idx) => (
+                          <li key={c.food_item_id || idx} style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-main)', fontSize: '0.75rem' }}>
+                            <span>• {c.food?.name || 'Ingrediente'}</span>
+                            <span className="num muted">{c.quantity} × {c.food?.serving_size_amount || 100}{c.food?.serving_size_unit || 'g'}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ marginTop: '1rem', width: '100%' }}
+                  onClick={() => setShowCreateModal(true)}
+                >
+                  + Crear Mi Propia Receta
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       ) : (
         <>
@@ -254,10 +287,9 @@ export function RecetasView() {
               Destacadas & Selección Rápida
             </span>
             <InfiniteMenu
-              items={recipes.map((r, i) => {
+              items={recipes.map((r) => {
                 const ingNames = r.components?.map(c => c.food?.name).filter(Boolean).join(', ');
                 return {
-                  image: `https://picsum.photos/300/300?random=${(i % 10) + 1}`,
                   title: r.name,
                   description: ingNames ? `${Math.round(r.per_serving.calories)} kcal · ${ingNames}` : `${Math.round(r.per_serving.calories)} kcal / porción`,
                   onClick: () => setLoggingRecipe(r),

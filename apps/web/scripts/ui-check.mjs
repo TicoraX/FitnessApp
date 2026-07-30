@@ -83,7 +83,7 @@ try {
   });
 
   await step('la búsqueda devuelve resultados legibles', async () => {
-    await page.getByLabel('Buscar alimento').fill('pollo');
+    await page.getByLabel('Buscar alimento').fill('Pechuga de pollo cocida');
     await page.waitForSelector('.result', { timeout: 10_000 });
     const texto = await page.locator('.result').first().innerText();
     assert.match(texto, /Pechuga de pollo cocida/);
