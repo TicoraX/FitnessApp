@@ -3,6 +3,91 @@ import { api, setToken, today } from '../api';
 import { useTheme, type ThemeOption } from '../hooks/useTheme';
 import { Profile } from '../Profile';
 
+const PRESETS = [
+  { name: 'Alta Proteína', desc: 'Ganancia Muscular & Saciación', p: 40, c: 40, f: 20 },
+  { name: 'Equilibrado', desc: 'Mantenimiento & Salud General', p: 30, c: 40, f: 30 },
+  { name: 'Cetogénico / Low Carb', desc: 'Control de Insulina & Quema de Grasa', p: 30, c: 10, f: 60 },
+  { name: 'Deportivo', desc: 'Resistencia & Rendimiento', p: 25, c: 55, f: 20 },
+];
+
+function MacroPresetCalculator() {
+  const [selectedIdx, setSelectedIdx] = useState(0);
+  const [cals, setCals] = useState(2000);
+
+  const preset = PRESETS[selectedIdx];
+  const proteinG = Math.round((cals * (preset.p / 100)) / 4);
+  const carbsG = Math.round((cals * (preset.c / 100)) / 4);
+  const fatG = Math.round((cals * (preset.f / 100)) / 9);
+
+  return (
+    <section className="card">
+      <h2 className="card__title">Estrategias Nutricionales & Macros</h2>
+      <p className="muted" style={{ marginBottom: 'var(--space-md)', fontSize: '0.85rem' }}>
+        Seleccioná una estrategia nutricional para calcular la meta exacta en gramos según tu objetivo de calorías diarias.
+      </p>
+
+      <div className="field" style={{ marginBottom: 'var(--space-md)' }}>
+        <label htmlFor="preset-cals">Calorías Diarias Objetivo (kcal)</label>
+        <input
+          id="preset-cals"
+          type="number"
+          min={1000}
+          max={6000}
+          step={50}
+          value={cals}
+          onChange={(e) => setCals(Number(e.target.value))}
+          style={{ fontFamily: 'var(--font-mono)' }}
+        />
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.5rem', marginBottom: '1rem' }}>
+        {PRESETS.map((p, i) => {
+          const isSel = i === selectedIdx;
+          return (
+            <button
+              key={p.name}
+              type="button"
+              className={isSel ? 'btn' : 'btn btn--quiet'}
+              onClick={() => setSelectedIdx(i)}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                padding: '0.6rem 0.8rem',
+                textAlign: 'left',
+              }}
+            >
+              <strong style={{ fontSize: '0.85rem' }}>{p.name}</strong>
+              <span style={{ fontSize: '0.68rem', opacity: isSel ? 0.9 : 0.6, marginTop: '0.15rem' }}>{p.desc}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ height: '10px', borderRadius: 'var(--radius-full)', display: 'flex', overflow: 'hidden', marginBottom: '1rem', background: 'var(--bg-elevated)' }}>
+        <div style={{ width: `${preset.p}%`, background: 'var(--color-protein)', transition: 'width 300ms ease' }} title={`Proteína ${preset.p}%`} />
+        <div style={{ width: `${preset.c}%`, background: 'var(--color-carbs)', transition: 'width 300ms ease' }} title={`Carbohidratos ${preset.c}%`} />
+        <div style={{ width: `${preset.f}%`, background: 'var(--color-fats)', transition: 'width 300ms ease' }} title={`Grasas ${preset.f}%`} />
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', textAlign: 'center' }} className="num">
+        <div style={{ background: 'var(--bg-surface)', padding: '0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+          <span className="eyebrow" style={{ color: 'var(--color-protein)', fontSize: '0.65rem', display: 'block' }}>Proteína ({preset.p}%)</span>
+          <strong style={{ fontSize: '1.2rem', color: 'var(--text-main)' }}>{proteinG} g</strong>
+        </div>
+        <div style={{ background: 'var(--bg-surface)', padding: '0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+          <span className="eyebrow" style={{ color: 'var(--color-carbs)', fontSize: '0.65rem', display: 'block' }}>Carbos ({preset.c}%)</span>
+          <strong style={{ fontSize: '1.2rem', color: 'var(--text-main)' }}>{carbsG} g</strong>
+        </div>
+        <div style={{ background: 'var(--bg-surface)', padding: '0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+          <span className="eyebrow" style={{ color: 'var(--color-fats)', fontSize: '0.65rem', display: 'block' }}>Grasas ({preset.f}%)</span>
+          <strong style={{ fontSize: '1.2rem', color: 'var(--text-main)' }}>{fatG} g</strong>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function PerfilView({
   isGuest,
   showClaimModal,
@@ -177,6 +262,9 @@ export function PerfilView({
           })}
         </div>
       </section>
+
+      {/* Estrategias de Macronutrientes */}
+      <MacroPresetCalculator />
 
       {/* Datos Personales y Objetivos */}
       <section className="card" aria-labelledby="perfil">
