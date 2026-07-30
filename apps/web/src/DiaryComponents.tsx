@@ -860,13 +860,17 @@ export function AddFood({
           type="button"
           className="btn btn--quiet"
           aria-label="Escanear código de barras"
-          title="Escanear código de barras"
+          title="Escanear código de barras (Cámara / EAN-13)"
           onClick={() => setShowScanner(true)}
-          style={{ padding: '0 0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          style={{ padding: '0 0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2" />
-            <line x1="7" y1="12" x2="17" y2="12" />
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="4" y1="6" x2="4" y2="18" strokeWidth="2.5" />
+            <line x1="8" y1="6" x2="8" y2="18" strokeWidth="1.5" />
+            <line x1="11" y1="6" x2="11" y2="18" strokeWidth="2.5" />
+            <line x1="15" y1="6" x2="15" y2="18" strokeWidth="1.5" />
+            <line x1="19" y1="6" x2="19" y2="18" strokeWidth="2.5" />
+            <line x1="2" y1="12" x2="22" y2="12" stroke="var(--color-primary)" strokeWidth="2" />
           </svg>
         </button>
       </div>
