@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { api, escucharCambios, setToken, today, type DaySummary } from './api';
 import Dock, { type DockItemData } from './components/Dock';
 import { useHashRoute } from './hooks/useHashRoute';
@@ -9,9 +10,41 @@ import { ProgresoView } from './views/ProgresoView';
 import { RecetasView } from './views/RecetasView';
 import { ResetPasswordView } from './views/ResetPasswordView';
 
+const VIEW_INDEX: Record<string, number> = {
+  diario: 0,
+  recetas: 1,
+  progreso: 2,
+  perfil: 3,
+};
+
+const pageVariants = {
+  enter: (dir: number) => ({
+    x: dir > 0 ? 30 : -30,
+    opacity: 0,
+    filter: 'blur(3px)',
+  }),
+  center: {
+    x: 0,
+    opacity: 1,
+    filter: 'blur(0px)',
+    transition: {
+      duration: 0.28,
+      ease: [0.25, 1, 0.5, 1] as const,
+    },
+  },
+  exit: (dir: number) => ({
+    x: dir > 0 ? -30 : 30,
+    opacity: 0,
+    filter: 'blur(3px)',
+    transition: {
+      duration: 0.18,
+      ease: [0.5, 0, 0.75, 0] as const,
+    },
+  }),
+};
+
 export function Diary({ onLogout }: { onLogout: () => void }) {
   const { route, navigate } = useHashRoute();
-  // Si la ruta trae un parámetro de fecha válido (YYYY-MM-DD), usarlo; si no, hoy.
   const initialDate = route.view === 'diario' && route.param && /^\d{4}-\d{2}-\d{2}$/.test(route.param)
     ? route.param
     : today();
@@ -24,10 +57,18 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
   const [showClaimModal, setShowClaimModal] = useState(false);
   const [claimEmail, setClaimEmail] = useState('');
   const [claimPassword, setClaimPassword] = useState('');
-  const [claimBusy, setClaimBusy] = useState(false);
   const [claimError, setClaimError] = useState('');
+  const [claimBusy, setClaimBusy] = useState(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const currentIndex = VIEW_INDEX[route.view] ?? 0;
+  const prevIndexRef = useRef(currentIndex);
+  const direction = currentIndex >= prevIndexRef.current ? 1 : -1;
+
+  useEffect(() => {
+    prevIndexRef.current = currentIndex;
+  }, [currentIndex]);
 
   // Sincronizar fecha en la URL hash (#/diario/2026-07-28)
   const setDate = (newDate: string) => {
@@ -193,41 +234,55 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
         </section>
       )}
 
-      {/* Renderizado de la vista activa según la ruta de la hash URL */}
-      {route.view === 'diario' && (
-        <DiarioView
-          date={date}
-          setDate={setDate}
-          day={day}
-          loadDate={load}
-          searchInputRef={searchInputRef}
-        />
-      )}
+      {/* Transición animada direccional entre apartados */}
+      <main className="view-container" style={{ position: 'relative', width: '100%', minHeight: '60vh' }}>
+        <AnimatePresence mode="wait" custom={direction}>
+          <motion.div
+            key={route.view}
+            custom={direction}
+            variants={pageVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            style={{ width: '100%' }}
+          >
+            {route.view === 'diario' && (
+              <DiarioView
+                date={date}
+                setDate={setDate}
+                day={day}
+                loadDate={load}
+                searchInputRef={searchInputRef}
+              />
+            )}
 
-      {route.view === 'recetas' && <RecetasView />}
+            {route.view === 'recetas' && <RecetasView />}
 
-      {route.view === 'progreso' && <ProgresoView onGoalChanged={() => load(date)} />}
+            {route.view === 'progreso' && <ProgresoView onGoalChanged={() => load(date)} />}
 
-      {route.view === 'reset' && (
-        <ResetPasswordView token={route.param} onSuccess={() => navigate('diario')} />
-      )}
+            {route.view === 'reset' && (
+              <ResetPasswordView token={route.param} onSuccess={() => navigate('diario')} />
+            )}
 
-      {route.view === 'perfil' && (
-        <PerfilView
-          isGuest={isGuest}
-          showClaimModal={showClaimModal}
-          setShowClaimModal={setShowClaimModal}
-          claimEmail={claimEmail}
-          setClaimEmail={setClaimEmail}
-          claimPassword={claimPassword}
-          setClaimPassword={setClaimPassword}
-          claimError={claimError}
-          claimBusy={claimBusy}
-          handleClaim={handleClaim}
-          onSaved={() => load(date)}
-          onLogout={onLogout}
-        />
-      )}
+            {route.view === 'perfil' && (
+              <PerfilView
+                isGuest={isGuest}
+                showClaimModal={showClaimModal}
+                setShowClaimModal={setShowClaimModal}
+                claimEmail={claimEmail}
+                setClaimEmail={setClaimEmail}
+                claimPassword={claimPassword}
+                setClaimPassword={setClaimPassword}
+                claimError={claimError}
+                claimBusy={claimBusy}
+                handleClaim={handleClaim}
+                onSaved={() => load(date)}
+                onLogout={onLogout}
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </main>
 
       <Dock items={dockItems} />
     </div>
