@@ -205,12 +205,15 @@ export function RecetasView() {
               Destacadas & Selección Rápida
             </span>
             <InfiniteMenu
-              items={recipes.map((r, i) => ({
-                image: `https://picsum.photos/300/300?random=${(i % 10) + 1}`,
-                title: r.name,
-                description: `${Math.round(r.per_serving.calories)} kcal / porción`,
-                onClick: () => setLoggingRecipe(r),
-              }))}
+              items={recipes.map((r, i) => {
+                const ingNames = r.components?.map(c => c.food?.name).filter(Boolean).join(', ');
+                return {
+                  image: `https://picsum.photos/300/300?random=${(i % 10) + 1}`,
+                  title: r.name,
+                  description: ingNames ? `${Math.round(r.per_serving.calories)} kcal · ${ingNames}` : `${Math.round(r.per_serving.calories)} kcal / porción`,
+                  onClick: () => setLoggingRecipe(r),
+                };
+              })}
             />
           </div>
 
@@ -226,11 +229,27 @@ export function RecetasView() {
                   {Math.round(r.per_serving.calories)} kcal <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-muted)' }}>/ porción</span>
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem' }} className="num">
+                <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }} className="num">
                   <span>P: {Math.round(r.per_serving.protein_g)}g</span>
                   <span>C: {Math.round(r.per_serving.carbs_g)}g</span>
                   <span>G: {Math.round(r.per_serving.fat_g)}g</span>
                 </div>
+
+                {r.components && r.components.length > 0 && (
+                  <div style={{ marginTop: '0.5rem', marginBottom: '0.75rem', fontSize: '0.8rem', background: 'var(--bg-surface)', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+                    <span className="eyebrow" style={{ color: 'var(--text-muted)', fontSize: '0.65rem', marginBottom: '0.3rem', display: 'block' }}>
+                      Ingredientes ({r.components.length})
+                    </span>
+                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                      {r.components.map((c, idx) => (
+                        <li key={c.id || idx} style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-main)', fontSize: '0.75rem' }}>
+                          <span>• {c.food?.name || 'Ingrediente'}</span>
+                          <span className="num muted">{c.quantity} × {c.food?.serving_size_amount || 1}{c.food?.serving_size_unit || 'g'}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
 
               <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
