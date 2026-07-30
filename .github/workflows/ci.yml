@@ -122,32 +122,20 @@ jobs:
           npx vite build
           npx playwright install --with-deps chromium
 
-      - name: Levantar el cliente
+      - name: Pruebas E2E (UI, Tabs, Contraste)
         working-directory: apps/web
         run: |
-          # El dev server y no vite preview: el proxy a :3100 está en
-          # server.proxy, que preview no usa.
-          npx vite --port 5177 --strictPort &
+          nohup npx vite --port 5177 --strictPort > /tmp/vite.log 2>&1 &
+          VITE_PID=$!
           for i in $(seq 1 60); do
             code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5177/ || true)
-            if [ "$code" = "200" ]; then exit 0; fi
+            if [ "$code" = "200" ]; then break; fi
             sleep 1
           done
-          echo "el cliente no respondió a tiempo"; exit 1
-
-      - name: Recorrido por navegador
-        working-directory: apps/web
-        run: npm run ui:check
-
-      - name: Sincronización entre pestañas
-        working-directory: apps/web
-        run: npm run tabs:check
-
-      # Un rediseño de paleta ya dejó el tema claro en 1.6:1 sin que nadie lo
-      # notara. Mide los dos temas, así que no depende de cuál esté activo.
-      - name: Contraste WCAG
-        working-directory: apps/web
-        run: npm run contrast:check
+          npm run ui:check
+          npm run tabs:check
+          npm run contrast:check
+          kill $VITE_PID || true
 
       # Cuando algo falla, la captura dice más que el stack trace.
       - name: Guardar capturas
