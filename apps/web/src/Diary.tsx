@@ -67,6 +67,29 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
     });
   }, [date, load, onLogout]);
 
+  useEffect(() => {
+    const handleGlobalHotkeys = (e: KeyboardEvent) => {
+      if (e.altKey) {
+        if (e.key === '1') {
+          e.preventDefault();
+          navigate(`diario/${date}`);
+        } else if (e.key === '2') {
+          e.preventDefault();
+          navigate('recetas');
+        } else if (e.key === '3') {
+          e.preventDefault();
+          navigate('progreso');
+        } else if (e.key === '4') {
+          e.preventDefault();
+          navigate('perfil');
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalHotkeys);
+    return () => window.removeEventListener('keydown', handleGlobalHotkeys);
+  }, [date, navigate]);
+
   const handleClaim = async (e: React.FormEvent) => {
     e.preventDefault();
     setClaimBusy(true);
@@ -95,7 +118,7 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
           <polyline points="9 22 9 12 15 12 15 22" />
         </svg>
       ),
-      label: 'Diario',
+      label: 'Diario (Alt+1)',
       onClick: () => navigate(`diario/${date}`),
     },
     {
@@ -105,7 +128,7 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
           <line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
       ),
-      label: 'Buscar',
+      label: 'Buscar (⌘K)',
       onClick: () => {
         navigate(`diario/${date}`);
         setTimeout(() => searchInputRef.current?.focus(), 80);
@@ -117,7 +140,7 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
           <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
         </svg>
       ),
-      label: 'Recetas',
+      label: 'Recetas (Alt+2)',
       onClick: () => navigate('recetas'),
     },
     {
@@ -126,7 +149,7 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
           <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
         </svg>
       ),
-      label: 'Progreso',
+      label: 'Progreso (Alt+3)',
       onClick: () => navigate('progreso'),
     },
     {
@@ -136,7 +159,7 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
           <circle cx="12" cy="7" r="4" />
         </svg>
       ),
-      label: 'Perfil',
+      label: 'Perfil (Alt+4)',
       onClick: () => navigate('perfil'),
     },
   ];
