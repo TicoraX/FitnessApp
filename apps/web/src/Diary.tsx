@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, escucharCambios, setToken, today, type DaySummary } from './api';
 import Dock, { type DockItemData } from './components/Dock';
+import { StaggeredMenu } from './components/StaggeredMenu';
 import { useHashRoute } from './hooks/useHashRoute';
 import { Profile } from './Profile';
 import { DiarioView } from './views/DiarioView';
@@ -166,6 +167,24 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
 
   return (
     <div className="shell" style={{ paddingBottom: '6rem' }}>
+      <StaggeredMenu
+        position="right"
+        isFixed={true}
+        logoText="FitTrack"
+        colors={['var(--bg-elevated)', 'var(--bg-surface)', 'var(--color-primary)']}
+        accentColor="var(--color-primary)"
+        items={[
+          { label: 'Diario', onClick: () => navigate('diario') },
+          { label: 'Recetas', onClick: () => navigate('recetas') },
+          { label: 'Progreso', onClick: () => navigate('progreso') },
+          { label: 'Perfil', onClick: () => navigate('perfil') },
+        ]}
+        socialItems={[
+          { label: 'Exportar Datos', link: '#perfil' },
+          { label: 'Cerrar Sesión', link: '#logout' },
+        ]}
+      />
+
       <header className="topbar">
         <span className="topbar__mark">FitTrack</span>
         <div style={{ display: 'flex', gap: 'var(--space-xs)' }}>
