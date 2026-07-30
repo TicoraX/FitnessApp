@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, notificarCambio, today, type Food, type Recipe } from '../api';
+import InfiniteMenu from '../components/InfiniteMenu';
 
 interface SelectedIngredient {
   food: Food;
@@ -199,6 +200,20 @@ export function RecetasView() {
         </section>
       ) : (
         <>
+          <div style={{ marginBottom: 'var(--space-md)' }}>
+            <span className="eyebrow" style={{ color: 'var(--color-primary)', display: 'block', marginBottom: '0.4rem' }}>
+              Destacadas & Selección Rápida
+            </span>
+            <InfiniteMenu
+              items={recipes.map((r, i) => ({
+                image: `https://picsum.photos/300/300?random=${(i % 10) + 1}`,
+                title: r.name,
+                description: `${Math.round(r.per_serving.calories)} kcal / porción`,
+                onClick: () => setLoggingRecipe(r),
+              }))}
+            />
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 'var(--space-md)' }}>
           {recipes.map((r) => (
             <div key={r.id} className="card card--raised" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
