@@ -76,7 +76,7 @@ export class ProfileService {
         email: user.email,
         is_guest: user.isGuest,
         first_name: user.firstName,
-        dob: user.dob.toISOString().slice(0, 10),
+        dob: user.dob ? user.dob.toISOString().slice(0, 10) : '1995-01-01',
         gender: user.gender,
         height_cm: Number(user.heightCm),
         activity_level: Number(user.activityLevel),

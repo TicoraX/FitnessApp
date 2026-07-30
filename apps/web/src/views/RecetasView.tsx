@@ -167,13 +167,38 @@ export function RecetasView() {
     setBusy(true);
     setError('');
     try {
+      const isUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
+      const resolvedComponents = [];
+      for (const i of ingredients) {
+        let foodId = i.food.id;
+        if (!isUuid(foodId)) {
+          const searchRes = await api.get<{ data: Food[] }>(`/foods/search?q=${encodeURIComponent(i.food.name)}`);
+          if (searchRes.data && searchRes.data.length > 0) {
+            foodId = searchRes.data[0].id;
+          } else {
+            const created = await api.post<{ data: Food }>('/foods', {
+              name: i.food.name,
+              serving_size_amount: i.food.serving_size_amount || 100,
+              serving_size_unit: i.food.serving_size_unit || 'g',
+              calories: i.food.calories || 100,
+              protein: i.food.protein || 10,
+              carbohydrates: i.food.carbohydrates || 10,
+              fat: i.food.fat || 2,
+            });
+            foodId = created.data.id;
+          }
+        }
+        resolvedComponents.push({
+          food_item_id: foodId,
+          quantity: i.quantity,
+        });
+      }
+
       const payload = {
         name: recipeName.trim(),
         total_servings: Number(totalServings) || 1,
-        components: ingredients.map((i) => ({
-          food_item_id: i.food.id,
-          quantity: i.quantity,
-        })),
+        components: resolvedComponents,
       };
 
       if (editingRecipe) {
