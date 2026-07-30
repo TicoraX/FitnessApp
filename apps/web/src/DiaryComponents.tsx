@@ -527,6 +527,23 @@ export function AddFood({
   const [quickCarbs, setQuickCarbs] = useState('');
   const [quickFat, setQuickFat] = useState('');
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      const isInputActive = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT');
+      
+      if ((e.key === '/' && !isInputActive) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k')) {
+        e.preventDefault();
+        if (searchInputRef?.current) {
+          searchInputRef.current.focus();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [searchInputRef]);
+
   const handleQuickSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cals = Number(quickCalories);
@@ -800,7 +817,7 @@ export function AddFood({
         <input
           ref={searchInputRef}
           type="search"
-          placeholder="Buscar alimento o código de barras"
+          placeholder="Buscar alimento o código (⌘K o /)..."
           aria-label="Buscar alimento"
           role="combobox"
           aria-expanded={visibles.length > 0}
