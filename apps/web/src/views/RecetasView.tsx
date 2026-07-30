@@ -7,6 +7,39 @@ interface SelectedIngredient {
   quantity: number;
 }
 
+const RECIPE_IDEAS: Recipe[] = [
+  {
+    id: 'idea-1',
+    name: 'Wok de Pollo Fit con Vegetales',
+    total_servings: 2,
+    per_serving: { calories: 380, protein_g: 42, carbs_g: 28, fat_g: 10 },
+    components: [
+      { food_item_id: '1', quantity: 200, food: { id: 'f1', name: 'Pechuga de Pollo', brand: null, serving_size_amount: 100, serving_size_unit: 'g' } },
+      { food_item_id: '2', quantity: 150, food: { id: 'f2', name: 'Vegetales Mixtos', brand: null, serving_size_amount: 100, serving_size_unit: 'g' } }
+    ]
+  },
+  {
+    id: 'idea-2',
+    name: 'Bowl Proteico de Avena y Plátano',
+    total_servings: 1,
+    per_serving: { calories: 420, protein_g: 30, carbs_g: 58, fat_g: 8 },
+    components: [
+      { food_item_id: '3', quantity: 60, food: { id: 'f3', name: 'Avena en Hojuelas', brand: null, serving_size_amount: 100, serving_size_unit: 'g' } },
+      { food_item_id: '4', quantity: 30, food: { id: 'f4', name: 'Proteína Whey', brand: null, serving_size_amount: 30, serving_size_unit: 'g' } }
+    ]
+  },
+  {
+    id: 'idea-3',
+    name: 'Omelette Fit de Claras y Espinaca',
+    total_servings: 1,
+    per_serving: { calories: 240, protein_g: 32, carbs_g: 6, fat_g: 9 },
+    components: [
+      { food_item_id: '5', quantity: 200, food: { id: 'f5', name: 'Claras de Huevo', brand: null, serving_size_amount: 100, serving_size_unit: 'g' } },
+      { food_item_id: '6', quantity: 50, food: { id: 'f6', name: 'Queso Magro', brand: null, serving_size_amount: 50, serving_size_unit: 'g' } }
+    ]
+  }
+];
+
 export function RecetasView() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
@@ -183,21 +216,37 @@ export function RecetasView() {
       {loading ? (
         <p className="muted">Cargando recetas...</p>
       ) : recipes.length === 0 ? (
-        // Sin recetas de ejemplo: un plato con "450 kcal / 42g proteína" que
-        // nadie calculó se lee como un dato del catálogo, y el usuario no tiene
-        // forma de saber que es inventado.
-        <section className="card" style={{ textAlign: 'center', padding: 'var(--space-xl)' }}>
-          <h3 className="card__title" style={{ marginBottom: 'var(--space-xs)' }}>
-            Aún no guardaste ninguna receta
-          </h3>
-          <p className="muted" style={{ maxWidth: '44ch', margin: '0 auto 1.5rem' }}>
-            Agrupá los ingredientes que usás seguido para ver cuánto rinde cada
-            porción y cargar el plato entero de una.
-          </p>
-          <button type="button" className="btn" onClick={() => setShowCreateModal(true)}>
-            Crear mi primera receta
-          </button>
-        </section>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+          <div>
+            <span className="eyebrow" style={{ color: 'var(--color-primary)', display: 'block', marginBottom: '0.4rem' }}>
+              Ideas & Inspiración de Recetas
+            </span>
+            <InfiniteMenu
+              items={RECIPE_IDEAS.map((r, i) => {
+                const ingNames = r.components?.map(c => c.food?.name).filter(Boolean).join(', ');
+                return {
+                  image: `https://picsum.photos/300/300?random=${(i % 10) + 1}`,
+                  title: r.name,
+                  description: ingNames ? `${Math.round(r.per_serving.calories)} kcal · ${ingNames}` : `${Math.round(r.per_serving.calories)} kcal / porción`,
+                  onClick: () => setShowCreateModal(true),
+                };
+              })}
+            />
+          </div>
+
+          <section className="card" style={{ textAlign: 'center', padding: 'var(--space-xl)' }}>
+            <h3 className="card__title" style={{ marginBottom: 'var(--space-xs)' }}>
+              Aún no guardaste ninguna receta personal
+            </h3>
+            <p className="muted" style={{ maxWidth: '44ch', margin: '0 auto 1.5rem' }}>
+              Agrupá los ingredientes que usás seguido para ver cuánto rinde cada
+              porción y cargar el plato entero de una.
+            </p>
+            <button type="button" className="btn" onClick={() => setShowCreateModal(true)}>
+              Crear mi primera receta
+            </button>
+          </section>
+        </div>
       ) : (
         <>
           <div style={{ marginBottom: 'var(--space-md)' }}>

@@ -587,9 +587,20 @@ export function AddFood({
 
   const loadRecent = useCallback(async () => {
     try {
-      setRecent((await api.get<{ data: Food[] }>('/foods/recent')).data);
+      const res = await api.get<{ data: Food[] }>('/foods/recent');
+      if (res.data && res.data.length > 0) {
+        setRecent(res.data);
+      } else {
+        const cat = await api.get<{ data: Food[] }>('/foods/search?q=a');
+        setRecent(cat.data ? cat.data.slice(0, 8) : []);
+      }
     } catch {
-      setRecent([]);
+      try {
+        const cat = await api.get<{ data: Food[] }>('/foods/search?q=a');
+        setRecent(cat.data ? cat.data.slice(0, 8) : []);
+      } catch {
+        setRecent([]);
+      }
     }
   }, []);
 
