@@ -14,8 +14,8 @@ const RECIPE_IDEAS: Recipe[] = [
     total_servings: 2,
     per_serving: { calories: 380, protein_g: 42, carbs_g: 28, fat_g: 10 },
     components: [
-      { food_item_id: '1', quantity: 200, food: { id: 'f1', name: 'Pechuga de Pollo', brand: null, serving_size_amount: 100, serving_size_unit: 'g' } },
-      { food_item_id: '2', quantity: 150, food: { id: 'f2', name: 'Vegetales Mixtos', brand: null, serving_size_amount: 100, serving_size_unit: 'g' } }
+      { food_item_id: '1', quantity: 2, food: { id: 'f1', name: 'Pechuga de Pollo', brand: null, serving_size_amount: 100, serving_size_unit: 'g', calories: 165, protein: 31, carbohydrates: 0, fat: 3.6, verified: true } },
+      { food_item_id: '2', quantity: 1.5, food: { id: 'f2', name: 'Vegetales Mixtos', brand: null, serving_size_amount: 100, serving_size_unit: 'g', calories: 35, protein: 2.4, carbohydrates: 7.2, fat: 0.4, verified: true } }
     ]
   },
   {
@@ -24,8 +24,8 @@ const RECIPE_IDEAS: Recipe[] = [
     total_servings: 1,
     per_serving: { calories: 420, protein_g: 30, carbs_g: 58, fat_g: 8 },
     components: [
-      { food_item_id: '3', quantity: 60, food: { id: 'f3', name: 'Avena en Hojuelas', brand: null, serving_size_amount: 100, serving_size_unit: 'g' } },
-      { food_item_id: '4', quantity: 30, food: { id: 'f4', name: 'Proteína Whey', brand: null, serving_size_amount: 30, serving_size_unit: 'g' } }
+      { food_item_id: '3', quantity: 1, food: { id: 'f3', name: 'Avena en Hojuelas', brand: null, serving_size_amount: 60, serving_size_unit: 'g', calories: 228, protein: 8, carbohydrates: 40, fat: 4, verified: true } },
+      { food_item_id: '4', quantity: 1, food: { id: 'f4', name: 'Proteína Whey', brand: null, serving_size_amount: 30, serving_size_unit: 'g', calories: 120, protein: 24, carbohydrates: 3, fat: 1.5, verified: true } }
     ]
   },
   {
@@ -34,8 +34,8 @@ const RECIPE_IDEAS: Recipe[] = [
     total_servings: 1,
     per_serving: { calories: 240, protein_g: 32, carbs_g: 6, fat_g: 9 },
     components: [
-      { food_item_id: '5', quantity: 200, food: { id: 'f5', name: 'Claras de Huevo', brand: null, serving_size_amount: 100, serving_size_unit: 'g' } },
-      { food_item_id: '6', quantity: 50, food: { id: 'f6', name: 'Queso Magro', brand: null, serving_size_amount: 50, serving_size_unit: 'g' } }
+      { food_item_id: '5', quantity: 2, food: { id: 'f5', name: 'Claras de Huevo', brand: null, serving_size_amount: 100, serving_size_unit: 'g', calories: 102, protein: 21.6, carbohydrates: 1.2, fat: 0.6, verified: true } },
+      { food_item_id: '6', quantity: 1, food: { id: 'f6', name: 'Queso Magro', brand: null, serving_size_amount: 50, serving_size_unit: 'g', calories: 100, protein: 11, carbohydrates: 1, fat: 6, verified: true } }
     ]
   }
 ];
@@ -46,8 +46,10 @@ export function RecetasView() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
 
-  // Modal / Form state para crear receta
+  // Modal / Form state para crear/editar receta
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
+  const [detailRecipe, setDetailRecipe] = useState<Recipe | null>(null);
   const [recipeName, setRecipeName] = useState('');
   const [totalServings, setTotalServings] = useState('2');
   const [ingredients, setIngredients] = useState<SelectedIngredient[]>([]);
@@ -79,7 +81,45 @@ export function RecetasView() {
     void loadRecipes();
   }, [loadRecipes]);
 
-  // Búsqueda de ingredientes para crear receta
+  // Abrir modal en modo edicion
+  const handleEditRecipe = (r: Recipe) => {
+    setEditingRecipe(r);
+    setRecipeName(r.name);
+    setTotalServings(String(r.total_servings || 1));
+    setIngredients(
+      r.components?.map((c) => ({
+        food: c.food || { id: c.food_item_id, name: 'Ingrediente', brand: null, serving_size_amount: 100, serving_size_unit: 'g', calories: 100, protein: 10, carbohydrates: 10, fat: 2, verified: true },
+        quantity: c.quantity,
+      })) || []
+    );
+    setDetailRecipe(null);
+    setShowCreateModal(true);
+  };
+
+  // Clonar / Personalizar idea de receta recomendada
+  const handleCloneIdea = (idea: Recipe) => {
+    setEditingRecipe(null);
+    setRecipeName(idea.name);
+    setTotalServings(String(idea.total_servings || 1));
+    setIngredients(
+      idea.components?.map((c) => ({
+        food: c.food || { id: c.food_item_id, name: 'Ingrediente', brand: null, serving_size_amount: 100, serving_size_unit: 'g', calories: 100, protein: 10, carbohydrates: 10, fat: 2, verified: true },
+        quantity: c.quantity,
+      })) || []
+    );
+    setDetailRecipe(null);
+    setShowCreateModal(true);
+  };
+
+  const handleOpenCreateNew = () => {
+    setEditingRecipe(null);
+    setRecipeName('');
+    setTotalServings('2');
+    setIngredients([]);
+    setShowCreateModal(true);
+  };
+
+  // Búsqueda de ingredientes para crear/editar receta
   useEffect(() => {
     if (foodQuery.trim().length < 2) {
       setSearchResults([]);
@@ -109,11 +149,11 @@ export function RecetasView() {
 
   const handleUpdateQuantity = (foodId: string, qty: number) => {
     setIngredients((prev) =>
-      prev.map((i) => (i.food.id === foodId ? { ...i, quantity: Math.max(0.1, qty) } : i)),
+      prev.map((i) => (i.food.id === foodId ? { ...i, quantity: Math.max(0.01, qty) } : i)),
     );
   };
 
-  const handleCreateRecipe = async (e: React.FormEvent) => {
+  const handleSaveRecipe = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!recipeName.trim()) {
       setError('El nombre de la receta es obligatorio.');
@@ -127,23 +167,31 @@ export function RecetasView() {
     setBusy(true);
     setError('');
     try {
-      await api.post('/recipes', {
+      const payload = {
         name: recipeName.trim(),
         total_servings: Number(totalServings) || 1,
         components: ingredients.map((i) => ({
           food_item_id: i.food.id,
           quantity: i.quantity,
         })),
-      });
+      };
 
-      setMessage({ text: `Receta "${recipeName}" creada con éxito.`, ok: true });
+      if (editingRecipe) {
+        await api.patch(`/recipes/${editingRecipe.id}`, payload);
+        setMessage({ text: `Receta "${recipeName}" actualizada con éxito.`, ok: true });
+      } else {
+        await api.post('/recipes', payload);
+        setMessage({ text: `Receta "${recipeName}" creada con éxito.`, ok: true });
+      }
+
       setShowCreateModal(false);
+      setEditingRecipe(null);
       setRecipeName('');
       setTotalServings('2');
       setIngredients([]);
       void loadRecipes();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al crear la receta');
+      setError(err instanceof Error ? err.message : 'Error al guardar la receta');
     } finally {
       setBusy(false);
     }
@@ -196,7 +244,7 @@ export function RecetasView() {
             Platos preparados y preparaciones multitaza calculados por porción.
           </p>
         </div>
-        <button type="button" className="btn" onClick={() => setShowCreateModal(true)}>
+        <button type="button" className="btn" onClick={handleOpenCreateNew}>
           + Crear Receta
         </button>
       </div>
@@ -227,7 +275,7 @@ export function RecetasView() {
                 return {
                   title: r.name,
                   description: ingNames ? `${Math.round(r.per_serving.calories)} kcal · ${ingNames}` : `${Math.round(r.per_serving.calories)} kcal / porción`,
-                  onClick: () => setShowCreateModal(true),
+                  onClick: () => handleCloneIdea(r),
                 };
               })}
             />
@@ -238,7 +286,7 @@ export function RecetasView() {
               <div key={r.id} className="card card--raised" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                    <h3 style={{ fontSize: '1.1rem', margin: 0, color: 'var(--text-main)' }}>{r.name}</h3>
+                    <h3 style={{ fontSize: '1.1rem', margin: 0, color: 'var(--text-main)', cursor: 'pointer' }} onClick={() => setDetailRecipe(r)}>{r.name}</h3>
                     <span className="badge">{r.total_servings} porciones</span>
                   </div>
                   <div className="num" style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-primary)', fontFamily: 'var(--font-mono)', marginBottom: '0.5rem' }}>
@@ -268,14 +316,23 @@ export function RecetasView() {
                   )}
                 </div>
 
-                <button
-                  type="button"
-                  className="btn"
-                  style={{ marginTop: '1rem', width: '100%' }}
-                  onClick={() => setShowCreateModal(true)}
-                >
-                  + Crear Mi Propia Receta
-                </button>
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+                  <button
+                    type="button"
+                    className="btn"
+                    style={{ flex: 1 }}
+                    onClick={() => handleCloneIdea(r)}
+                  >
+                    + Clonar Receta
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--quiet"
+                    onClick={() => setDetailRecipe(r)}
+                  >
+                    Detalle
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -303,7 +360,7 @@ export function RecetasView() {
             <div key={r.id} className="card card--raised" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                  <h3 style={{ fontSize: '1.1rem', margin: 0, color: 'var(--text-main)' }}>{r.name}</h3>
+                  <h3 style={{ fontSize: '1.1rem', margin: 0, color: 'var(--text-main)', cursor: 'pointer' }} onClick={() => setDetailRecipe(r)}>{r.name}</h3>
                   <span className="badge">{r.total_servings} porciones</span>
                 </div>
                 <div className="num" style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-primary)', fontFamily: 'var(--font-mono)', marginBottom: '0.5rem' }}>
@@ -333,14 +390,30 @@ export function RecetasView() {
                 )}
               </div>
 
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+              <div style={{ display: 'flex', gap: '0.35rem', marginTop: '1rem', flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   className="btn"
-                  style={{ flex: 1 }}
+                  style={{ flex: '1 1 auto' }}
                   onClick={() => setLoggingRecipe(r)}
                 >
                   + Al Diario
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--quiet"
+                  onClick={() => handleEditRecipe(r)}
+                  title="Editar receta e ingredientes"
+                >
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--quiet"
+                  onClick={() => setDetailRecipe(r)}
+                  title="Ver detalle completo"
+                >
+                  Detalle
                 </button>
                 {confirmandoBorrar === r.id ? (
                   <>
@@ -377,13 +450,13 @@ export function RecetasView() {
         </>
       )}
 
-      {/* Modal para Crear Receta */}
+      {/* Modal para Crear/Editar Receta */}
       {showCreateModal && (
         <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-          <form onSubmit={handleCreateRecipe} className="card" style={{ width: '100%', maxWidth: '520px', maxHeight: '90vh', overflowY: 'auto' }}>
+          <form onSubmit={handleSaveRecipe} className="card" style={{ width: '100%', maxWidth: '520px', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 className="card__title">Nueva Receta</h3>
-              <button type="button" className="btn btn--quiet" onClick={() => setShowCreateModal(false)}>✕</button>
+              <h3 className="card__title">{editingRecipe ? `Editar Receta "${editingRecipe.name}"` : 'Nueva Receta'}</h3>
+              <button type="button" className="btn btn--quiet" onClick={() => { setShowCreateModal(false); setEditingRecipe(null); }}>✕</button>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
@@ -520,6 +593,98 @@ export function RecetasView() {
               {busy ? 'Registrando...' : 'Confirmar en el Diario'}
             </button>
           </form>
+        </div>
+      )}
+
+      {/* Modal para Ver Detalle Completo de Receta */}
+      {detailRecipe && (
+        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div className="card" style={{ width: '100%', maxWidth: '480px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <div>
+                <span className="eyebrow" style={{ color: 'var(--color-primary)' }}>Detalle de Receta</span>
+                <h3 className="card__title" style={{ margin: 0 }}>{detailRecipe.name}</h3>
+              </div>
+              <button type="button" className="btn btn--quiet" onClick={() => setDetailRecipe(null)}>✕</button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem', marginBottom: '1rem', background: 'var(--bg-surface)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }} className="num">
+              <div>
+                <span className="muted" style={{ fontSize: '0.75rem', display: 'block' }}>Rendimiento Total</span>
+                <strong style={{ fontSize: '1.1rem', color: 'var(--text-main)' }}>{detailRecipe.total_servings} porciones</strong>
+              </div>
+              <div>
+                <span className="muted" style={{ fontSize: '0.75rem', display: 'block' }}>Calorías / Porción</span>
+                <strong style={{ fontSize: '1.2rem', color: 'var(--color-primary)', fontFamily: 'var(--font-mono)' }}>{Math.round(detailRecipe.per_serving.calories)} kcal</strong>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', textAlign: 'center', marginBottom: '1rem' }} className="num">
+              <div style={{ background: 'var(--bg-elevated)', padding: '0.5rem', borderRadius: 'var(--radius-sm)' }}>
+                <span style={{ fontSize: '0.65rem', color: 'var(--color-protein)', display: 'block' }}>Proteína</span>
+                <strong style={{ fontSize: '1rem', color: 'var(--text-main)' }}>{Math.round(detailRecipe.per_serving.protein_g)} g</strong>
+              </div>
+              <div style={{ background: 'var(--bg-elevated)', padding: '0.5rem', borderRadius: 'var(--radius-sm)' }}>
+                <span style={{ fontSize: '0.65rem', color: 'var(--color-carbs)', display: 'block' }}>Carbohidratos</span>
+                <strong style={{ fontSize: '1rem', color: 'var(--text-main)' }}>{Math.round(detailRecipe.per_serving.carbs_g)} g</strong>
+              </div>
+              <div style={{ background: 'var(--bg-elevated)', padding: '0.5rem', borderRadius: 'var(--radius-sm)' }}>
+                <span style={{ fontSize: '0.65rem', color: 'var(--color-fats)', display: 'block' }}>Grasas</span>
+                <strong style={{ fontSize: '1rem', color: 'var(--text-main)' }}>{Math.round(detailRecipe.per_serving.fat_g)} g</strong>
+              </div>
+            </div>
+
+            {detailRecipe.components && detailRecipe.components.length > 0 && (
+              <div style={{ marginBottom: '1.25rem' }}>
+                <h4 style={{ fontSize: '0.85rem', marginBottom: '0.5rem', color: 'var(--text-main)' }}>
+                  Ingredientes ({detailRecipe.components.length})
+                </h4>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  {detailRecipe.components.map((c, idx) => (
+                    <li key={c.id || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-surface)', padding: '0.6rem 0.8rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+                      <div>
+                        <strong style={{ fontSize: '0.85rem', display: 'block' }}>{c.food?.name || 'Ingrediente'}</strong>
+                        <span className="num muted" style={{ fontSize: '0.75rem' }}>
+                          {c.food?.calories ? `${Math.round(c.food.calories * c.quantity)} kcal` : ''}
+                        </span>
+                      </div>
+                      <span className="num" style={{ fontWeight: 700, color: 'var(--color-primary)', fontSize: '0.85rem' }}>
+                        {c.quantity} × {c.food?.serving_size_amount || 100}{c.food?.serving_size_unit || 'g'}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                type="button"
+                className="btn"
+                style={{ flex: 1 }}
+                onClick={() => {
+                  const r = detailRecipe;
+                  setDetailRecipe(null);
+                  if (recipes.some(x => x.id === r.id)) {
+                    setLoggingRecipe(r);
+                  } else {
+                    handleCloneIdea(r);
+                  }
+                }}
+              >
+                {recipes.some(x => x.id === detailRecipe.id) ? '+ Registrar en Diario' : '+ Personalizar & Guardar'}
+              </button>
+              {recipes.some(x => x.id === detailRecipe.id) && (
+                <button
+                  type="button"
+                  className="btn btn--quiet"
+                  onClick={() => handleEditRecipe(detailRecipe)}
+                >
+                  Editar
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

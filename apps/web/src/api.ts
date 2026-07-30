@@ -92,13 +92,7 @@ export interface RecipeComponent {
   food_item_id: string;
   quantity: number;
   calories?: number;
-  food?: {
-    id: string;
-    name: string;
-    brand: string | null;
-    serving_size_amount: number;
-    serving_size_unit: string;
-  };
+  food?: Food;
 }
 
 export interface Recipe {
