@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { api, setToken, today } from '../api';
+import { useEffect, useState } from 'react';
+import { api, notificarCambio, setToken, today } from '../api';
 import { useTheme, type ThemeOption } from '../hooks/useTheme';
 import { Profile } from '../Profile';
 
@@ -13,18 +13,66 @@ const PRESETS = [
 function MacroPresetCalculator() {
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [cals, setCals] = useState(2000);
+  const [userCals, setUserCals] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [savedMsg, setSavedMsg] = useState('');
+
+  useEffect(() => {
+    async function loadUserProfile() {
+      try {
+        const res = await api.get<{ data: { daily_calories: number | null } }>('/profile');
+        if (res.data && res.data.daily_calories) {
+          setUserCals(res.data.daily_calories);
+          setCals(res.data.daily_calories);
+        }
+      } catch {
+        // Fallback default
+      }
+    }
+    void loadUserProfile();
+  }, []);
 
   const preset = PRESETS[selectedIdx];
   const proteinG = Math.round((cals * (preset.p / 100)) / 4);
   const carbsG = Math.round((cals * (preset.c / 100)) / 4);
   const fatG = Math.round((cals * (preset.f / 100)) / 9);
 
+  const handleApplyStrategy = async () => {
+    setSaving(true);
+    setSavedMsg('');
+    try {
+      await api.patch('/profile', { daily_calories: cals });
+      setUserCals(cals);
+      setSavedMsg(`Estrategia "${preset.name}" (${cals} kcal/día) aplicada a tu perfil.`);
+      notificarCambio('diario-cambiado');
+    } catch {
+      setSavedMsg('No se pudo guardar la estrategia.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <section className="card">
-      <h2 className="card__title">Estrategias Nutricionales & Macros</h2>
-      <p className="muted" style={{ marginBottom: 'var(--space-md)', fontSize: '0.85rem' }}>
-        Seleccioná una estrategia nutricional para calcular la meta exacta en gramos según tu objetivo de calorías diarias.
-      </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem' }}>
+        <div>
+          <h2 className="card__title" style={{ margin: 0 }}>Estrategias Nutricionales & Macros</h2>
+          <p className="muted" style={{ fontSize: '0.85rem', marginTop: '0.2rem' }}>
+            Ajustá y calculá las metas en gramos según tu objetivo de calorías diarias.
+          </p>
+        </div>
+        {userCals && (
+          <span className="badge" style={{ background: 'var(--color-primary-dim)', color: 'var(--color-primary)', border: '1px solid var(--color-primary-glow)' }}>
+            ✔ Sincronizado con tu perfil ({userCals} kcal)
+          </span>
+        )}
+      </div>
+
+      {savedMsg && (
+        <p className="alert alert--ok" style={{ marginBottom: 'var(--space-md)', fontSize: '0.85rem' }} role="status">
+          {savedMsg}
+        </p>
+      )}
 
       <div className="field" style={{ marginBottom: 'var(--space-md)' }}>
         <label htmlFor="preset-cals">Calorías Diarias Objetivo (kcal)</label>
@@ -70,7 +118,7 @@ function MacroPresetCalculator() {
         <div style={{ width: `${preset.f}%`, background: 'var(--color-fats)', transition: 'width 300ms ease' }} title={`Grasas ${preset.f}%`} />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', textAlign: 'center' }} className="num">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', textAlign: 'center', marginBottom: '1rem' }} className="num">
         <div style={{ background: 'var(--bg-surface)', padding: '0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
           <span className="eyebrow" style={{ color: 'var(--color-protein)', fontSize: '0.65rem', display: 'block' }}>Proteína ({preset.p}%)</span>
           <strong style={{ fontSize: '1.2rem', color: 'var(--text-main)' }}>{proteinG} g</strong>
@@ -84,6 +132,16 @@ function MacroPresetCalculator() {
           <strong style={{ fontSize: '1.2rem', color: 'var(--text-main)' }}>{fatG} g</strong>
         </div>
       </div>
+
+      <button
+        type="button"
+        className="btn"
+        onClick={handleApplyStrategy}
+        disabled={saving}
+        style={{ width: '100%' }}
+      >
+        {saving ? 'Guardando en perfil...' : `Guardar Estrategia "${preset.name}" en Mi Perfil`}
+      </button>
     </section>
   );
 }
