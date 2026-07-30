@@ -510,33 +510,78 @@ export function RecetasView() {
               </div>
 
               {ingredients.length > 0 ? (
-                <ul className="entries" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  {ingredients.map((ing) => (
-                    <li key={ing.food.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-elevated)', padding: '0.5rem', borderRadius: 'var(--radius-sm)' }}>
-                      <div>
-                        <strong>{ing.food.name}</strong>
-                        <div className="num muted" style={{ fontSize: '0.75rem' }}>
-                          {Math.round(ing.food.calories * ing.quantity)} kcal
+                <ul className="entries" style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                  {ingredients.map((ing) => {
+                    const totalGrams = Math.round(ing.quantity * (ing.food.serving_size_amount || 100));
+                    const totalKcal = Math.round((ing.food.calories || 0) * ing.quantity);
+                    const totalProt = Math.round((ing.food.protein || 0) * ing.quantity);
+
+                    return (
+                      <li key={ing.food.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', background: 'var(--bg-elevated)', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <strong style={{ fontSize: '0.88rem', color: 'var(--text-main)' }}>{ing.food.name}</strong>
+                            <span className="muted" style={{ fontSize: '0.72rem', display: 'block' }}>
+                              Porción base: {ing.food.serving_size_amount}{ing.food.serving_size_unit} ({ing.food.calories} kcal)
+                            </span>
+                          </div>
+                          <button type="button" className="entry__delete" onClick={() => handleRemoveIngredient(ing.food.id)} style={{ color: 'var(--color-danger)' }}>
+                            Quitar
+                          </button>
                         </div>
-                      </div>
-                      {/* step="any": con step="0.25" y min="0.1" los únicos
-                          valores válidos eran 0.1, 0.35, 0.6, 0.85... y la
-                          cantidad por defecto es 1, que no está entre ellos. El
-                          navegador rechazaba el envío y no se podía crear
-                          ninguna receta. */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <input
-                          type="number"
-                          step="any"
-                          min="0.01"
-                          style={{ width: '60px', padding: '0.2rem', fontFamily: 'var(--font-mono)' }}
-                          value={ing.quantity}
-                          onChange={(e) => handleUpdateQuantity(ing.food.id, Number(e.target.value))}
-                        />
-                        <button type="button" className="entry__delete" onClick={() => handleRemoveIngredient(ing.food.id)}>Quitar</button>
-                      </div>
-                    </li>
-                  ))}
+
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', background: 'var(--bg-surface)', padding: '0.4rem 0.6rem', borderRadius: 'var(--radius-xs)' }}>
+                          {/* Selector por porciones */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <label htmlFor={`porc-${ing.food.id}`} style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Porciones:</label>
+                            <input
+                              id={`porc-${ing.food.id}`}
+                              type="number"
+                              step="any"
+                              min="0.01"
+                              style={{ width: '70px', padding: '0.2rem 0.4rem', fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}
+                              value={Math.round(ing.quantity * 100) / 100}
+                              onChange={(e) => handleUpdateQuantity(ing.food.id, Number(e.target.value))}
+                            />
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>× {ing.food.serving_size_amount}{ing.food.serving_size_unit}</span>
+                          </div>
+
+                          {/* Entrada directa por gramos o mililitros */}
+                          {(ing.food.serving_size_unit === 'g' || ing.food.serving_size_unit === 'ml') && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                              <label htmlFor={`gram-${ing.food.id}`} style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>o Total:</label>
+                              <input
+                                id={`gram-${ing.food.id}`}
+                                type="number"
+                                step="any"
+                                min="1"
+                                style={{ width: '75px', padding: '0.2rem 0.4rem', fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}
+                                value={totalGrams}
+                                onChange={(e) => {
+                                  const g = Number(e.target.value);
+                                  const base = ing.food.serving_size_amount || 100;
+                                  if (g > 0 && base > 0) {
+                                    handleUpdateQuantity(ing.food.id, g / base);
+                                  }
+                                }}
+                              />
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{ing.food.serving_size_unit}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Métrica calculada en tiempo real */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--color-primary)' }} className="num">
+                          <span>
+                            Cantidad total: <strong>{totalGrams} {ing.food.serving_size_unit}</strong>
+                          </span>
+                          <span>
+                            Aporte: <strong>{totalKcal} kcal</strong> (P: {totalProt}g)
+                          </span>
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               ) : (
                 <p className="muted" style={{ fontSize: '0.8rem' }}>Buscá e ingresá los alimentos que componen la receta.</p>
