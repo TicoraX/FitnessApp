@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, notificarCambio, today, type Food, type Recipe } from '../api';
 import InfiniteMenu from '../components/InfiniteMenu';
+import { FlowingMenu } from '../components/FlowingMenu';
 
 interface SelectedIngredient {
   food: Food;
@@ -290,20 +291,20 @@ export function RecetasView() {
         <p className="muted">Cargando recetas...</p>
       ) : recipes.length === 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-          <div>
-            <span className="eyebrow" style={{ color: 'var(--color-primary)', display: 'block', marginBottom: '0.4rem' }}>
-              Ideas & Inspiración de Recetas
+          <div style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border-subtle)', background: 'var(--bg-surface)', marginBottom: '1rem' }}>
+            <span className="eyebrow" style={{ color: 'var(--color-primary)', display: 'block', padding: '0.6rem 1rem', borderBottom: '1px solid var(--border-subtle)' }}>
+              Ideas & Inspiración (Deslizá para Explorar Recetas)
             </span>
-            <InfiniteMenu
-              items={RECIPE_IDEAS.map((r) => {
-                const ingNames = r.components?.map(c => c.food?.name).filter(Boolean).join(', ');
-                return {
-                  title: r.name,
-                  description: ingNames ? `${Math.round(r.per_serving.calories)} kcal · ${ingNames}` : `${Math.round(r.per_serving.calories)} kcal / porción`,
+            <div style={{ height: '210px', position: 'relative' }}>
+              <FlowingMenu
+                items={RECIPE_IDEAS.map((r) => ({
+                  text: r.name,
+                  badge: `${Math.round(r.per_serving.calories)} KCAL • ${Math.round(r.per_serving.protein_g)}G PRO`,
+                  subtext: `${r.total_servings} porciones`,
                   onClick: () => handleCloneIdea(r),
-                };
-              })}
-            />
+                }))}
+              />
+            </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 'var(--space-md)' }}>
