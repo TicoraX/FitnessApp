@@ -41,6 +41,19 @@ const step = async (label, fn) => {
 try {
   await page.goto(BASE);
 
+  await step('el head declara viewport e iconos PNG del manifest', async () => {
+    // Sin meta viewport el teléfono usa un layout de ~980px y el CSS responsive
+    // nunca se activa. Playwright no lo detecta solo: fija el viewport por API.
+    const viewport = await page.locator('meta[name="viewport"]').getAttribute('content');
+    assert.ok(viewport?.includes('width=device-width'), 'falta meta viewport');
+    assert.ok(viewport.includes('viewport-fit=cover'), 'falta viewport-fit=cover');
+
+    // Chrome solo ofrece instalar la PWA si hay un PNG de 192 o más.
+    const manifest = await page.request.get(`${BASE}/manifest.json`).then((r) => r.json());
+    const pngs = manifest.icons.filter((i) => i.type === 'image/png').map((i) => i.sizes);
+    assert.ok(pngs.includes('192x192') && pngs.includes('512x512'), 'faltan iconos PNG');
+  });
+
   await step('carga la pantalla de login', async () => {
     await page.waitForSelector('h1');
     assert.equal(await page.locator('h1').textContent(), 'Entrar');
@@ -133,8 +146,9 @@ try {
   });
 
   await step('el panel ofrece los recientes sin escribir nada', async () => {
-    await page.waitForSelector('.result', { timeout: 10_000 });
-    assert.match(await page.locator('.result').first().innerText(), /Pechuga de pollo cocida/);
+    // Los recientes se pintan con InfiniteMenu, no con la lista .result de la búsqueda.
+    await page.waitForSelector('.infinite-menu-card', { timeout: 10_000 });
+    assert.match(await page.locator('.infinite-menu-card').first().innerText(), /Pechuga de pollo cocida/);
     // .first(): la tarjeta de peso también tiene un .hint.
     assert.match(await page.locator('.hint').first().innerText(), /registraste antes/);
   });
@@ -182,7 +196,8 @@ try {
   // smoke, que sí puede cargar fechas pasadas.
   async function registrarPeso(kg, esperado) {
     await page.getByLabel('Peso de hoy en kilos').fill(kg);
-    await page.getByRole('button', { name: 'Registrar' }).click();
+    // exact: si no, matchea también el "Registrar ejercicio" de la misma columna.
+    await page.getByRole('button', { name: 'Registrar', exact: true }).click();
     try {
       await page.locator('.weight__ema').filter({ hasText: esperado }).waitFor({ timeout: 15_000 });
     } catch {
@@ -312,28 +327,20 @@ try {
   });
 
   /**
-   * Safari de iOS no tiene BarcodeDetector. Antes se encendía la cámara igual y
-   * el usuario quedaba apuntando a un código que nunca se iba a leer, sin un
-   * mensaje que lo explicara.
+   * Safari de iOS no tiene BarcodeDetector. Ahora el escáner cae en ZXing, así
+   * que sí enciende la cámara; lo que no puede faltar nunca es la salida manual
+   * más un mensaje que explique qué pasó.
    */
-  await step('sin lector nativo, el escáner lo dice y no pide cámara', async () => {
+  await step('sin lector nativo, el escáner explica y deja la salida manual', async () => {
     // Contexto aparte para que el borrado de BarcodeDetector no contamine los
     // pasos siguientes; el token se copia a mano porque no comparten storage.
     const token = await page.evaluate(() => localStorage.getItem('fittrack.token'));
     const contexto = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     const sinLector = await contexto.newPage();
-    let pidioCamara = false;
 
     await sinLector.addInitScript((t) => {
       localStorage.setItem('fittrack.token', t);
       delete window.BarcodeDetector;
-      const original = navigator.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices);
-      if (original) {
-        navigator.mediaDevices.getUserMedia = (...args) => {
-          window.__pidioCamara = true;
-          return original(...args);
-        };
-      }
     }, token);
 
     await sinLector.goto(`${BASE}/#/diario`);
@@ -341,14 +348,13 @@ try {
     await sinLector.getByRole('button', { name: 'Escanear código de barras' }).click();
     await sinLector.waitForSelector('.barcode-scanner-overlay', { timeout: 5_000 });
 
+    // El texto exacto depende de por dónde falle (sin cámara, permiso denegado,
+    // sin lector); lo que se exige es que haya una explicación visible.
     const aviso = await sinLector.locator('.barcode-scanner-overlay .alert').innerText();
-    assert.match(aviso, /no puede leer códigos con la cámara/i);
+    assert.ok(aviso.trim().length > 0, 'el escáner falló en silencio');
 
     // El ingreso manual tiene que quedar disponible: es la única salida.
     assert.equal(await sinLector.getByLabel('Código de barras manual').count(), 1);
-
-    pidioCamara = await sinLector.evaluate(() => Boolean(window.__pidioCamara));
-    assert.equal(pidioCamara, false, 'pidió permiso de cámara sin poder usarla');
 
     await contexto.close();
   });
@@ -363,6 +369,44 @@ try {
     await page.getByRole('button', { name: 'Agregar Registro Rápido' }).click();
 
     await page.waitForSelector('text=Empanada al paso', { timeout: 10_000 });
+  });
+
+  /**
+   * La otra mitad de la ecuación: lo que se quema devuelve margen. Se compara
+   * el objetivo antes y después porque es el número que el usuario mira, no el
+   * total de la tarjeta de ejercicio.
+   */
+  await step('el ejercicio suma calorías al margen del día', async () => {
+    await page.goto(`${BASE}/#/diario`);
+    await page.waitForSelector('.view-diario', { timeout: 10_000 });
+
+    const objetivoDe = () =>
+      page.evaluate(() => {
+        const t = document.querySelector('.dial__unit')?.textContent ?? '';
+        return Number(t.match(/de (\d+)/)?.[1] ?? 0);
+      });
+    const antes = await objetivoDe();
+
+    await page.fill('#ex-actividad', 'correr');
+    await page.waitForSelector('.exercise .result', { timeout: 10_000 });
+    await page.locator('.exercise .result').first().click();
+    await page.fill('#ex-minutos', '30');
+    await page.getByRole('button', { name: 'Registrar ejercicio' }).click();
+
+    await page.waitForSelector('.exercise .entry', { timeout: 10_000 });
+    const quemadas = await page.evaluate(
+      () => Number(document.body.textContent.match(/incluye (\d+) kcal de ejercicio/)?.[1] ?? 0),
+    );
+    assert.ok(quemadas > 0, 'no se estimaron calorías con el MET');
+    assert.equal(await objetivoDe(), antes + quemadas, 'el objetivo no absorbió el ejercicio');
+    await shot('14-ejercicio');
+
+    // Y al quitarlo el margen vuelve donde estaba.
+    await page.locator('.exercise .entry button', { hasText: 'Quitar' }).first().click();
+    await page.waitForFunction((n) => {
+      const t = document.querySelector('.dial__unit')?.textContent ?? '';
+      return Number(t.match(/de (\d+)/)?.[1] ?? 0) === n;
+    }, antes, { timeout: 10_000 });
   });
 
   await step('la vista de recetas permite consultar y abrir la modal de creación', async () => {
@@ -521,6 +565,19 @@ try {
       () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
     );
     assert.equal(overflow, false, 'hay scroll horizontal en mobile');
+
+    // scrollWidth solo no alcanza: body tiene overflow-x clip, así que un
+    // elemento que se pasa del ancho queda recortado y el chequeo daba verde
+    // con el diario cortado por la derecha. Se miden los elementos.
+    const desbordan = await page.evaluate(() =>
+      [...document.querySelectorAll('.view-container *')]
+        .filter((e) => e.getBoundingClientRect().right > document.documentElement.clientWidth + 1)
+        // El marquee de recetas se sale a propósito y su contenedor lo recorta.
+        .filter((e) => !e.closest('.marquee'))
+        .map((e) => String(e.className || e.tagName).slice(0, 40))
+        .slice(0, 5),
+    );
+    assert.deepEqual(desbordan, [], `elementos fuera de pantalla: ${desbordan.join(' | ')}`);
     await shot('05-mobile-375');
   });
 

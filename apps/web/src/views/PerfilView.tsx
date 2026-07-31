@@ -192,7 +192,7 @@ export function PerfilView({
   const handleExportData = async () => {
     setExporting(true);
     try {
-      const data = await api.get<Record<string, unknown>>('/export');
+      const data = await api.get<Record<string, unknown>>('/account/export');
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');

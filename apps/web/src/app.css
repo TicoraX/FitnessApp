@@ -121,6 +121,13 @@ a {
   gap: var(--space-md);
 }
 
+/* Un item de grid arranca en min-width:auto, o sea min-content: si adentro hay
+   algo que no encoge, el item se pasa del ancho de la pantalla en vez de
+   recortarlo. En el teléfono eso cortaba las tarjetas del diario por la derecha. */
+.stack > * {
+  min-width: 0;
+}
+
 /* ---------- Auth: dos paneles ---------- */
 
 .auth {
@@ -520,6 +527,22 @@ a {
 }
 
 .newfood__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: var(--space-sm);
+}
+
+.exercise__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding-bottom: var(--space-xs);
+  border-bottom: var(--rule);
+  margin-bottom: var(--space-sm);
+}
+
+.exercise__row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
   gap: var(--space-sm);
