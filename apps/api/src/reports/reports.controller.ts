@@ -3,6 +3,7 @@ import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { parseLogDate } from '../common/log-date';
 import { ReportsService } from './reports.service';
+import { MICRO_KEYS, MICROS } from '../nutrition/micros';
 
 type AuthedRequest = { user: { userId: string } };
 
@@ -36,6 +37,19 @@ export class ReportsController {
   @Get('streak')
   streak(@Req() req: AuthedRequest, @Query('today') today: string) {
     return this.reports.streak(req.user.userId, parseLogDate(today));
+  }
+
+  /**
+   * Etiquetas, unidades y valores de referencia de los micros. Es una tabla
+   * fija y podría estar en el cliente, pero entonces habría dos listas que
+   * mantener sincronizadas y una barra pintaría contra el VDR equivocado.
+   */
+  @Get('micros/reference')
+  microsReference() {
+    return {
+      status: 'success',
+      data: MICRO_KEYS.map((key) => ({ key, ...MICROS[key] })),
+    };
   }
 
   private rango(from: string, to: string): [string, string] {

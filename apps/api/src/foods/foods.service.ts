@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateFoodDto } from './dto/create-food.dto';
 import { likeContains, normalizeQuery } from './search-query';
 import { mapOffProduct, type MappedFood, type OffProduct } from './off-mapper';
+import { parseMicros } from '../nutrition/micros';
 
 const OFF_API = process.env.OFF_API_URL ?? 'https://world.openfoodfacts.org';
 /** OpenFoodFacts pide identificarse; sin esto responden 403 a los anónimos. */
@@ -35,6 +36,7 @@ export class FoodsService {
              serving_size_unit   AS "servingSizeUnit",
              calories, protein, carbohydrates, fat, fiber, sugar,
              sodium_mg           AS "sodiumMg",
+             micros_json         AS "microsJson",
              GREATEST(
                word_similarity(${q}, f_unaccent(name)),
                word_similarity(${q}, f_unaccent(COALESCE(brand, '')))
@@ -255,5 +257,6 @@ function toResponse(f: FoodItem & { score?: number }) {
     fiber: Number(f.fiber),
     sugar: Number(f.sugar),
     sodium_mg: Number(f.sodiumMg),
+    micros: parseMicros(f.microsJson),
   };
 }

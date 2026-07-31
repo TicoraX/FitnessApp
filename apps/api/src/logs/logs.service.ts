@@ -7,6 +7,7 @@ import { CopyDto, LogRecipeDto, QuickAddDto } from './dto/shortcuts.dto';
 import { LogExerciseDto, UpdateExerciseDto } from './dto/exercise.dto';
 import { nutrientsOf, remaining, sumEntries } from './totals';
 import { caloriesBurned, metOf } from '../exercise/met';
+import { parseMicros, sumMicros } from '../nutrition/micros';
 
 /** Fila del diario tal como la devuelve getDay, ya lista para el cliente. */
 export type EntryDto = {
@@ -462,6 +463,26 @@ export class LogsService {
     // que suma el día.
     const totals = sumEntries(entries.map((e) => ({ ...e, foodItem: nutrientsOf(e) })));
 
+    // Un quick add no tiene micros detrás: se cargan calorías sueltas, no un
+    // alimento. Cuenta cero, que es honesto, no una estimación inventada.
+    const microsPorEntrada = entries.map((e) => ({
+      micros: parseMicros(e.foodItem?.microsJson),
+      servings: Number(e.servingsConsumed),
+    }));
+
+    // Buena parte del catálogo no declara micros. Sin este conteo, un cero en
+    // la pantalla se lee como "no comiste calcio" cuando en realidad es "nadie
+    // cargó cuánto calcio tiene esto".
+    const conDatos = microsPorEntrada.filter((e) =>
+      Object.values(e.micros).some((v) => v > 0),
+    ).length;
+
+    const micros = {
+      totals: sumMicros(microsPorEntrada),
+      entries_with_data: conDatos,
+      entries_total: entries.length,
+    };
+
     const exercises = log?.exercises ?? [];
     const burned = exercises.reduce((s, e) => s + e.caloriesBurned, 0);
 
@@ -478,6 +499,7 @@ export class LogsService {
         water_ml: log?.waterMl ?? 0,
         water_goal_ml: user.waterGoalMl,
         totals,
+        micros,
         remaining: resto,
         entries: colapsarRecetas(entries),
         exercise: {

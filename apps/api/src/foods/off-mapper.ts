@@ -11,6 +11,8 @@
  * filtros son la mitad del trabajo acá.
  */
 
+import { emptyMicros, type Micros } from '../nutrition/micros';
+
 /** Forma mínima de un producto de OFF. El dump trae ~200 campos más. */
 export interface OffProduct {
   code?: string;
@@ -39,6 +41,7 @@ export interface MappedFood {
   fiber: number;
   sugar: number;
   sodiumMg: number;
+  microsJson: Micros;
 }
 
 /** Motivo de descarte. Se cuentan por separado para poder ajustar umbrales con datos. */
@@ -109,6 +112,34 @@ function calorias(n: Record<string, unknown>): number | null {
 
   const kj = num(n['energy-kj_100g']) ?? num(n['energy_100g']);
   return kj === null ? null : kj / 4.184;
+}
+
+/**
+ * Micros por 100 g. OFF declara casi todo en gramos, incluidos los minerales y
+ * las vitaminas, así que lo que se lee en miligramos se multiplica por mil.
+ *
+ * Un valor fuera de rango se descarta en silencio en vez de tirar el alimento
+ * entero: un potasio mal cargado no invalida sus macros, que es el dato que la
+ * app realmente usa para contar.
+ */
+function micronutrientes(n: Record<string, unknown>): Micros {
+  const m = emptyMicros();
+  const enMg = (v: unknown, tope: number) => {
+    const g = num(v);
+    if (g === null || g < 0) return 0;
+    const mg = g * 1000;
+    return mg > tope ? 0 : round1(mg);
+  };
+
+  const satu = num(n['saturated-fat_100g']);
+  m.saturated_fat_g = satu !== null && satu >= 0 && satu <= 100 ? round1(satu) : 0;
+  // Topes por 100 g: generosos, solo para atrapar errores de unidad.
+  m.cholesterol_mg = enMg(n['cholesterol_100g'], 5000);
+  m.potassium_mg = enMg(n['potassium_100g'], 20000);
+  m.calcium_mg = enMg(n['calcium_100g'], 20000);
+  m.iron_mg = enMg(n['iron_100g'], 1000);
+  m.vitamin_c_mg = enMg(n['vitamin-c_100g'], 10000);
+  return m;
 }
 
 function sodioMg(n: Record<string, unknown>): number {
@@ -193,6 +224,7 @@ export function mapOffProduct(p: OffProduct): MapResult {
       fiber,
       sugar,
       sodiumMg,
+      microsJson: micronutrientes(n),
     },
   };
 }

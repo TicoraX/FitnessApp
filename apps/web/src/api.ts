@@ -156,6 +156,25 @@ export interface DaySummary {
   remaining: { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null;
   entries: MealEntry[];
   exercise: { total_burned: number; entries: ExerciseEntry[] };
+  micros: MicrosSummary;
+}
+
+export interface MicrosSummary {
+  totals: Record<string, number>;
+  /**
+   * Cuántas entradas del día traen micros declarados. Buena parte del catálogo
+   * no los tiene: sin este dato un cero se lee como "no comiste calcio" en vez
+   * de "nadie cargó cuánto calcio tiene esto".
+   */
+  entries_with_data: number;
+  entries_total: number;
+}
+
+export interface MicroReference {
+  key: string;
+  label: string;
+  unit: string;
+  rdi: number;
 }
 
 export interface ExerciseEntry {
