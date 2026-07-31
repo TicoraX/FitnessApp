@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { api, notificarCambio, setToken, today } from '../api';
 import { useTheme, type ThemeOption } from '../hooks/useTheme';
+import { useModalDialog } from '../hooks/useModalDialog';
 import { Profile } from '../Profile';
 
 const PRESETS = [
@@ -179,6 +180,7 @@ export function PerfilView({
 }) {
   const { theme, setTheme } = useTheme();
   const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
 
   // Modal para eliminar cuenta
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -189,8 +191,12 @@ export function PerfilView({
 
   const [importStatus, setImportStatus] = useState('');
 
+  const cerrarBorrar = useCallback(() => setShowDeleteModal(false), []);
+  const refBorrar = useModalDialog<HTMLDivElement>(showDeleteModal, cerrarBorrar);
+
   const handleExportData = async () => {
     setExporting(true);
+    setExportError('');
     try {
       const data = await api.get<Record<string, unknown>>('/account/export');
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -201,7 +207,9 @@ export function PerfilView({
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      alert('Error al exportar los datos.');
+      // alert() bloquea el hilo y en móvil tapa la pantalla entera; el resto de
+      // la app reporta con .alert en su lugar.
+      setExportError('No se pudieron exportar los datos. Probá de nuevo.');
     } finally {
       setExporting(false);
     }
@@ -393,6 +401,11 @@ export function PerfilView({
             </span>
           )}
         </button>
+        {exportError && (
+          <p className="alert" role="status" style={{ marginTop: '0.75rem' }}>
+            {exportError}
+          </p>
+        )}
       </section>
 
       {/* Zona de Peligro / Eliminar Cuenta */}
@@ -416,7 +429,7 @@ export function PerfilView({
 
       {/* Modal Confirmación de Eliminación de Cuenta */}
       {showDeleteModal && (
-        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+        <div ref={refBorrar} role="dialog" aria-modal="true" aria-label="Confirmar eliminación de cuenta" className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
           <form onSubmit={handleDeleteAccount} className="card" style={{ width: '100%', maxWidth: '420px', border: '1px solid var(--color-danger)' }}>
             <h3 className="card__title" style={{ color: 'var(--color-danger)', marginBottom: '0.5rem' }}>
               Confirmar Eliminación Permanente

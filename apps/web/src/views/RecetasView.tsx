@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, notificarCambio, today, type Food, type Recipe } from '../api';
 import InfiniteMenu from '../components/InfiniteMenu';
 import { FlowingMenu } from '../components/FlowingMenu';
+import { useModalDialog } from '../hooks/useModalDialog';
+import { IconoCerrar } from '../components/IconoCerrar';
 
 interface SelectedIngredient {
   food: Food;
@@ -68,6 +70,17 @@ export function RecetasView() {
   const [loggingRecipe, setLoggingRecipe] = useState<Recipe | null>(null);
   const [selectedMeal, setSelectedMeal] = useState('lunch');
   const [recipeServings, setRecipeServings] = useState('1');
+
+  const cerrarCreate = useCallback(() => {
+    setShowCreateModal(false);
+    setEditingRecipe(null);
+  }, []);
+  const cerrarLogging = useCallback(() => setLoggingRecipe(null), []);
+  const cerrarDetalle = useCallback(() => setDetailRecipe(null), []);
+
+  const refCreate = useModalDialog<HTMLDivElement>(showCreateModal, cerrarCreate);
+  const refLogging = useModalDialog<HTMLDivElement>(loggingRecipe !== null, cerrarLogging);
+  const refDetalle = useModalDialog<HTMLDivElement>(detailRecipe !== null, cerrarDetalle);
 
   const loadRecipes = useCallback(async () => {
     try {
@@ -502,11 +515,11 @@ export function RecetasView() {
 
       {/* Modal para Crear/Editar Receta */}
       {showCreateModal && (
-        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+        <div ref={refCreate} role="dialog" aria-modal="true" aria-label={editingRecipe ? 'Editar receta' : 'Nueva receta'} className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
           <form onSubmit={handleSaveRecipe} className="card" style={{ width: '100%', maxWidth: '520px', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h3 className="card__title">{editingRecipe ? `Editar Receta "${editingRecipe.name}"` : 'Nueva Receta'}</h3>
-              <button type="button" className="btn btn--quiet" onClick={() => { setShowCreateModal(false); setEditingRecipe(null); }}>✕</button>
+              <button type="button" className="btn btn--quiet" aria-label="Cerrar" onClick={cerrarCreate}><IconoCerrar /></button>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
@@ -680,11 +693,11 @@ export function RecetasView() {
 
       {/* Modal para Registrar Receta en el Diario */}
       {loggingRecipe && (
-        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+        <div ref={refLogging} role="dialog" aria-modal="true" aria-label="Registrar receta" className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
           <form onSubmit={handleLogRecipe} className="card" style={{ width: '100%', maxWidth: '380px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h3 className="card__title">Registrar Receta</h3>
-              <button type="button" className="btn btn--quiet" onClick={() => setLoggingRecipe(null)}>✕</button>
+              <button type="button" className="btn btn--quiet" aria-label="Cerrar" onClick={cerrarLogging}><IconoCerrar /></button>
             </div>
 
             <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>{loggingRecipe.name}</p>
@@ -726,14 +739,14 @@ export function RecetasView() {
 
       {/* Modal para Ver Detalle Completo de Receta */}
       {detailRecipe && (
-        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+        <div ref={refDetalle} role="dialog" aria-modal="true" aria-label={`Detalle de ${detailRecipe.name}`} className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
           <div className="card" style={{ width: '100%', maxWidth: '480px', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <div>
                 <span className="eyebrow" style={{ color: 'var(--color-primary)' }}>Detalle de Receta</span>
                 <h3 className="card__title" style={{ margin: 0 }}>{detailRecipe.name}</h3>
               </div>
-              <button type="button" className="btn btn--quiet" onClick={() => setDetailRecipe(null)}>✕</button>
+              <button type="button" className="btn btn--quiet" aria-label="Cerrar" onClick={cerrarDetalle}><IconoCerrar /></button>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem', marginBottom: '1rem', background: 'var(--bg-surface)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }} className="num">

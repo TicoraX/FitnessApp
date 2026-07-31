@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { IconoCerrar } from './IconoCerrar';
 
 interface BarcodeScannerProps {
   onDetected: (barcode: string) => void;
@@ -197,7 +198,10 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
             aria-label="Cerrar"
             style={{ padding: '0.3rem 0.6rem', fontSize: '0.85rem' }}
           >
-            ✕ Cerrar
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+              <IconoCerrar size={14} />
+              Cerrar
+            </span>
           </button>
         </div>
 
