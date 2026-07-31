@@ -61,6 +61,8 @@ export const api = {
   get: <T,>(path: string) => request<T>(path),
   post: <T,>(path: string, body: unknown) =>
     request<T>(path, { method: 'POST', body: JSON.stringify(body) }),
+  put: <T,>(path: string, body: unknown) =>
+    request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
   patch: <T,>(path: string, body: unknown) =>
     request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
   del: <T = null>(path: string, body?: unknown) =>
@@ -98,6 +100,8 @@ export interface RecipeComponent {
 export interface Recipe {
   id: string;
   name: string;
+  /** meal = comida guardada: se registra entera, siempre rinde una porción. */
+  kind: 'recipe' | 'meal';
   total_servings: number;
   component_count?: number;
   per_serving: {
@@ -138,6 +142,7 @@ export interface MealEntry {
 export interface DaySummary {
   log_date: string;
   water_ml: number;
+  water_goal_ml: number;
   totals: {
     calories: number;
     protein_g: number;

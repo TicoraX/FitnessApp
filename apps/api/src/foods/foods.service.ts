@@ -116,6 +116,39 @@ export class FoodsService {
     return { status: 'success', data: entries.map((e) => toResponse(e.foodItem!)) };
   }
 
+  async favorites(userId: string, limit: number) {
+    const filas = await this.prisma.foodFavorite.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: { foodItem: true },
+    });
+    return { status: 'success', data: filas.map((f) => toResponse(f.foodItem)) };
+  }
+
+  /**
+   * Marcar dos veces el mismo alimento no es un error del usuario, es doble tap:
+   * el upsert lo deja idempotente en vez de romper contra la clave primaria.
+   */
+  async addFavorite(userId: string, foodItemId: string) {
+    const existe = await this.prisma.foodItem.findUnique({ where: { id: foodItemId } });
+    if (!existe) throw new NotFoundException('El alimento no existe');
+
+    await this.prisma.foodFavorite.upsert({
+      where: { userId_foodItemId: { userId, foodItemId } },
+      create: { userId, foodItemId },
+      update: {},
+    });
+    return { status: 'success' };
+  }
+
+  async removeFavorite(userId: string, foodItemId: string) {
+    // deleteMany y no delete: desmarcar algo que no estaba marcado es el mismo
+    // resultado que el usuario pidió, no un 404.
+    await this.prisma.foodFavorite.deleteMany({ where: { userId, foodItemId } });
+    return { status: 'success' };
+  }
+
   /**
    * Si el código no está en el catálogo se consulta OpenFoodFacts en vivo y, si
    * el producto pasa los mismos filtros que el importador masivo, se guarda y

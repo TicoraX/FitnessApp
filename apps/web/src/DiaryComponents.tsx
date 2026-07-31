@@ -230,6 +230,29 @@ export function Water({
       <span className="water__label muted">Agua</span>
       <span className="num water__value">
         {(day.water_ml / 1000).toFixed(2).replace(/\.?0+$/, '')} L
+        <span className="muted water__goal">
+          {' '}
+          de {(day.water_goal_ml / 1000).toFixed(2).replace(/\.?0+$/, '')}
+        </span>
+        {/* La barra va acá y no en una tarjeta aparte: el vaso se suma con los
+            botones de al lado y el progreso tiene que verse sin mover la vista. */}
+        <span
+          className="water__bar"
+          role="meter"
+          aria-label="Progreso de agua"
+          aria-valuenow={day.water_ml}
+          aria-valuemin={0}
+          aria-valuemax={day.water_goal_ml}
+        >
+          <span
+            className="water__bar-fill"
+            style={
+              {
+                '--pct': Math.min((day.water_ml / day.water_goal_ml) * 100, 100),
+              } as CSSProperties
+            }
+          />
+        </span>
       </span>
       <span className="water__buttons">
         <button
@@ -465,6 +488,8 @@ export function AddFood({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
   const [recent, setRecent] = useState<Food[]>([]);
+  const [favorites, setFavorites] = useState<Food[]>([]);
+  const [tab, setTab] = useState<'recent' | 'favorites'>('recent');
   const [activo, setActivo] = useState(-1);
   const [showScanner, setShowScanner] = useState(false);
   const [showNewFood, setShowNewFood] = useState(false);
@@ -529,9 +554,37 @@ export function AddFood({
     }
   };
 
-  const visibles = query.trim().length < 2 ? recent : results;
+  const sugeridos = tab === 'favorites' ? favorites : recent;
+  const visibles = query.trim().length < 2 ? sugeridos : results;
 
-  useEffect(() => setActivo(-1), [query, results, recent]);
+  useEffect(() => setActivo(-1), [query, results, sugeridos]);
+
+  const loadFavorites = useCallback(async () => {
+    try {
+      setFavorites((await api.get<{ data: Food[] }>('/foods/favorites')).data ?? []);
+    } catch {
+      setFavorites([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadFavorites();
+  }, [loadFavorites]);
+
+  const esFavorito = (id: string) => favorites.some((f) => f.id === id);
+
+  async function toggleFavorito(food: Food) {
+    // Optimista: marcar es un gesto de un toque y esperar el round-trip para
+    // pintar la estrella se siente roto.
+    const marcado = esFavorito(food.id);
+    setFavorites((prev) => (marcado ? prev.filter((f) => f.id !== food.id) : [food, ...prev]));
+    try {
+      if (marcado) await api.del(`/foods/${food.id}/favorite`);
+      else await api.put(`/foods/${food.id}/favorite`, {});
+    } catch {
+      void loadFavorites();
+    }
+  }
 
   const loadRecent = useCallback(async () => {
     try {
@@ -841,18 +894,44 @@ export function AddFood({
         </p>
       )}
 
-      {query.trim().length < 2 && recent.length > 0 && (
+      {query.trim().length < 2 && (
         <div style={{ marginBottom: '0.75rem' }}>
-          <p className="hint muted" style={{ marginTop: 'var(--space-xs)', marginBottom: '0.4rem', fontSize: '0.75rem' }}>
-            Comidas que registraste antes:
-          </p>
-          <InfiniteMenu
-            items={recent.map((f) => ({
-              title: f.name,
-              description: `${f.calories} kcal / ${f.serving_size_amount}${f.serving_size_unit}`,
-              onClick: () => handleSelectFood(f),
-            }))}
-          />
+          <div className="food-tabs" role="tablist" aria-label="Sugerencias">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'recent'}
+              className="btn btn--quiet"
+              onClick={() => setTab('recent')}
+            >
+              Recientes
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'favorites'}
+              className="btn btn--quiet"
+              onClick={() => setTab('favorites')}
+            >
+              Favoritos{favorites.length > 0 && ` (${favorites.length})`}
+            </button>
+          </div>
+
+          {sugeridos.length > 0 ? (
+            <InfiniteMenu
+              items={sugeridos.map((f) => ({
+                title: f.name,
+                description: `${f.calories} kcal / ${f.serving_size_amount}${f.serving_size_unit}`,
+                onClick: () => handleSelectFood(f),
+              }))}
+            />
+          ) : (
+            <p className="hint muted" style={{ fontSize: '0.75rem' }}>
+              {tab === 'favorites'
+                ? 'Marcá un alimento con la estrella para tenerlo acá.'
+                : 'Todavía no registraste nada.'}
+            </p>
+          )}
         </div>
       )}
 
@@ -896,8 +975,28 @@ export function AddFood({
               <strong style={{ fontSize: 'var(--text-base)', display: 'block', color: 'var(--text-main)' }}>{selected.name}</strong>
               {selected.brand && <span className="muted" style={{ fontSize: 'var(--text-xs)' }}>{selected.brand}</span>}
             </div>
-            <span className="num" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-primary)', fontFamily: 'var(--font-mono)' }}>
-              {Math.round(selected.calories * (Number(servings) || 1))} kcal
+            <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-xs)' }}>
+              <span className="num" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-primary)', fontFamily: 'var(--font-mono)' }}>
+                {Math.round(selected.calories * (Number(servings) || 1))} kcal
+              </span>
+              <button
+                type="button"
+                className="btn btn--quiet btn--icon food-fav"
+                aria-pressed={esFavorito(selected.id)}
+                aria-label={esFavorito(selected.id) ? 'Quitar de favoritos' : 'Marcar como favorito'}
+                onClick={() => toggleFavorito(selected)}
+              >
+                {/* Estrella SVG, no un emoji: el proyecto no usa emojis en la UI. */}
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                  <path
+                    d="M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5-5.8-3-5.8 3 1.1-6.5L2.6 9.4l6.5-.9L12 2.6z"
+                    fill={esFavorito(selected.id) ? 'currentColor' : 'none'}
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
             </span>
           </div>
 

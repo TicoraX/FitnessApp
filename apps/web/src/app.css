@@ -676,6 +676,44 @@ a {
   gap: var(--space-2xs);
 }
 
+.water__goal {
+  font-size: var(--text-sm);
+}
+
+.food-tabs {
+  display: flex;
+  gap: var(--space-2xs);
+  margin: var(--space-xs) 0 0.4rem;
+}
+
+.food-tabs [aria-selected='true'] {
+  background: var(--color-paper-3);
+  color: var(--color-ink);
+}
+
+.food-fav[aria-pressed='true'] {
+  color: var(--color-primary);
+}
+
+/* Mismas medidas que .macro__track: el agua es un progreso más del día. */
+.water__bar {
+  display: block;
+  height: 5px;
+  margin-top: var(--space-2xs);
+  background: var(--color-paper-3);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.water__bar-fill {
+  display: block;
+  height: 100%;
+  width: calc(var(--pct) * 1%);
+  border-radius: 999px;
+  background: var(--color-water);
+  transition: width var(--dur-base) var(--ease-out);
+}
+
 .btn--icon {
   min-width: 2.75rem;
   min-height: 2.75rem;

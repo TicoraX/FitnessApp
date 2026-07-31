@@ -434,7 +434,7 @@ export class LogsService {
   }
 
   async getDay(userId: string, logDate: string) {
-    const [log, goal] = await Promise.all([
+    const [log, goal, user] = await Promise.all([
       this.prisma.dailyLog.findUnique({
         where: { userId_logDate: { userId, logDate: new Date(logDate) } },
         include: {
@@ -448,6 +448,10 @@ export class LogsService {
       this.prisma.userGoal.findFirst({
         where: { userId, isActive: true },
         orderBy: { effectiveFrom: 'desc' },
+      }),
+      this.prisma.user.findUniqueOrThrow({
+        where: { id: userId },
+        select: { waterGoalMl: true },
       }),
     ]);
 
@@ -472,6 +476,7 @@ export class LogsService {
       data: {
         log_date: logDate,
         water_ml: log?.waterMl ?? 0,
+        water_goal_ml: user.waterGoalMl,
         totals,
         remaining: resto,
         entries: colapsarRecetas(entries),

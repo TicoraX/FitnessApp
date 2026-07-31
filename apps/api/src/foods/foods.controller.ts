@@ -3,10 +3,14 @@ import {
   Body,
   Controller,
   DefaultValuePipe,
+  Delete,
   Get,
+  HttpCode,
   Param,
   ParseIntPipe,
+  ParseUUIDPipe,
   Post,
+  Put,
   Query,
   Req,
   UseGuards,
@@ -37,6 +41,22 @@ export class FoodsController {
   @Get('recent')
   recent(@Req() req: AuthedRequest) {
     return this.foods.recent(req.user.userId, 8);
+  }
+
+  @Get('favorites')
+  favorites(@Req() req: AuthedRequest) {
+    return this.foods.favorites(req.user.userId, 30);
+  }
+
+  @Put(':id/favorite')
+  addFavorite(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.foods.addFavorite(req.user.userId, id);
+  }
+
+  @Delete(':id/favorite')
+  @HttpCode(204)
+  removeFavorite(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.foods.removeFavorite(req.user.userId, id);
   }
 
   @Get('barcode/:barcode')

@@ -12,6 +12,7 @@ const RECIPE_IDEAS: Recipe[] = [
   {
     id: 'idea-1',
     name: 'Wok de Pollo Fit con Vegetales',
+    kind: 'recipe' as const,
     total_servings: 2,
     per_serving: { calories: 380, protein_g: 42, carbs_g: 28, fat_g: 10 },
     components: [
@@ -22,6 +23,7 @@ const RECIPE_IDEAS: Recipe[] = [
   {
     id: 'idea-2',
     name: 'Bowl Proteico de Avena y Plátano',
+    kind: 'recipe' as const,
     total_servings: 1,
     per_serving: { calories: 420, protein_g: 30, carbs_g: 58, fat_g: 8 },
     components: [
@@ -32,6 +34,7 @@ const RECIPE_IDEAS: Recipe[] = [
   {
     id: 'idea-3',
     name: 'Omelette Fit de Claras y Espinaca',
+    kind: 'recipe' as const,
     total_servings: 1,
     per_serving: { calories: 240, protein_g: 32, carbs_g: 6, fat_g: 9 },
     components: [
@@ -53,6 +56,7 @@ export function RecetasView() {
   const [detailRecipe, setDetailRecipe] = useState<Recipe | null>(null);
   const [recipeName, setRecipeName] = useState('');
   const [totalServings, setTotalServings] = useState('2');
+  const [kind, setKind] = useState<'recipe' | 'meal'>('recipe');
   const [ingredients, setIngredients] = useState<SelectedIngredient[]>([]);
   const [foodQuery, setFoodQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Food[]>([]);
@@ -86,6 +90,7 @@ export function RecetasView() {
   const handleEditRecipe = (r: Recipe) => {
     setEditingRecipe(r);
     setRecipeName(r.name);
+    setKind(r.kind ?? 'recipe');
     setTotalServings(String(r.total_servings || 1));
     setIngredients(
       r.components?.map((c) => ({
@@ -115,6 +120,7 @@ export function RecetasView() {
   const handleOpenCreateNew = () => {
     setEditingRecipe(null);
     setRecipeName('');
+    setKind('recipe');
     setTotalServings('2');
     setIngredients([]);
     setShowCreateModal(true);
@@ -196,9 +202,11 @@ export function RecetasView() {
         });
       }
 
+      // Una comida guardada se registra entera: el API le fija las porciones en 1.
       const payload = {
         name: recipeName.trim(),
-        total_servings: Number(totalServings) || 1,
+        kind,
+        ...(kind === 'recipe' && { total_servings: Number(totalServings) || 1 }),
         components: resolvedComponents,
       };
 
@@ -321,7 +329,7 @@ export function RecetasView() {
                     >
                       {r.name}
                     </h3>
-                    <span className="badge">{r.total_servings} porciones</span>
+                    <span className="badge">{r.kind === 'meal' ? 'comida' : `${r.total_servings} porciones`}</span>
                   </div>
                   <div className="num" style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-primary)', fontFamily: 'var(--font-mono)', marginBottom: '0.5rem' }}>
                     {Math.round(r.per_serving.calories)} kcal <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-muted)' }}>/ porción</span>
@@ -403,7 +411,7 @@ export function RecetasView() {
                   >
                     {r.name}
                   </h3>
-                  <span className="badge">{r.total_servings} porciones</span>
+                  <span className="badge">{r.kind === 'meal' ? 'comida' : `${r.total_servings} porciones`}</span>
                 </div>
                 <div className="num" style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-primary)', fontFamily: 'var(--font-mono)', marginBottom: '0.5rem' }}>
                   {Math.round(r.per_serving.calories)} kcal <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-muted)' }}>/ porción</span>
@@ -515,16 +523,44 @@ export function RecetasView() {
               </div>
 
               <div>
-                <label style={{ fontSize: '0.85rem', display: 'block', marginBottom: '0.2rem' }}>Rinde porciones totales</label>
-                <input
-                  type="number"
-                  min="1"
-                  required
-                  value={totalServings}
-                  onChange={(e) => setTotalServings(e.target.value)}
-                  style={{ width: '100%', fontFamily: 'var(--font-mono)' }}
-                />
+                <label style={{ fontSize: '0.85rem', display: 'block', marginBottom: '0.2rem' }}>Tipo</label>
+                <div className="food-tabs" role="tablist" aria-label="Tipo">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={kind === 'recipe'}
+                    className="btn btn--quiet"
+                    onClick={() => setKind('recipe')}
+                  >
+                    Receta
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={kind === 'meal'}
+                    className="btn btn--quiet"
+                    onClick={() => setKind('meal')}
+                  >
+                    Comida guardada
+                  </button>
+                </div>
               </div>
+
+              {/* Una comida guardada se registra entera, así que preguntar en
+                  cuántas porciones rinde no tiene sentido. */}
+              {kind === 'recipe' && (
+                <div>
+                  <label style={{ fontSize: '0.85rem', display: 'block', marginBottom: '0.2rem' }}>Rinde porciones totales</label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={totalServings}
+                    onChange={(e) => setTotalServings(e.target.value)}
+                    style={{ width: '100%', fontFamily: 'var(--font-mono)' }}
+                  />
+                </div>
+              )}
 
               <hr style={{ borderColor: 'var(--border-subtle)', margin: '0.5rem 0' }} />
 

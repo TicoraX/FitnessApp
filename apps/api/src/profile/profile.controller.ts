@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Injectable, Module, Patch, Req, UseGuards } from '@nestjs/common';
 import { Type } from 'class-transformer';
-import { IsIn, IsNumber, IsOptional, Max, Min, ValidateIf } from 'class-validator';
+import { IsIn, IsInt, IsNumber, IsOptional, Max, Min, ValidateIf } from 'class-validator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { GoalsService } from '../nutrition/goals.service';
@@ -53,6 +53,14 @@ class UpdateProfileDto {
   @IsOptional()
   @IsIn(['metric', 'imperial'])
   unit_preference?: 'metric' | 'imperial';
+
+  /** No entra en el cálculo metabólico: es una meta que el usuario se pone. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(250)
+  @Max(10_000)
+  water_goal_ml?: number;
 }
 
 type AuthedRequest = { user: { userId: string } };
@@ -82,6 +90,7 @@ export class ProfileService {
         activity_level: Number(user.activityLevel),
         body_fat_pct: user.bodyFatPct === null ? null : Number(user.bodyFatPct),
         unit_preference: user.unitPreference,
+        water_goal_ml: user.waterGoalMl,
         target_weight_kg: goal ? Number(goal.targetWeightKg) : null,
         weekly_goal_kg: goal ? Number(goal.weeklyChangeKg) : null,
         daily_calories: goal?.dailyCalories ?? null,
@@ -100,7 +109,8 @@ export class ProfileService {
         dto.height_cm !== undefined ||
         dto.activity_level !== undefined ||
         dto.body_fat_pct !== undefined ||
-        dto.unit_preference !== undefined
+        dto.unit_preference !== undefined ||
+        dto.water_goal_ml !== undefined
       ) {
         await tx.user.update({
           where: { id: userId },
@@ -109,6 +119,7 @@ export class ProfileService {
             ...(dto.activity_level !== undefined && { activityLevel: dto.activity_level }),
             ...(dto.body_fat_pct !== undefined && { bodyFatPct: dto.body_fat_pct }),
             ...(dto.unit_preference !== undefined && { unitPreference: dto.unit_preference }),
+            ...(dto.water_goal_ml !== undefined && { waterGoalMl: dto.water_goal_ml }),
           },
         });
       }

@@ -149,8 +149,45 @@ try {
     // Los recientes se pintan con InfiniteMenu, no con la lista .result de la búsqueda.
     await page.waitForSelector('.infinite-menu-card', { timeout: 10_000 });
     assert.match(await page.locator('.infinite-menu-card').first().innerText(), /Pechuga de pollo cocida/);
-    // .first(): la tarjeta de peso también tiene un .hint.
-    assert.match(await page.locator('.hint').first().innerText(), /registraste antes/);
+    // La pestaña activa tiene que ser Recientes al abrir, no Favoritos.
+    const activa = page.locator('.food-tabs [aria-selected="true"]');
+    assert.match(await activa.innerText(), /Recientes/);
+  });
+
+  /**
+   * Los recientes se ensucian con cualquier cosa que se registre una vez; un
+   * favorito es explícito. Se verifica que sobreviva al reload, que es lo que
+   * lo diferencia de un estado de pantalla.
+   */
+  await step('un alimento se marca como favorito y queda en su pestaña', async () => {
+    await page.locator('.infinite-menu-card').first().click();
+    await page.waitForSelector('.food-fav', { timeout: 10_000 });
+    assert.equal(await page.locator('.food-fav').getAttribute('aria-pressed'), 'false');
+
+    await page.locator('.food-fav').click();
+    await page.waitForFunction(
+      () => document.querySelector('.food-fav')?.getAttribute('aria-pressed') === 'true',
+      null,
+      { timeout: 10_000 },
+    );
+
+    await page.reload();
+    await page.waitForSelector('.view-diario', { timeout: 10_000 });
+    await page.getByRole('tab', { name: /Favoritos/ }).click();
+    await page.waitForSelector('.infinite-menu-card', { timeout: 10_000 });
+    assert.match(
+      await page.locator('.infinite-menu-card').first().innerText(),
+      /Pechuga de pollo cocida/,
+      'el favorito no sobrevivió al reload',
+    );
+
+    await page.getByRole('tab', { name: 'Recientes' }).click();
+  });
+
+  await step('el agua muestra la meta y su progreso', async () => {
+    const meta = await page.locator('.water__goal').innerText();
+    assert.match(meta, /de 2/, `la meta por defecto no es 2 L: ${meta}`);
+    assert.equal(await page.locator('.water__bar').getAttribute('aria-valuemax'), '2000');
   });
 
   await step('editar porciones en la fila recalcula el total', async () => {
