@@ -147,6 +147,13 @@ export function Dial({ day }: { day: DaySummary }) {
         ) : (
           <span className="dial__left muted">Sin objetivo activo</span>
         )}
+        {/* Sin esta línea el objetivo aparece más alto que el del perfil y no
+            se entiende por qué: lo que se quema se suma al margen del día. */}
+        {day.exercise.total_burned > 0 && (
+          <span className="muted num" style={{ fontSize: 'var(--text-sm)' }}>
+            incluye {day.exercise.total_burned} kcal de ejercicio
+          </span>
+        )}
       </div>
     </div>
   );

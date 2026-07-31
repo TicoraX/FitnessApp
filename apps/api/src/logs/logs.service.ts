@@ -4,7 +4,9 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateMealEntryDto } from './dto/create-meal-entry.dto';
 import { CopyDto, LogRecipeDto, QuickAddDto } from './dto/shortcuts.dto';
+import { LogExerciseDto, UpdateExerciseDto } from './dto/exercise.dto';
 import { nutrientsOf, remaining, sumEntries } from './totals';
+import { caloriesBurned, metOf } from '../exercise/met';
 
 /** Fila del diario tal como la devuelve getDay, ya lista para el cliente. */
 export type EntryDto = {
@@ -269,6 +271,91 @@ export class LogsService {
     };
   }
 
+  /**
+   * Registra una sesión de ejercicio.
+   *
+   * Si el cliente no manda las calorías, se estiman con el MET del catálogo y
+   * el último peso registrado. Sin peso y sin MET no hay estimación posible y
+   * se pide el número: inventar uno sería peor que no tenerlo.
+   */
+  async addExercise(userId: string, dto: LogExerciseDto) {
+    const caloriesBurned = dto.calories_burned ?? (await this.estimarCalorias(userId, dto));
+
+    const entry = await this.prisma.$transaction(async (tx) => {
+      const dailyLogId = await this.ensureDailyLog(tx, userId, dto.log_date);
+      return tx.exerciseEntry.create({
+        data: {
+          dailyLogId,
+          name: dto.name,
+          durationMin: dto.duration_min,
+          caloriesBurned,
+        },
+      });
+    });
+
+    return {
+      status: 'success',
+      data: { entry_id: entry.id, ...(await this.getDay(userId, dto.log_date)).data },
+    };
+  }
+
+  private async estimarCalorias(userId: string, dto: LogExerciseDto): Promise<number> {
+    const met = metOf(dto.name);
+    if (met === null) {
+      throw new BadRequestException(
+        'Esa actividad no está en el catálogo: mandá las calorías quemadas',
+      );
+    }
+
+    const peso = await this.prisma.weightEntry.findFirst({
+      where: { userId },
+      orderBy: { loggedOn: 'desc' },
+      select: { weightKg: true },
+    });
+    if (!peso) {
+      throw new BadRequestException('Registrá tu peso o mandá las calorías quemadas');
+    }
+
+    return caloriesBurned(met, Number(peso.weightKg), dto.duration_min);
+  }
+
+  /**
+   * Cambiar la duración reescala las calorías en proporción en vez de volver a
+   * resolver el MET: así una sesión cargada a mano ("mi reloj dice 380") sigue
+   * respetando ese número al corregir los minutos.
+   */
+  async updateExercise(userId: string, entryId: string, dto: UpdateExerciseDto) {
+    const actual = await this.prisma.exerciseEntry.findFirst({
+      where: { id: entryId, dailyLog: { userId } },
+      include: { dailyLog: { select: { logDate: true } } },
+    });
+    if (!actual) throw new NotFoundException('La sesión no existe');
+
+    const durationMin = dto.duration_min ?? actual.durationMin;
+    const burned =
+      dto.calories_burned ??
+      (dto.duration_min === undefined
+        ? actual.caloriesBurned
+        : Math.round((actual.caloriesBurned / actual.durationMin) * dto.duration_min));
+
+    await this.prisma.exerciseEntry.update({
+      where: { id: entryId },
+      data: { durationMin, caloriesBurned: burned },
+    });
+
+    const logDate = actual.dailyLog.logDate.toISOString().slice(0, 10);
+    return { status: 'success', data: (await this.getDay(userId, logDate)).data };
+  }
+
+  /** Mismo patrón de propiedad que el resto: el userId va en el where. */
+  async deleteExercise(userId: string, entryId: string) {
+    const { count } = await this.prisma.exerciseEntry.deleteMany({
+      where: { id: entryId, dailyLog: { userId } },
+    });
+    if (count === 0) throw new NotFoundException('La sesión no existe');
+    return { status: 'success' };
+  }
+
   async copy(userId: string, dto: CopyDto) {
     // Sin cambio de comida, copiar un día sobre sí mismo lo duplica en silencio.
     if (dto.from_date === dto.to_date && !dto.to_meal_type) {
@@ -355,6 +442,7 @@ export class LogsService {
             include: { foodItem: true, recipe: { select: { id: true, name: true } } },
             orderBy: { loggedAt: 'asc' },
           },
+          exercises: { orderBy: { loggedAt: 'asc' } },
         },
       }),
       this.prisma.userGoal.findFirst({
@@ -370,14 +458,33 @@ export class LogsService {
     // que suma el día.
     const totals = sumEntries(entries.map((e) => ({ ...e, foodItem: nutrientsOf(e) })));
 
+    const exercises = log?.exercises ?? [];
+    const burned = exercises.reduce((s, e) => s + e.caloriesBurned, 0);
+
+    // Lo que se quema devuelve margen: es la ecuación de MyFitnessPal,
+    // restante = objetivo - comido + ejercicio. Solo aplica a las calorías;
+    // correr no cambia cuánta proteína hay que comer.
+    const resto = goal ? remaining(goal, totals) : null;
+    if (resto) resto.calories += burned;
+
     return {
       status: 'success',
       data: {
         log_date: logDate,
         water_ml: log?.waterMl ?? 0,
         totals,
-        remaining: goal ? remaining(goal, totals) : null,
+        remaining: resto,
         entries: colapsarRecetas(entries),
+        exercise: {
+          total_burned: burned,
+          entries: exercises.map((e) => ({
+            id: e.id,
+            name: e.name,
+            duration_min: e.durationMin,
+            calories_burned: e.caloriesBurned,
+            logged_at: e.loggedAt,
+          })),
+        },
       },
     };
   }

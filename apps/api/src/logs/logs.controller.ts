@@ -15,6 +15,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateMealEntryDto } from './dto/create-meal-entry.dto';
 import { UpdateServingsDto, UpdateWaterDto } from './dto/update-entry.dto';
 import { CopyDto, LogRecipeDto, QuickAddDto, UpdateRecipeServingsDto } from './dto/shortcuts.dto';
+import { LogExerciseDto, UpdateExerciseDto } from './dto/exercise.dto';
 import { parseLogDate } from '../common/log-date';
 import { LogsService } from './logs.service';
 
@@ -71,6 +72,26 @@ export class LogsController {
   @Post('copy')
   copy(@Req() req: AuthedRequest, @Body() dto: CopyDto) {
     return this.logs.copy(req.user.userId, dto);
+  }
+
+  @Post('exercise')
+  addExercise(@Req() req: AuthedRequest, @Body() dto: LogExerciseDto) {
+    return this.logs.addExercise(req.user.userId, dto);
+  }
+
+  @Patch('exercise/:id')
+  updateExercise(
+    @Req() req: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateExerciseDto,
+  ) {
+    return this.logs.updateExercise(req.user.userId, id, dto);
+  }
+
+  @Delete('exercise/:id')
+  @HttpCode(204)
+  deleteExercise(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.logs.deleteExercise(req.user.userId, id);
   }
 
   @Patch(':date/water')

@@ -142,11 +142,36 @@ model DailyLog {
   waterMl  Int      @default(0) @map("water_ml")
   notes    String?
 
-  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  entries MealEntry[]
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries   MealEntry[]
+  exercises ExerciseEntry[]
 
   @@unique([userId, logDate])
   @@map("daily_logs")
+}
+
+/**
+ * Actividad del día. La otra mitad de la ecuación: el objetivo diario sube por
+ * lo que se quema, no solo baja por lo que se come.
+ *
+ * El nombre se copia acá y no se referencia un catálogo: las actividades son
+ * una tabla estática en el código (src/exercise/catalog.ts) y guardar el texto
+ * deja el historial intacto si mañana se renombra o se saca una actividad.
+ * caloriesBurned queda persistida por la misma razón: se calculó con el peso
+ * de ese día y volver a pesarse no puede reescribir el pasado.
+ */
+model ExerciseEntry {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dailyLogId     String   @map("daily_log_id") @db.Uuid
+  name           String   @db.VarChar(100)
+  durationMin    Int      @map("duration_min")
+  caloriesBurned Int      @map("calories_burned")
+  loggedAt       DateTime @default(now()) @map("logged_at") @db.Timestamptz(6)
+
+  dailyLog DailyLog @relation(fields: [dailyLogId], references: [id], onDelete: Cascade)
+
+  @@index([dailyLogId])
+  @@map("exercise_entries")
 }
 
 /**

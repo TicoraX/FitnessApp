@@ -13,6 +13,7 @@ import { ReportsModule } from './reports/reports.controller';
 import { AccountModule } from './account/account.controller';
 import { MailModule } from './mail/mailer';
 import { GoalsModule } from './nutrition/goals.service';
+import { ExerciseModule } from './exercise/exercise.controller';
 import { HealthModule } from './health/health.controller';
 import { validateEnv } from './config/env.validation';
 
@@ -33,6 +34,7 @@ import { validateEnv } from './config/env.validation';
     WeightModule,
     ProfileModule,
     GoalsModule,
+    ExerciseModule,
     HealthModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

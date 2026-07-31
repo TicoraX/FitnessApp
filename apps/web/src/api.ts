@@ -147,8 +147,24 @@ export interface DaySummary {
     sugar_g: number;
     sodium_mg: number;
   };
+  /** calories ya viene con el ejercicio del día sumado: objetivo - comido + quemado. */
   remaining: { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null;
   entries: MealEntry[];
+  exercise: { total_burned: number; entries: ExerciseEntry[] };
+}
+
+export interface ExerciseEntry {
+  id: string;
+  name: string;
+  duration_min: number;
+  calories_burned: number;
+  logged_at: string;
+}
+
+export interface Activity {
+  name: string;
+  met: number;
+  category: 'cardio' | 'fuerza' | 'deporte' | 'cotidiano';
 }
 
 export interface StreakReport {
