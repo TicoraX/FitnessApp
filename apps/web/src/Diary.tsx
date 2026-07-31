@@ -1,14 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { api, escucharCambios, setToken, today, type DaySummary } from './api';
 import Dock, { type DockItemData } from './components/Dock';
 import { useHashRoute } from './hooks/useHashRoute';
 import { Profile } from './Profile';
 import { DiarioView } from './views/DiarioView';
-import { PerfilView } from './views/PerfilView';
-import { ProgresoView } from './views/ProgresoView';
-import { RecetasView } from './views/RecetasView';
-import { ResetPasswordView } from './views/ResetPasswordView';
+
+const RecetasView = lazy(() => import('./views/RecetasView').then((m) => ({ default: m.RecetasView })));
+const ProgresoView = lazy(() => import('./views/ProgresoView').then((m) => ({ default: m.ProgresoView })));
+const PerfilView = lazy(() => import('./views/PerfilView').then((m) => ({ default: m.PerfilView })));
+const ResetPasswordView = lazy(() => import('./views/ResetPasswordView').then((m) => ({ default: m.ResetPasswordView })));
 
 const VIEW_INDEX: Record<string, number> = {
   diario: 0,
@@ -246,40 +247,42 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
             exit="exit"
             style={{ width: '100%' }}
           >
-            {route.view === 'diario' && (
-              <DiarioView
-                date={date}
-                setDate={setDate}
-                day={day}
-                loadDate={load}
-                searchInputRef={searchInputRef}
-              />
-            )}
+            <Suspense fallback={null}>
+              {route.view === 'diario' && (
+                <DiarioView
+                  date={date}
+                  setDate={setDate}
+                  day={day}
+                  loadDate={load}
+                  searchInputRef={searchInputRef}
+                />
+              )}
 
-            {route.view === 'recetas' && <RecetasView />}
+              {route.view === 'recetas' && <RecetasView />}
 
-            {route.view === 'progreso' && <ProgresoView onGoalChanged={() => load(date)} />}
+              {route.view === 'progreso' && <ProgresoView onGoalChanged={() => load(date)} />}
 
-            {route.view === 'reset' && (
-              <ResetPasswordView token={route.param} onSuccess={() => navigate('diario')} />
-            )}
+              {route.view === 'reset' && (
+                <ResetPasswordView token={route.param} onSuccess={() => navigate('diario')} />
+              )}
 
-            {route.view === 'perfil' && (
-              <PerfilView
-                isGuest={isGuest}
-                showClaimModal={showClaimModal}
-                setShowClaimModal={setShowClaimModal}
-                claimEmail={claimEmail}
-                setClaimEmail={setClaimEmail}
-                claimPassword={claimPassword}
-                setClaimPassword={setClaimPassword}
-                claimError={claimError}
-                claimBusy={claimBusy}
-                handleClaim={handleClaim}
-                onSaved={() => load(date)}
-                onLogout={onLogout}
-              />
-            )}
+              {route.view === 'perfil' && (
+                <PerfilView
+                  isGuest={isGuest}
+                  showClaimModal={showClaimModal}
+                  setShowClaimModal={setShowClaimModal}
+                  claimEmail={claimEmail}
+                  setClaimEmail={setClaimEmail}
+                  claimPassword={claimPassword}
+                  setClaimPassword={setClaimPassword}
+                  claimError={claimError}
+                  claimBusy={claimBusy}
+                  handleClaim={handleClaim}
+                  onSaved={() => load(date)}
+                  onLogout={onLogout}
+                />
+              )}
+            </Suspense>
           </motion.div>
         </AnimatePresence>
       </main>
