@@ -686,8 +686,62 @@ console.log('\nEntrenamiento');
     assert.equal(body.data.strength.length, 3);
   });
 
+  await check('el esfuerzo se guarda, es opcional y respeta la escala', async () => {
+    const conEsfuerzo = await call('POST', '/logs/strength', {
+      log_date: day, name: movimiento, sets: 3, reps: 8, weight_kg: 40, rpe: 8.5,
+    });
+    assert.equal(conEsfuerzo.status, 201, JSON.stringify(conEsfuerzo.body));
+    const guardada = conEsfuerzo.body.data.strength.find((s) => s.rpe === 8.5);
+    assert.ok(guardada, 'el esfuerzo no volvió en la respuesta del día');
+
+    // La escala va de a medios puntos: un 7.3 no significa nada.
+    for (const malo of [7.3, 12, 0]) {
+      assert.equal(
+        (await call('POST', '/logs/strength', {
+          log_date: day, name: movimiento, sets: 3, reps: 8, rpe: malo,
+        })).status,
+        400,
+        `un RPE de ${malo} no puede entrar`,
+      );
+    }
+
+    // Y sin esfuerzo se registra igual: el que no lo usa no tiene que inventarlo.
+    const sinEsfuerzo = await call('POST', '/logs/strength', {
+      log_date: day, name: 'pull-up', sets: 3, reps: 6,
+    });
+    assert.equal(sinEsfuerzo.status, 201);
+    assert.equal(sinEsfuerzo.body.data.strength.at(-1).rpe, null);
+  });
+
+  await check('una rutina lleva su objetivo de esfuerzo y la serie guarda el real', async () => {
+    const { body: creada } = await call('POST', '/routines', {
+      name: `Esfuerzo ${Date.now()}`,
+      items: [{ name: 'barbell squat', sets: 5, reps: 5, weight_kg: 100, rpe: 8 }],
+    });
+    assert.equal(creada.data.items[0].rpe, 8);
+
+    const { body: cargada } = await call('POST', '/logs/routine', {
+      log_date: day, routine_id: creada.data.id,
+    });
+    const pendiente = cargada.data.strength.find((s) => !s.done && s.name === 'barbell squat');
+    assert.equal(pendiente.rpe, 8, 'la serie pendiente no heredó el objetivo');
+
+    // Salió más pesada de lo planeado: cinco repeticiones no salieron y costó
+    // más. Eso es lo que hay que quedar registrado, no el plan.
+    const { body: confirmada } = await call('PATCH', `/logs/strength/${pendiente.id}`, {
+      reps: 4, rpe: 9.5, done: true,
+    });
+    const hecha = confirmada.data.strength.find((s) => s.id === pendiente.id);
+    assert.equal(hecha.reps, 4);
+    assert.equal(hecha.rpe, 9.5);
+    assert.equal(hecha.done, true);
+
+    await call('DELETE', `/routines/${creada.data.id}`);
+  });
+
   await check('las series y las rutinas de otro no se tocan', async () => {
-    const mia = (await call('GET', `/logs/${day}`)).body.data.strength[0].id;
+    const antes = (await call('GET', `/logs/${day}`)).body.data.strength;
+    const mia = antes[0].id;
     const propio = token;
 
     const otro = await call('POST', '/auth/guest', {
@@ -699,7 +753,9 @@ console.log('\nEntrenamiento');
     assert.equal((await call('PATCH', `/logs/strength/${mia}`, { done: false })).status, 404);
 
     token = propio;
-    assert.equal((await call('GET', `/logs/${day}`)).body.data.strength.length, 3);
+    // Contra el conteo previo y no contra un número fijo: agregar un caso más
+    // arriba no puede hacer fallar un test que es sobre propiedad.
+    assert.equal((await call('GET', `/logs/${day}`)).body.data.strength.length, antes.length);
   });
 }
 

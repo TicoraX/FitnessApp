@@ -15,6 +15,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { IsLogDate } from '../../common/log-date';
+import { IsRpe } from '../../common/rpe';
 
 /** Un movimiento dentro de la rutina, con el objetivo del entreno. */
 export class RoutineItemDto {
@@ -41,6 +42,18 @@ export class RoutineItemDto {
   @Min(0)
   @Max(999)
   weight_kg?: number;
+
+  /**
+   * Esfuerzo percibido, escala RPE de 1 a 10 en pasos de 0.5. Opcional: el que
+   * no lo usa no tiene que inventarlo, y un cero por defecto seria mentira.
+   */
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 1 })
+  @Min(1)
+  @Max(10)
+  @IsRpe()
+  rpe?: number;
 }
 
 export class CreateRoutineDto {

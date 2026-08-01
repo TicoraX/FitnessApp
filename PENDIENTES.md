@@ -115,6 +115,23 @@ lo deja arriba del pliegue por un instante, lo suficiente para que el observer
 lo dé por visto y pida igual. Por eso `DiarioView` espera al día antes de
 montarlo, y es una razón de red, no de contenido.
 
+### Esfuerzo percibido (RPE)
+
+Las series guardaban series, repeticiones y kilos, y eso no alcanza para
+explicar por qué el mismo peso rindió distinto entre dos semanas. Ahora llevan
+RPE opcional, de 1 a 10 y de a medios puntos: 10 es no poder hacer una
+repetición más, 8 es dejarse dos.
+
+El paso de 0.5 se valida en el DTO y en un CHECK de la base. La escala tiene esa
+resolución y nada más; un 7.3 solo ensuciaría los promedios con precisión falsa.
+
+Las rutinas llevan su objetivo de esfuerzo y la serie cargada lo hereda, pero al
+confirmar se guarda el real. Planear un 8 y terminar en 9.5 con una repetición
+menos es el caso normal, y es justo el dato que antes se perdía.
+
+Nulo para todo lo ya registrado: no se puede reconstruir cuánto costó una serie
+de la semana pasada.
+
 ## Detectado y no tocado
 
 Cosas que aparecieron durante el trabajo y quedaron fuera de alcance.

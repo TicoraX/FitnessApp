@@ -248,6 +248,8 @@ export interface StrengthEntry {
   sets: number;
   reps: number;
   weight_kg: number | null;
+  /** Esfuerzo percibido, de 1 a 10 y de a medios puntos. */
+  rpe: number | null;
   done: boolean;
   logged_at: string;
 }
@@ -259,6 +261,7 @@ export interface RoutineItem {
   sets: number;
   reps: number;
   weight_kg: number | null;
+  rpe: number | null;
 }
 
 export interface Routine {
@@ -270,8 +273,8 @@ export interface Routine {
 
 /** Lo último y lo mejor de un movimiento, para verlo al elegirlo. */
 export interface StrengthHistory {
-  last: { sets: number; reps: number; weight_kg: number | null; log_date: string } | null;
-  best: { sets: number; reps: number; weight_kg: number | null } | null;
+  last: { sets: number; reps: number; weight_kg: number | null; rpe: number | null; log_date: string } | null;
+  best: { sets: number; reps: number; weight_kg: number | null; rpe: number | null } | null;
 }
 
 export interface ExerciseReport {

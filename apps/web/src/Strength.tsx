@@ -8,6 +8,7 @@ import {
   type StrengthEntry,
   type StrengthHistory,
 } from './api';
+import { CampoEsfuerzo } from './components/CampoEsfuerzo';
 
 type Facets = { body: string[]; equipment: string[] };
 
@@ -44,6 +45,7 @@ export function Strength({
   const [series, setSeries] = useState('3');
   const [reps, setReps] = useState('10');
   const [kilos, setKilos] = useState('');
+  const [esfuerzo, setEsfuerzo] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState('');
 
@@ -100,6 +102,7 @@ export function Strength({
         setSeries(String(r.data.last.sets));
         setReps(String(r.data.last.reps));
         setKilos(r.data.last.weight_kg === null ? '' : String(r.data.last.weight_kg));
+        setEsfuerzo(r.data.last.rpe === null ? '' : String(r.data.last.rpe));
       }
     } catch {
       // Un movimiento nuevo no tiene historia y eso no es un error.
@@ -122,12 +125,14 @@ export function Strength({
         sets: s,
         reps: r,
         ...(kilos ? { weight_kg: Number(kilos) } : {}),
+        ...(esfuerzo ? { rpe: Number(esfuerzo) } : {}),
       });
       notificarCambio('diario-cambiado');
       setQuery('');
       setSelected(null);
       setHistoria(null);
       setKilos('');
+      setEsfuerzo('');
       onChanged();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo registrar.');
@@ -189,6 +194,7 @@ export function Strength({
               <span className="muted num">
                 {e.sets} × {e.reps}
                 {e.weight_kg !== null ? ` · ${e.weight_kg} kg` : ''}
+                {e.rpe !== null ? ` · RPE ${e.rpe}` : ''}
               </span>
               <button
                 type="button"
@@ -270,7 +276,7 @@ export function Strength({
               {historia?.last
                 ? `La última vez (${historia.last.log_date}): ${historia.last.sets} × ${historia.last.reps}${
                     historia.last.weight_kg !== null ? ` con ${historia.last.weight_kg} kg` : ''
-                  }`
+                  }${historia.last.rpe !== null ? `, RPE ${historia.last.rpe}` : ''}`
                 : 'Primera vez con este movimiento.'}
               {historia?.best?.weight_kg != null && ` · Récord: ${historia.best.weight_kg} kg`}
             </p>
@@ -320,6 +326,7 @@ export function Strength({
               placeholder="Sin peso"
             />
           </div>
+          <CampoEsfuerzo id="fz-esfuerzo" valor={esfuerzo} onCambio={setEsfuerzo} />
         </div>
 
         {error && (
@@ -355,6 +362,7 @@ function SeriePendiente({
   const [sets, setSets] = useState(String(entry.sets));
   const [reps, setReps] = useState(String(entry.reps));
   const [kilos, setKilos] = useState(entry.weight_kg === null ? '' : String(entry.weight_kg));
+  const [esfuerzo, setEsfuerzo] = useState(entry.rpe === null ? '' : String(entry.rpe));
   const [busy, setBusy] = useState(false);
 
   async function confirmar() {
@@ -364,6 +372,7 @@ function SeriePendiente({
         sets: Number(sets),
         reps: Number(reps),
         ...(kilos ? { weight_kg: Number(kilos) } : {}),
+        ...(esfuerzo ? { rpe: Number(esfuerzo) } : {}),
         done: true,
       });
       onDone();
@@ -408,6 +417,18 @@ function SeriePendiente({
           placeholder="kg"
           aria-label={`Kilos de ${entry.name}`}
         />
+        <select
+          value={esfuerzo}
+          onChange={(e) => setEsfuerzo(e.target.value)}
+          aria-label={`Esfuerzo de ${entry.name}`}
+        >
+          <option value="">RPE</option>
+          {['10', '9.5', '9', '8.5', '8', '7.5', '7', '6', '5'].map((v) => (
+            <option key={v} value={v}>
+              {v}
+            </option>
+          ))}
+        </select>
       </div>
       <div className="serie-pendiente__acciones">
         <button type="button" className="btn" disabled={busy} onClick={confirmar}>

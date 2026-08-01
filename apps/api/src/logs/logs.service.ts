@@ -368,6 +368,7 @@ export class LogsService {
           sets: dto.sets,
           reps: dto.reps,
           weightKg: dto.weight_kg ?? null,
+          rpe: dto.rpe ?? null,
         },
       });
     });
@@ -403,6 +404,7 @@ export class LogsService {
           sets: i.sets,
           reps: i.reps,
           weightKg: i.weightKg,
+          rpe: i.rpe,
           done: false,
         })),
       });
@@ -425,6 +427,7 @@ export class LogsService {
         ...(dto.sets !== undefined && { sets: dto.sets }),
         ...(dto.reps !== undefined && { reps: dto.reps }),
         ...(dto.weight_kg !== undefined && { weightKg: dto.weight_kg }),
+        ...(dto.rpe !== undefined && { rpe: dto.rpe }),
         ...(dto.done !== undefined && { done: dto.done }),
       },
     });
@@ -457,10 +460,17 @@ export class LogsService {
       }),
     ]);
 
-    const serie = (e: { sets: number; reps: number; weightKg: Prisma.Decimal | null } | null) =>
+    const serie = (
+      e: { sets: number; reps: number; weightKg: Prisma.Decimal | null; rpe: Prisma.Decimal | null } | null,
+    ) =>
       e === null
         ? null
-        : { sets: e.sets, reps: e.reps, weight_kg: e.weightKg === null ? null : Number(e.weightKg) };
+        : {
+            sets: e.sets,
+            reps: e.reps,
+            weight_kg: e.weightKg === null ? null : Number(e.weightKg),
+            rpe: e.rpe === null ? null : Number(e.rpe),
+          };
 
     return {
       status: 'success',
@@ -653,6 +663,7 @@ export class LogsService {
           sets: s.sets,
           reps: s.reps,
           weight_kg: s.weightKg === null ? null : Number(s.weightKg),
+          rpe: s.rpe === null ? null : Number(s.rpe),
           done: s.done,
           logged_at: s.loggedAt,
         })),
