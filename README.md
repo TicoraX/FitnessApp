@@ -3,13 +3,17 @@
 Implementación del blueprint en [`estrucura.md`](./estrucura.md).
 
 ```
-apps/api/          # Servicio NestJS (usuarios, objetivos, auth)
+apps/api/          # Servicio NestJS
   prisma/          # Schema, migraciones y seed del catálogo
-  scripts/smoke.mjs# Smoke test end to end contra el API levantado
+  scripts/smoke.mjs# Smoke end to end contra el API levantado
   src/auth/        # Registro, login, JWT
+  src/exercise/    # Catálogos estáticos: MET del cardio y 1324 movimientos
   src/foods/       # Catálogo y búsqueda difusa (pg_trgm)
-  src/logs/        # Diario diario, entradas de comida y totales
+  src/logs/        # Diario, entradas, ejercicio y series de fuerza
   src/nutrition/   # Motor BMR/TDEE/macros (§3), funciones puras
+  src/recipes/     # Recetas y comidas guardadas
+  src/reports/     # Agregados por rango, todo en SQL
+  src/routines/    # Plantillas de entrenamiento
 apps/web/          # Cliente Vite + React
 docker-compose.yml # PostgreSQL 16 local
 ```
@@ -26,7 +30,7 @@ cp .env.example .env         # completar JWT_SECRET (>=32 chars)
 npm install
 npx prisma migrate deploy    # extensiones, tablas e índices
 npx prisma generate
-npm run seed                 # 30 alimentos de referencia
+npm run seed                 # 226 alimentos curados
 npm run start:dev
 ```
 
@@ -44,10 +48,21 @@ cd apps/web && npm install && npm run dev    # http://localhost:5177
   seguidas.
 - `npm run contrast:check` en `apps/web`: contraste WCAG de la paleta en los dos
   temas.
+- `npm run ui:check` en `apps/web`: recorre la interfaz con Playwright como un
+  usuario y deja capturas en `shots/`. Necesita el dev server en `:5177`.
+- `npm run tabs:check` en `apps/web`: dos pestañas a la vez, para el aviso de
+  cambios y el cierre de sesión compartido.
+
+La corrida completa:
+
+```bash
+cd apps/api && npm test && npm run smoke
+cd apps/web && npm run build && npm run ui:check && npm run contrast:check && npm run tabs:check
+```
 
 ## Catálogo de alimentos
 
-El seed trae 30 alimentos de referencia. Para un catálogo real se importa el
+El seed trae 226 alimentos curados. Para un catálogo real se importa el
 dump de OpenFoodFacts, que se procesa en streaming:
 
 ```bash
@@ -92,6 +107,8 @@ lo encuentra o la consulta tarda más de 2s, responde 404 como siempre.
 | GET | `/api/v1/account/export` | JWT | Descarga todo el historial en JSON |
 | DELETE | `/api/v1/account` | JWT | Borra la cuenta, pidiendo la contrasena actual |
 | POST | `/api/v1/auth/login` | no | Devuelve JWT |
+| POST | `/api/v1/auth/guest` | no | Cuenta de invitado, sin email ni contraseña |
+| POST | `/api/v1/auth/claim` | JWT | Le pone email y contraseña a una cuenta de invitado |
 | GET | `/api/v1/auth/me` | JWT | Identidad del token |
 | GET | `/api/v1/profile` | JWT | Perfil y objetivo activo |
 | PATCH | `/api/v1/profile` | JWT | Cambia altura, actividad, peso objetivo o ritmo, y recalcula |
@@ -119,6 +136,27 @@ lo encuentra o la consulta tarda más de 2s, responde 404 como siempre.
 | GET | `/api/v1/recipes/:id` | JWT | Detalle con totales, por porción y componentes |
 | PATCH | `/api/v1/recipes/:id` | JWT | Edita nombre, rendimiento o la lista entera de componentes |
 | DELETE | `/api/v1/recipes/:id` | JWT | Archiva la receta (el historial no se toca) |
+| GET | `/api/v1/foods/favorites` | JWT | Alimentos marcados por el usuario |
+| PUT | `/api/v1/foods/:id/favorite` | JWT | Marca un alimento como favorito |
+| DELETE | `/api/v1/foods/:id/favorite` | JWT | Lo desmarca |
+| GET | `/api/v1/reports/micros/reference` | JWT | Etiquetas, unidades y VDR de los micronutrientes |
+| GET | `/api/v1/exercise/search?q=` | JWT | Catálogo de actividades de cardio, con su MET |
+| POST | `/api/v1/logs/exercise` | JWT | Registra cardio; estima calorías con el MET y el peso |
+| PATCH | `/api/v1/logs/exercise/:id` | JWT | Corrige minutos o calorías |
+| DELETE | `/api/v1/logs/exercise/:id` | JWT | Quita una sesión |
+| GET | `/api/v1/exercise/movements?q=&body=&equipment=` | JWT | Catálogo de gimnasio, busca en los dos idiomas |
+| GET | `/api/v1/exercise/facets` | JWT | Zonas y equipos que existen, para explorar sin escribir |
+| POST | `/api/v1/logs/strength` | JWT | Registra una serie: series, repeticiones, kilos y esfuerzo |
+| PATCH | `/api/v1/logs/strength/:id` | JWT | Confirma o corrige una serie |
+| DELETE | `/api/v1/logs/strength/:id` | JWT | Quita una serie |
+| GET | `/api/v1/logs/strength/history?name=` | JWT | Última vez y récord de un movimiento |
+| GET | `/api/v1/routines` | JWT | Rutinas propias con sus objetivos |
+| POST | `/api/v1/routines` | JWT | Crea una rutina |
+| GET | `/api/v1/routines/:id` | JWT | Detalle con sus movimientos |
+| PATCH | `/api/v1/routines/:id` | JWT | Edita nombre, notas o la lista entera |
+| DELETE | `/api/v1/routines/:id` | JWT | La borra (lo entrenado no se toca) |
+| POST | `/api/v1/logs/routine` | JWT | Carga una rutina en el día como series pendientes |
+| GET | `/api/v1/reports/exercise?from=&to=` | JWT | Volumen, series por zona y cardio del rango |
 
 ## Despliegue
 
@@ -156,10 +194,14 @@ contraseña nueva no sirve y el API no puede conectarse.
 | 7 | Recetas, registro rápido y copiar comidas entre días | listo |
 | 8 | Reportes por rango, tendencia de peso y rachas | listo |
 | 9 | Recuperar contraseña, exportar y borrar cuenta, unidades | listo |
-| 10 | Sync offline-first, wearables, visión por IA | pendiente |
+| 10 | Micronutrientes contra los valores de referencia | listo |
+| 11 | Cardio con MET, favoritos, comidas guardadas y meta de agua | listo |
+| 12 | Entrenamiento: 1324 movimientos, fuerza, rutinas y esfuerzo | listo |
+| 13 | Sync offline-first, wearables, visión por IA | pendiente |
 
-El plan del cliente web vive en [`PLAN-FRONTEND.md`](./PLAN-FRONTEND.md), con el
-contrato de cada endpoint y qué falta construir de la interfaz.
+Lo que quedó abierto, lo que se descartó y por qué, en
+[`PENDIENTES.md`](./PENDIENTES.md). El plan original del cliente web, ya
+cerrado, en [`PLAN-FRONTEND.md`](./PLAN-FRONTEND.md).
 
 Redis, Typesense, Kong y los microservicios de §2 no están: con un servicio y
 cero tráfico no aportan nada todavía. Entran cuando la latencia lo pida.

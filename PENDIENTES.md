@@ -6,25 +6,31 @@ Estado al 1 de agosto de 2026, con todo mergeado en `main`.
 
 | PR | Contenido |
 |---|---|
-| [#1](https://github.com/TicoraX/FitnessApp/pull/1) | Arreglos de móvil, ejercicio, favoritos, comidas guardadas, meta de agua |
+| [#1](https://github.com/TicoraX/FitnessApp/pull/1) | Arreglos de móvil, cardio, favoritos, comidas guardadas, meta de agua |
 | [#2](https://github.com/TicoraX/FitnessApp/pull/2) | Foco en modales, cruz SVG, limpieza del topbar |
 | [#3](https://github.com/TicoraX/FitnessApp/pull/3) | Micronutrientes |
 | [#4](https://github.com/TicoraX/FitnessApp/pull/4) | Entrenamiento como vista propia, catálogo de movimientos, rutinas |
+| [#5](https://github.com/TicoraX/FitnessApp/pull/5) | Estado de la documentación tras los merges |
+| [#6](https://github.com/TicoraX/FitnessApp/pull/6) | Cobertura de entrenamiento y rutinas en el smoke |
+| [#7](https://github.com/TicoraX/FitnessApp/pull/7) | Pedir solo lo que el usuario va a usar |
+| [#8](https://github.com/TicoraX/FitnessApp/pull/8) | Esfuerzo percibido en las series |
+| [#9](https://github.com/TicoraX/FitnessApp/pull/9) | Nombres de movimientos bilingües |
 
-Iban encadenados, cada uno sobre el anterior. Mergear el #1 con
-`--delete-branch` no reapuntó el #2 a `main`: GitHub cierra el PR cuando
+Los cuatro primeros iban encadenados, cada uno sobre el anterior. Mergear el #1
+con `--delete-branch` no reapuntó el #2 a `main`: GitHub cierra el PR cuando
 desaparece su rama base, y uno cerrado no se puede reabrir ni reapuntar sin esa
 rama. Hubo que restaurarla en el remoto para recuperarlo.
 
 **En una cadena de PRs, reapuntá la base del siguiente antes de mergear el
 anterior, y dejá el borrado de ramas para el final.**
 
-Migraciones que trajeron, las cuatro aditivas y sin backfill:
+Migraciones, las seis aditivas y sin backfill:
 
 - `20260730000000_exercise_entries`
 - `20260730010000_favorites_meals_water_goal`
 - `20260731000000_strength_entries`
 - `20260801000000_routines`
+- `20260802000000_rpe`
 
 ## Decisiones cerradas
 
@@ -158,19 +164,10 @@ Las series guardan el nombre en inglés, que es el identificador, y el español 
 resuelve al leer. Curar una traducción nueva alcanza para que el historial viejo
 la muestre. Un test falla si alguna clave curada deja de existir en el catálogo.
 
-## Detectado y no tocado
+## Bugs que salieron de mirar la app en un teléfono
 
-Cosas que aparecieron durante el trabajo y quedaron fuera de alcance.
-
-**El catálogo curado no declara micronutrientes.** Los 226 alimentos de
-`apps/api/prisma/foods-dataset.ts` van a la base con `micros_json` en `{}`. La
-pantalla de Nutrientes avisa cuando faltan datos, así que no miente, pero solo
-se llena con alimentos de OpenFoodFacts. Cargar los micros de los curados es
-trabajo de datos que no se puede inventar.
-
-**El throttler es in-memory.** Con más de una réplica cada instancia lleva su
-propia cuenta y el límite real se multiplica. Recién importa si se escala
-horizontalmente.
+Ninguno se veía en el escritorio. Los tres estaban en `main` desde antes y no los
+reportó nadie.
 
 **Todas las modales quedaban debajo del Dock.** `.modal-overlay` valía 999 y el
 Dock 1000, así que el botón de guardar de una modal larga quedaba tapado por la
@@ -186,16 +183,43 @@ un filtro no vacío convierte al elemento en el bloque de referencia de todo
 recortaba a su alto y el botón de cerrar quedaba fuera de pantalla. Se sacó el
 blur; el desplazamiento y el fade quedaron.
 
+**El diario no se recargaba al volver de otra vista.** Registrar cardio devuelve
+margen, pero el anillo del diario seguía mostrando el número viejo hasta cambiar
+de día. El aviso por BroadcastChannel no sirve para eso: solo cruza pestañas y no
+llega al que lo emitió.
+
+## Detectado y no tocado
+
+Cosas que aparecieron durante el trabajo y quedaron fuera de alcance.
+
+**El catálogo curado no declara micronutrientes.** Los 226 alimentos de
+`apps/api/prisma/foods-dataset.ts` van a la base con `micros_json` en `{}`. La
+pantalla de Nutrientes avisa cuando faltan datos, así que no miente, pero solo
+se llena con alimentos de OpenFoodFacts. Cargar los micros de los curados es
+trabajo de datos que no se puede inventar.
+
+**El throttler es in-memory.** Con más de una réplica cada instancia lleva su
+propia cuenta y el límite real se multiplica. Recién importa si se escala
+horizontalmente.
+
 **El commit `ee358da` mezcla dos fases.** `app.css` y `ui-check.mjs` entraron
 ahí con cambios de la Fase 0 y de la Fase 1 juntos. El mensaje solo describe la
 Fase 0. No vale la cirugía para arreglarlo.
 
-**No hay tests de controller ni de servicio en el API.** Los 68 tests de Jest
+**No hay tests de controller ni de servicio en el API.** Los 74 tests de Jest
 son de funciones puras. La cobertura de integración son los scripts `smoke.mjs`
 y `probe.mjs` contra un servidor vivo, que sí recorren cada endpoint: validación
 de DTOs, propiedad de las filas y los números que devuelve cada uno. Falta el
 punto medio, montar el módulo de Nest con una base de prueba, y no duele
 todavía.
+
+**Quedan query params sin DTO.** El de `GET /logs/strength/history` se pasó a
+DTO después de que un `?name=a&name=b` devolviera 500; el resto de endpoints que
+leen query a mano no se revisó uno por uno.
+
+**Un fallo de red deja tarjetas vacías sin decir por qué.** Varios `catch` se
+comen el error en silencio y la vista queda en blanco. Falta el estado y el
+botón de reintentar.
 
 ## Descartado a propósito
 
