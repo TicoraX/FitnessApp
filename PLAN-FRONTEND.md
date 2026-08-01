@@ -1,12 +1,17 @@
-# Plan de expansión: frontend
+# Plan de expansión: frontend (cerrado)
+
+> **Este plan está terminado.** Las cinco fases se construyeron y el estado real
+> de la interfaz es el código. Queda como registro de por qué la UI está armada
+> así, no como guía de qué falta: lo que falta vive en
+> [`PENDIENTES.md`](./PENDIENTES.md).
+>
+> Varias descripciones de acá abajo ya no aplican. `Diary.tsx` dejó de ser un
+> archivo de 1131 líneas, hay router por hash con cinco vistas, y las tres vistas
+> que el plan llamaba "nuevas" existen desde hace tiempo.
 
 Documento de trabajo para quien construye la interfaz. El backend (Prisma, NestJS,
 SQL, scripts) va por separado y va por delante: cada fase acá abajo indica si el
 endpoint que necesita **ya existe** o **todavía no**.
-
-Si un contrato marcado "todavía no" te bloquea, avisá y se adelanta. No lo mockees
-contra una forma inventada: cuando llegue el real no va a coincidir y el trabajo se
-hace dos veces.
 
 ---
 
