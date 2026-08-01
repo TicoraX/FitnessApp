@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, today, type StreakReport, type SummaryReport, type WeightReport } from '../api';
 import { Weight } from '../Weight';
+import { Nutrientes } from './Nutrientes';
 
 type PeriodRange = '7' | '30' | '90';
 
 export function ProgresoView({ onGoalChanged }: { onGoalChanged: () => void }) {
   const [period, setPeriod] = useState<PeriodRange>('30');
+  const [seccion, setSeccion] = useState<'tendencias' | 'nutrientes'>('tendencias');
   const [streak, setStreak] = useState<StreakReport | null>(null);
   const [summary, setSummary] = useState<SummaryReport | null>(null);
   const [weightReport, setWeightReport] = useState<WeightReport | null>(null);
@@ -58,10 +60,11 @@ export function ProgresoView({ onGoalChanged }: { onGoalChanged: () => void }) {
           </p>
         </div>
 
+        {/* El rango no aplica a los nutrientes: son del día, no de 90 días. */}
         <div
           className="period-selector-strip"
           style={{
-            display: 'flex',
+            display: seccion === 'tendencias' ? 'flex' : 'none',
             background: 'var(--bg-elevated)',
             border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-md)',
@@ -106,6 +109,36 @@ export function ProgresoView({ onGoalChanged }: { onGoalChanged: () => void }) {
         </p>
       )}
 
+      <div className="food-tabs" role="tablist" aria-label="Sección de progreso">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={seccion === 'tendencias'}
+          className="btn btn--quiet"
+          onClick={() => setSeccion('tendencias')}
+        >
+          Tendencias
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={seccion === 'nutrientes'}
+          className="btn btn--quiet"
+          onClick={() => setSeccion('nutrientes')}
+        >
+          Nutrientes
+        </button>
+      </div>
+
+      {seccion === 'nutrientes' && (
+        <div className="card">
+          <h3 className="card__title">Micronutrientes de hoy</h3>
+          <Nutrientes />
+        </div>
+      )}
+
+      {seccion === 'tendencias' && (
+      <>
       {/* Racha y Adherencia Highlights */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-md)' }}>
         <div className="card card--raised" style={{ textAlign: 'center', border: '1px solid var(--border-subtle)' }}>
@@ -236,6 +269,8 @@ export function ProgresoView({ onGoalChanged }: { onGoalChanged: () => void }) {
         </p>
         <Weight onGoalChanged={handleGoalChangedInternal} />
       </section>
+      </>
+      )}
     </div>
   );
 }

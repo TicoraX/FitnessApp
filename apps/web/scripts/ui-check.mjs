@@ -540,6 +540,35 @@ try {
     assert.equal(await page.locator('text=Racha Activa').count(), 1);
   });
 
+  /**
+   * Buena parte del catálogo no declara micros. La pantalla tiene que decir
+   * "faltan datos" y no dejar que un cero se lea como "no comiste calcio".
+   */
+  await step('los nutrientes se miden contra el VDR y avisan cuando faltan datos', async () => {
+    await page.goto(`${BASE}/#/progreso`);
+    await page.waitForSelector('.view-progreso', { timeout: 10_000 });
+    await page.getByRole('tab', { name: 'Nutrientes' }).click();
+
+    await page.waitForSelector('text=Micronutrientes de hoy', { timeout: 10_000 });
+    const barras = page.locator('[role="meter"]');
+    await barras.first().waitFor({ timeout: 10_000 });
+    assert.equal(await barras.count(), 6, 'no se pintaron los seis micronutrientes');
+
+    // Cada barra declara su VDR: sin aria-valuemax no hay contra qué comparar.
+    for (const max of await barras.evaluateAll((els) =>
+      els.map((e) => Number(e.getAttribute('aria-valuemax'))),
+    )) {
+      assert.ok(max > 0, 'una barra no declara su valor de referencia');
+    }
+
+    const aviso = await page.locator('.view-progreso .hint').first().innerText();
+    assert.match(aviso, /declara/, `no se explicó el origen de los ceros: ${aviso}`);
+    await shot('16-nutrientes');
+
+    await page.getByRole('tab', { name: 'Tendencias' }).click();
+    await page.waitForSelector('text=Racha Activa', { timeout: 10_000 });
+  });
+
   await step('la ruta de restablecimiento de contraseña abre el formulario de reset', async () => {
     await page.goto(`${BASE}/#/reset?token=test-token-123`);
     await page.waitForSelector('.view-reset', { timeout: 10_000 });
