@@ -3,7 +3,6 @@ import { AnimatePresence, motion } from 'motion/react';
 import { api, escucharCambios, setToken, today, type DaySummary } from './api';
 import Dock, { type DockItemData } from './components/Dock';
 import { useHashRoute } from './hooks/useHashRoute';
-import { Profile } from './Profile';
 import { DiarioView } from './views/DiarioView';
 
 const RecetasView = lazy(() => import('./views/RecetasView').then((m) => ({ default: m.RecetasView })));
@@ -53,7 +52,6 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
   const [date, setDateState] = useState(initialDate);
   const [day, setDay] = useState<DaySummary | null>(null);
   const [error, setError] = useState('');
-  const [showProfile, setShowProfile] = useState(false);
   const [isGuest, setIsGuest] = useState(false);
   const [showClaimModal, setShowClaimModal] = useState(false);
   const [claimEmail, setClaimEmail] = useState('');
@@ -211,9 +209,6 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
       <header className="topbar">
         <span className="topbar__mark">FitTrack</span>
         <div style={{ display: 'flex', gap: 'var(--space-xs)' }}>
-          <button type="button" className="btn btn--quiet" onClick={() => setShowProfile(true)}>
-            Perfil
-          </button>
           <button type="button" className="btn btn--quiet" onClick={onLogout}>
             Salir
           </button>
@@ -224,15 +219,6 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
         <p className="alert" role="alert" style={{ marginBottom: 'var(--space-md)' }}>
           {error}
         </p>
-      )}
-
-      {showProfile && (
-        <section className="card" aria-labelledby="perfil" style={{ marginBottom: 'var(--space-xl)' }}>
-          <h2 id="perfil" className="card__title">
-            Perfil y objetivo
-          </h2>
-          <Profile onSaved={() => load(date)} onClose={() => setShowProfile(false)} />
-        </section>
       )}
 
       {/* Transición animada direccional entre apartados */}

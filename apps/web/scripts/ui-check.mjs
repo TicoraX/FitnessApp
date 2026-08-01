@@ -303,25 +303,31 @@ try {
   });
 
   await step('el perfil se puede editar y el objetivo se recalcula', async () => {
-    await page.locator('.topbar').getByRole('button', { name: 'Perfil' }).click();
+    const objetivoAntes = await page.locator('.dial__unit').innerText();
+
+    // El perfil es su propia vista: el botón del topbar que lo abría en línea
+    // duplicaba #/perfil y se sacó.
+    await page.goto(`${BASE}/#/perfil`);
     await page.waitForSelector('#pf-activity', { timeout: 10_000 });
     assert.equal(await page.locator('#pf-height').inputValue(), '178.5');
 
-    const objetivoAntes = await page.locator('.dial__unit').innerText();
     await page.selectOption('#pf-activity', '1.9');
-    await page.getByRole('button', { name: 'Guardar' }).click();
+    // exact: la vista también tiene "Guardar Estrategia ... en Mi Perfil".
+    await page.getByRole('button', { name: 'Guardar', exact: true }).click();
 
-    // Acotado a la sección: el panel de comida también deja un .alert--ok.
-    const okPerfil = page.locator('section[aria-labelledby="perfil"] .alert--ok');
+    const okPerfil = page.locator('.view-perfil .alert--ok');
     await okPerfil.waitFor({ timeout: 10_000 });
     assert.match(await okPerfil.innerText(), /Objetivo actualizado/);
-    // El resumen del día refleja el objetivo nuevo sin recargar.
+    await shot('11-perfil');
+
+    // El diario tiene que traer el objetivo nuevo al volver.
+    await page.goto(`${BASE}/#/diario`);
+    await page.waitForSelector('.view-diario', { timeout: 10_000 });
     await page.waitForFunction(
       (antes) => document.querySelector('.dial__unit')?.innerText !== antes,
       objetivoAntes,
       { timeout: 10_000 },
     );
-    await shot('11-perfil');
   });
 
   await step('navegar entre las cuatro vistas por hash router', async () => {
@@ -453,7 +459,35 @@ try {
     await page.getByRole('button', { name: '+ Crear Receta' }).click();
     await page.waitForSelector('.modal-overlay', { timeout: 5_000 });
     await shot('13-crear-receta-modal');
-    await page.getByRole('button', { name: '✕' }).click();
+    await page.getByRole('button', { name: 'Cerrar' }).click();
+    assert.equal(await page.locator('.modal-overlay').count(), 0);
+  });
+
+  /**
+   * Sin manejo de foco, abrir la modal lo deja en el body: con lector de
+   * pantalla no se anuncia nada y con Tab se recorre la página de atrás.
+   */
+  await step('la modal atrapa el foco, cierra con Escape y lo devuelve', async () => {
+    const abrir = page.getByRole('button', { name: '+ Crear Receta' });
+    await abrir.focus();
+    await abrir.click();
+    await page.waitForSelector('.modal-overlay', { timeout: 5_000 });
+
+    assert.equal(await page.locator('.modal-overlay').getAttribute('aria-modal'), 'true');
+
+    // El foco tiene que haber entrado a la modal, no quedarse en el botón.
+    const dentro = await page.evaluate(() =>
+      Boolean(document.querySelector('.modal-overlay')?.contains(document.activeElement)),
+    );
+    assert.equal(dentro, true, 'el foco no entró a la modal');
+
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => !document.querySelector('.modal-overlay'), null, {
+      timeout: 5_000,
+    });
+
+    const volvio = await page.evaluate(() => document.activeElement?.textContent?.trim());
+    assert.match(volvio ?? '', /Crear Receta/, `el foco no volvió al disparador: ${volvio}`);
   });
 
   /**
