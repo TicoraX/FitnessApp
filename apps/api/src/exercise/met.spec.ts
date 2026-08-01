@@ -1,4 +1,4 @@
-import { caloriesBurned, metOf, searchActivities } from './met';
+import { caloriesBurned, metOf, searchActivities, searchMovements } from './met';
 import { ACTIVITIES } from './catalog';
 
 describe('cálculo MET', () => {
@@ -34,6 +34,27 @@ describe('búsqueda de actividades', () => {
 
   it('un término que no está da vacío, no el catálogo entero', () => {
     expect(searchActivities('ajedrez postal')).toEqual([]);
+  });
+});
+
+describe('búsqueda de movimientos', () => {
+  it('encuentra por nombre en inglés', () => {
+    expect(searchMovements('bench press').length).toBeGreaterThan(0);
+  });
+
+  it('encuentra por zona, equipo y músculo en español', () => {
+    expect(searchMovements('mancuerna').length).toBeGreaterThan(0);
+    expect(searchMovements('cuadriceps').length).toBeGreaterThan(0);
+    expect(searchMovements('espalda').length).toBeGreaterThan(0);
+  });
+
+  it('respeta el límite', () => {
+    expect(searchMovements('press', 5)).toHaveLength(5);
+    expect(searchMovements('', 3)).toHaveLength(3);
+  });
+
+  it('un término que no está da vacío', () => {
+    expect(searchMovements('malabares con motosierras')).toEqual([]);
   });
 });
 

@@ -4,7 +4,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateMealEntryDto } from './dto/create-meal-entry.dto';
 import { CopyDto, LogRecipeDto, QuickAddDto } from './dto/shortcuts.dto';
-import { LogExerciseDto, UpdateExerciseDto } from './dto/exercise.dto';
+import { LogExerciseDto, LogStrengthDto, UpdateExerciseDto } from './dto/exercise.dto';
 import { nutrientsOf, remaining, sumEntries } from './totals';
 import { caloriesBurned, metOf } from '../exercise/met';
 import { parseMicros, sumMicros } from '../nutrition/micros';
@@ -348,6 +348,38 @@ export class LogsService {
     return { status: 'success', data: (await this.getDay(userId, logDate)).data };
   }
 
+  /**
+   * Registra una serie de gimnasio. No estima calorías: el catálogo de
+   * movimientos no trae MET y un número inventado ensuciaría el margen del día.
+   */
+  async addStrength(userId: string, dto: LogStrengthDto) {
+    const entry = await this.prisma.$transaction(async (tx) => {
+      const dailyLogId = await this.ensureDailyLog(tx, userId, dto.log_date);
+      return tx.strengthEntry.create({
+        data: {
+          dailyLogId,
+          name: dto.name,
+          sets: dto.sets,
+          reps: dto.reps,
+          weightKg: dto.weight_kg ?? null,
+        },
+      });
+    });
+
+    return {
+      status: 'success',
+      data: { entry_id: entry.id, ...(await this.getDay(userId, dto.log_date)).data },
+    };
+  }
+
+  async deleteStrength(userId: string, entryId: string) {
+    const { count } = await this.prisma.strengthEntry.deleteMany({
+      where: { id: entryId, dailyLog: { userId } },
+    });
+    if (count === 0) throw new NotFoundException('La serie no existe');
+    return { status: 'success' };
+  }
+
   /** Mismo patrón de propiedad que el resto: el userId va en el where. */
   async deleteExercise(userId: string, entryId: string) {
     const { count } = await this.prisma.exerciseEntry.deleteMany({
@@ -444,6 +476,7 @@ export class LogsService {
             orderBy: { loggedAt: 'asc' },
           },
           exercises: { orderBy: { loggedAt: 'asc' } },
+          strength: { orderBy: { loggedAt: 'asc' } },
         },
       }),
       this.prisma.userGoal.findFirst({
@@ -512,6 +545,14 @@ export class LogsService {
             logged_at: e.loggedAt,
           })),
         },
+        strength: (log?.strength ?? []).map((s) => ({
+          id: s.id,
+          name: s.name,
+          sets: s.sets,
+          reps: s.reps,
+          weight_kg: s.weightKg === null ? null : Number(s.weightKg),
+          logged_at: s.loggedAt,
+        })),
       },
     };
   }

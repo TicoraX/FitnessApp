@@ -156,6 +156,7 @@ export interface DaySummary {
   remaining: { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null;
   entries: MealEntry[];
   exercise: { total_burned: number; entries: ExerciseEntry[] };
+  strength: StrengthEntry[];
   micros: MicrosSummary;
 }
 
@@ -189,6 +190,26 @@ export interface Activity {
   name: string;
   met: number;
   category: 'cardio' | 'fuerza' | 'deporte' | 'cotidiano';
+}
+
+/** Una serie de gimnasio. No tiene calorías: no entra en el margen del día. */
+export interface StrengthEntry {
+  id: string;
+  name: string;
+  sets: number;
+  reps: number;
+  weight_kg: number | null;
+  logged_at: string;
+}
+
+/** Movimiento del catálogo de gimnasio. El nombre viene en inglés del dataset. */
+export interface Movement {
+  id: string;
+  name: string;
+  body: string;
+  equipment: string;
+  target: string;
+  howTo: string;
 }
 
 export interface StreakReport {

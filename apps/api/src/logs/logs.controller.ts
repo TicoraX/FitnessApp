@@ -15,7 +15,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateMealEntryDto } from './dto/create-meal-entry.dto';
 import { UpdateServingsDto, UpdateWaterDto } from './dto/update-entry.dto';
 import { CopyDto, LogRecipeDto, QuickAddDto, UpdateRecipeServingsDto } from './dto/shortcuts.dto';
-import { LogExerciseDto, UpdateExerciseDto } from './dto/exercise.dto';
+import { LogExerciseDto, LogStrengthDto, UpdateExerciseDto } from './dto/exercise.dto';
 import { parseLogDate } from '../common/log-date';
 import { LogsService } from './logs.service';
 
@@ -92,6 +92,17 @@ export class LogsController {
   @HttpCode(204)
   deleteExercise(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.logs.deleteExercise(req.user.userId, id);
+  }
+
+  @Post('strength')
+  addStrength(@Req() req: AuthedRequest, @Body() dto: LogStrengthDto) {
+    return this.logs.addStrength(req.user.userId, dto);
+  }
+
+  @Delete('strength/:id')
+  @HttpCode(204)
+  deleteStrength(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.logs.deleteStrength(req.user.userId, id);
   }
 
   @Patch(':date/water')

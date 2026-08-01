@@ -1,4 +1,5 @@
 import { ACTIVITIES, Activity } from './catalog';
+import { MOVEMENTS, Movement } from './movements';
 import { normalizeQuery } from '../foods/search-query';
 
 /**
@@ -29,6 +30,37 @@ export function searchActivities(raw: string, limit = 20): Activity[] {
     const n = normalizado(a);
     if (n.startsWith(q)) empiezan.push(a);
     else if (n.includes(q)) contienen.push(a);
+  }
+
+  return [...empiezan, ...contienen].slice(0, limit);
+}
+
+/**
+ * Búsqueda de movimientos de gimnasio.
+ *
+ * Además del nombre mira zona, equipo y músculo objetivo: los nombres vienen en
+ * inglés del dataset, así que buscar "pecho" o "mancuerna" es la única forma de
+ * llegar a ellos escribiendo en español.
+ */
+export function searchMovements(raw: string, limit = 20): Movement[] {
+  const q = normalizeQuery(raw);
+  if (!q) return MOVEMENTS.slice(0, limit);
+
+  const empiezan: Movement[] = [];
+  const contienen: Movement[] = [];
+
+  for (const m of MOVEMENTS) {
+    const n = normalizeQuery(m.name);
+    if (n.startsWith(q)) empiezan.push(m);
+    else if (
+      n.includes(q) ||
+      normalizeQuery(m.body).includes(q) ||
+      normalizeQuery(m.equipment).includes(q) ||
+      normalizeQuery(m.target).includes(q)
+    ) {
+      contienen.push(m);
+    }
+    if (empiezan.length >= limit) break;
   }
 
   return [...empiezan, ...contienen].slice(0, limit);

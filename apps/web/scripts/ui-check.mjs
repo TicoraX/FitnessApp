@@ -452,6 +452,48 @@ try {
     }, antes, { timeout: 10_000 });
   });
 
+  /**
+   * La fuerza no toca el margen: el catálogo de movimientos no trae MET y
+   * estimar calorías sería inventarlas. Se verifica lo contrario que en el
+   * ejercicio: la serie queda registrada y el objetivo del día no se mueve.
+   */
+  await step('una serie de fuerza queda registrada y no mueve el margen', async () => {
+    await page.goto(`${BASE}/#/diario`);
+    await page.waitForSelector('.view-diario', { timeout: 10_000 });
+
+    const objetivoDe = () =>
+      page.evaluate(() => {
+        const t = document.querySelector('.dial__unit')?.textContent ?? '';
+        return Number(t.match(/de (\d+)/)?.[1] ?? 0);
+      });
+    const antes = await objetivoDe();
+
+    // Buscar en español llega a un catálogo con los nombres en inglés.
+    await page.fill('#fz-movimiento', 'mancuerna');
+    await page.waitForSelector('#fz-movimiento ~ .results .result, .exercise .results .result', {
+      timeout: 10_000,
+    });
+    await page.locator('.exercise').last().locator('.result').first().click();
+    await page.fill('#fz-series', '4');
+    await page.fill('#fz-reps', '8');
+    await page.fill('#fz-kilos', '22.5');
+    await page.getByRole('button', { name: 'Registrar serie' }).click();
+
+    const fila = page.locator('.exercise').last().locator('.entry');
+    await fila.first().waitFor({ timeout: 10_000 });
+    assert.match(await fila.first().innerText(), /4 × 8/);
+    assert.equal(await objetivoDe(), antes, 'la fuerza no puede mover el objetivo');
+    await shot('14b-fuerza');
+
+    await fila.first().locator('button', { hasText: 'Quitar' }).click();
+    await page.waitForFunction(
+      () => document.querySelectorAll('.exercise').length > 1 &&
+        document.querySelectorAll('.exercise')[1].querySelectorAll('.entry').length === 0,
+      null,
+      { timeout: 10_000 },
+    );
+  });
+
   await step('la vista de recetas permite consultar y abrir la modal de creación', async () => {
     await page.goto(`${BASE}/#/recetas`);
     await page.waitForSelector('.view-recetas', { timeout: 10_000 });

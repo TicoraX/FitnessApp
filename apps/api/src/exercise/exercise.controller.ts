@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { searchActivities } from './met';
+import { searchActivities, searchMovements } from './met';
 
 /**
  * El catálogo de actividades es estático y vive en memoria, así que esto no
@@ -28,6 +28,19 @@ export class ExerciseController {
     return {
       status: 'success',
       data: searchActivities(q, Math.min(Math.max(limit, 1), 50)),
+    };
+  }
+
+  /** Movimientos de gimnasio: los que se registran en series y repeticiones. */
+  @Get('movements')
+  @Throttle({ default: { ttl: 60_000, limit: 600 } })
+  movements(
+    @Query('q', new DefaultValuePipe('')) q: string,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+  ) {
+    return {
+      status: 'success',
+      data: searchMovements(q, Math.min(Math.max(limit, 1), 50)),
     };
   }
 }

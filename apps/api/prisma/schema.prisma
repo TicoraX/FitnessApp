@@ -176,6 +176,7 @@ model DailyLog {
   user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   entries   MealEntry[]
   exercises ExerciseEntry[]
+  strength  StrengthEntry[]
 
   @@unique([userId, logDate])
   @@map("daily_logs")
@@ -203,6 +204,30 @@ model ExerciseEntry {
 
   @@index([dailyLogId])
   @@map("exercise_entries")
+}
+
+/**
+ * Series de gimnasio. Va aparte de ExerciseEntry porque no comparte nada con
+ * ella: acá no hay minutos ni MET, y por lo tanto tampoco calorías quemadas.
+ * El dataset de movimientos no trae MET y estimarlo sería inventarlo, así que
+ * la fuerza no toca el margen del día: es historial de cargas.
+ *
+ * El nombre se copia igual que en ExerciseEntry, por el mismo motivo.
+ * weightKg es opcional: dominadas y flexiones se hacen sin peso agregado.
+ */
+model StrengthEntry {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dailyLogId String   @map("daily_log_id") @db.Uuid
+  name       String   @db.VarChar(120)
+  sets       Int
+  reps       Int
+  weightKg   Decimal? @map("weight_kg") @db.Decimal(5, 1)
+  loggedAt   DateTime @default(now()) @map("logged_at") @db.Timestamptz(6)
+
+  dailyLog DailyLog @relation(fields: [dailyLogId], references: [id], onDelete: Cascade)
+
+  @@index([dailyLogId])
+  @@map("strength_entries")
 }
 
 /**

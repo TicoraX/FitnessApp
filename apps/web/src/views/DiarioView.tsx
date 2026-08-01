@@ -2,6 +2,7 @@ import type { RefObject } from 'react';
 import type { DaySummary } from '../api';
 import { Weight } from '../Weight';
 import { Exercise } from '../Exercise';
+import { Strength } from '../Strength';
 import { AddFood, CyberDayStrip, Dial, Macros, Meals, Water } from '../DiaryComponents';
 
 export function DiarioView({
@@ -44,6 +45,7 @@ export function DiarioView({
             <AddFood date={date} onAdded={() => loadDate(date)} searchInputRef={searchInputRef} />
           </div>
           {day && <Exercise date={date} day={day} onChanged={() => loadDate(date)} />}
+          {day && <Strength date={date} day={day} onChanged={() => loadDate(date)} />}
           <Weight onGoalChanged={() => loadDate(date)} />
         </section>
       </div>
