@@ -2,6 +2,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateRoutineDto, RoutineItemDto, UpdateRoutineDto } from './dto/routine.dto';
+import { nombreEs } from '../exercise/movements-es';
 
 const CON_ITEMS = { items: { orderBy: { position: 'asc' } } } as const;
 
@@ -118,6 +119,7 @@ export function detalle(r: RutinaConItems) {
     items: r.items.map((i) => ({
       id: i.id,
       name: i.name,
+      name_es: nombreEs(i.name),
       sets: i.sets,
       reps: i.reps,
       weight_kg: i.weightKg === null ? null : Number(i.weightKg),

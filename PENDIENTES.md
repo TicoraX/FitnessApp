@@ -132,6 +132,32 @@ menos es el caso normal, y es justo el dato que antes se perdía.
 Nulo para todo lo ya registrado: no se puede reconstruir cuánto costó una serie
 de la semana pasada.
 
+### Nombres en español, bilingües
+
+El dataset no traduce los nombres de los movimientos. Se probó traducirlos a
+máquina con un diccionario de núcleos, modificadores y el equipo que ya está
+traducido: cubría el 32% y producía cosas como "aperturas inverso" o
+"abdominales de pie con giro con banda". Un nombre mal traducido es peor que uno
+en inglés, porque el inglés al menos se busca en YouTube y aparece el video.
+
+Así que van 117 curados a mano en `apps/api/src/exercise/movements-es.ts`, los
+que la gente registra de verdad. El resto queda en inglés, con su zona, equipo,
+músculo e instrucciones en español, que sí vienen traducidos.
+
+Se muestran los dos siempre: el español adelante y el inglés debajo, porque es
+el nombre real y el que hay que escribir para ver cómo se hace. Por eso tampoco
+hay selector de idioma: no hay nada que elegir si no se pierde ninguno de los
+dos, y una preferencia menos es una pantalla de ajustes menos.
+
+La búsqueda mira los dos, y el match exacto va primero: "dominadas" da
+"Dominadas" y no "Dominadas asistidas". Para eso hubo que sacar el corte
+temprano del recorrido, que dejaba afuera un exacto ubicado más abajo en el
+catálogo; son 1324 comparaciones en memoria y no ahorraba nada.
+
+Las series guardan el nombre en inglés, que es el identificador, y el español se
+resuelve al leer. Curar una traducción nueva alcanza para que el historial viejo
+la muestre. Un test falla si alguna clave curada deja de existir en el catálogo.
+
 ## Detectado y no tocado
 
 Cosas que aparecieron durante el trabajo y quedaron fuera de alcance.

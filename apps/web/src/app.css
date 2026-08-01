@@ -1058,3 +1058,11 @@ input[aria-invalid='true'] {
   display: grid;
   gap: var(--space-sm);
 }
+
+/* El nombre real del movimiento, debajo del curado en español: es el que se
+   busca en YouTube, así que se muestra siempre aunque haya traducción. */
+.movimiento__original {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--color-ink-2);
+}
