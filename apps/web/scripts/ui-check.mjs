@@ -545,6 +545,55 @@ try {
     assert.match(await page.locator('.fuerza .entry').first().innerText(), /3 × 10/);
   });
 
+  /**
+   * Cada vista pide lo suyo al montarse, así que navegar de acá para allá
+   * multiplicaba pedidos: volver al diario reconstruía panel, favoritos,
+   * recientes y peso aunque nada de eso hubiera cambiado. Este paso fija el
+   * techo para que no vuelva a crecer sin que nadie se entere.
+   */
+  await step('navegar entre vistas no dispara una avalancha de pedidos', async () => {
+    const pedidos = [];
+    const espia = (req) => {
+      const url = new URL(req.url());
+      if (url.pathname.startsWith('/api/')) pedidos.push(url.pathname + url.search);
+    };
+
+    await page.goto(`${BASE}/#/diario`);
+    await page.waitForSelector('.view-diario', { timeout: 10_000 });
+    await page.waitForTimeout(600);
+
+    page.on('request', espia);
+    try {
+      for (let i = 0; i < 3; i++) {
+        await page.goto(`${BASE}/#/ejercicio`);
+        await page.waitForSelector('.view-ejercicio', { timeout: 10_000 });
+        await page.goto(`${BASE}/#/diario`);
+        await page.waitForSelector('.view-diario', { timeout: 10_000 });
+      }
+      await page.waitForTimeout(800);
+    } finally {
+      page.off('request', espia);
+    }
+
+    // Tres idas y vueltas. Este suite corre contra el dev server, donde
+    // StrictMode invoca cada efecto dos veces: el mismo recorrido sobre el
+    // build de producción da ~12. El techo está puesto sobre lo que se mide
+    // acá, que es lo que va a fallar si esto vuelve a crecer. Antes de diferir
+    // lo que no se ve y cachear lo que no cambia eran 30.
+    assert.ok(
+      pedidos.length <= 24,
+      `tres idas y vueltas dispararon ${pedidos.length} pedidos:\n    ${pedidos.join('\n    ')}`,
+    );
+
+    // El catálogo de zonas y equipos es estático: se pide una vez por sesión.
+    const facetas = pedidos.filter((p) => p.includes('/exercise/facets'));
+    assert.equal(facetas.length, 0, 'las facetas se volvieron a pedir, el caché de sesión se rompió');
+
+    // El perfil solo dice si la cuenta es de invitado, y eso no cambia solo.
+    const perfil = pedidos.filter((p) => p.includes('/profile'));
+    assert.equal(perfil.length, 0, `el perfil se pidió ${perfil.length} veces de más`);
+  });
+
   await step('la vista de recetas permite consultar y abrir la modal de creación', async () => {
     await page.goto(`${BASE}/#/recetas`);
     await page.waitForSelector('.view-recetas', { timeout: 10_000 });

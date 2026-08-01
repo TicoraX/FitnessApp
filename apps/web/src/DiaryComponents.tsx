@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState, type CSSProperties, type RefObject } from 'react';
 import { api, formatDateLabel, getWeekDays, MEALS, notificarCambio, shiftDate, today, type DaySummary, type Food } from './api';
+import { getCacheado, invalidarCache } from './api';
+import { useVisible } from './hooks/useVisible';
 import Counter from './components/Counter';
 import { BarcodeScanner } from './components/BarcodeScanner';
 import InfiniteMenu from './components/InfiniteMenu';
@@ -499,6 +501,12 @@ export function AddFood({
   const [quickProtein, setQuickProtein] = useState('');
   const [quickCarbs, setQuickCarbs] = useState('');
   const [quickFat, setQuickFat] = useState('');
+  /**
+   * El panel entero, con sus recientes y favoritos, no se pide hasta que asoma.
+   * En el teléfono arranca abajo del pliegue: entrar al diario disparaba tres
+   * pedidos de algo que el usuario todavía no estaba mirando.
+   */
+  const [refPanel, panelVisible] = useVisible<HTMLDivElement>();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -561,15 +569,15 @@ export function AddFood({
 
   const loadFavorites = useCallback(async () => {
     try {
-      setFavorites((await api.get<{ data: Food[] }>('/foods/favorites')).data ?? []);
+      setFavorites((await getCacheado<{ data: Food[] }>('/foods/favorites')).data ?? []);
     } catch {
       setFavorites([]);
     }
   }, []);
 
   useEffect(() => {
-    void loadFavorites();
-  }, [loadFavorites]);
+    if (panelVisible) void loadFavorites();
+  }, [loadFavorites, panelVisible]);
 
   const esFavorito = (id: string) => favorites.some((f) => f.id === id);
 
@@ -581,6 +589,7 @@ export function AddFood({
     try {
       if (marcado) await api.del(`/foods/${food.id}/favorite`);
       else await api.put(`/foods/${food.id}/favorite`, {});
+      invalidarCache('/foods/favorites');
     } catch {
       void loadFavorites();
     }
@@ -588,7 +597,7 @@ export function AddFood({
 
   const loadRecent = useCallback(async () => {
     try {
-      const res = await api.get<{ data: Food[] }>('/foods/recent');
+      const res = await getCacheado<{ data: Food[] }>('/foods/recent');
       if (res.data && res.data.length > 0) {
         setRecent(res.data);
       } else {
@@ -606,8 +615,8 @@ export function AddFood({
   }, []);
 
   useEffect(() => {
-    void loadRecent();
-  }, [loadRecent]);
+    if (panelVisible) void loadRecent();
+  }, [loadRecent, panelVisible]);
 
   const handleBarcodeDetected = useCallback(async (barcode: string) => {
     setShowScanner(false);
@@ -675,6 +684,9 @@ export function AddFood({
       setResults([]);
       notificarCambio('diario-cambiado');
       onAdded();
+      // Lo que se acaba de registrar entra en recientes: sin tirar el cacheado,
+      // la lista quedaría con la foto anterior hasta cerrar la pestaña.
+      invalidarCache('/foods/recent');
       void loadRecent();
     } catch (err) {
       setMessage({ text: err instanceof Error ? err.message : 'No se pudo registrar', ok: false });
@@ -683,7 +695,7 @@ export function AddFood({
   }
 
   return (
-    <div>
+    <div ref={refPanel}>
       {/* Selector accesible para Playwright y lectores de pantalla */}
       <select
         id="meal-select"

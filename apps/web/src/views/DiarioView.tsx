@@ -37,13 +37,22 @@ export function DiarioView({
           )}
         </section>
 
+        {/* Todo esto espera al día por una razón de red, no de contenido: el
+            panel y el peso solo piden sus datos cuando asoman en pantalla, y
+            montarlos contra un diario todavía vacío los deja arriba del pliegue
+            por un instante, lo suficiente para que el observer los dé por
+            vistos y dispare los pedidos igual. */}
         <section aria-labelledby="agregar">
           <h2 id="agregar">Agregar comida</h2>
-          <div className="card" style={{ marginTop: 'var(--space-md)' }}>
-            <AddFood date={date} onAdded={() => loadDate(date)} searchInputRef={searchInputRef} />
-          </div>
-          {day && <ResumenEjercicio day={day} date={date} />}
-          <Weight onGoalChanged={() => loadDate(date)} />
+          {day && (
+            <>
+              <div className="card" style={{ marginTop: 'var(--space-md)' }}>
+                <AddFood date={date} onAdded={() => loadDate(date)} searchInputRef={searchInputRef} />
+              </div>
+              <ResumenEjercicio day={day} date={date} />
+              <Weight onGoalChanged={() => loadDate(date)} />
+            </>
+          )}
         </section>
       </div>
     </div>
