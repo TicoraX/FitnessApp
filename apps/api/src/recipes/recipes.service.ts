@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { scaleTotals, sumEntries } from '../logs/totals';
@@ -16,9 +16,9 @@ type RecetaConComponentes = Prisma.RecipeGetPayload<{
 export class RecipesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(userId: string) {
+  async list(userId: string, kind?: 'recipe' | 'meal') {
     const recetas = await this.prisma.recipe.findMany({
-      where: { userId, isArchived: false },
+      where: { userId, isArchived: false, ...(kind && { kind }) },
       include: CON_COMPONENTES,
       orderBy: { name: 'asc' },
     });
@@ -30,6 +30,7 @@ export class RecipesService {
         return {
           id: r.id,
           name: r.name,
+          kind: r.kind,
           total_servings: Number(r.totalServings),
           component_count: r.components.length,
           per_serving,
@@ -48,11 +49,20 @@ export class RecipesService {
   }
 
   async create(userId: string, dto: CreateRecipeDto) {
+    const kind = dto.kind ?? 'recipe';
+    // Una comida guardada se registra entera: escalarla no significa nada, y
+    // fijar el 1 acá evita que el resto del motor tenga que saber la diferencia.
+    const totalServings = kind === 'meal' ? 1 : dto.total_servings;
+    if (totalServings === undefined) {
+      throw new BadRequestException('total_servings es obligatorio para una receta');
+    }
+
     const receta = await this.prisma.recipe.create({
       data: {
         userId,
         name: dto.name,
-        totalServings: dto.total_servings,
+        kind,
+        totalServings,
         components: { create: componentesParaCrear(dto.components) },
       },
       include: CON_COMPONENTES,
@@ -121,6 +131,7 @@ function detalle(r: RecetaConComponentes) {
   return {
     id: r.id,
     name: r.name,
+    kind: r.kind,
     total_servings: Number(r.totalServings),
     per_serving,
     total,

@@ -12,4 +12,17 @@ export default defineConfig({
     port: 5177,
     proxy: { '/api': 'http://localhost:3100' },
   },
+  build: {
+    target: 'esnext',
+    cssCodeSplit: true,
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-motion': ['motion'],
+          'vendor-gsap': ['gsap'],
+        },
+      },
+    },
+  },
 });

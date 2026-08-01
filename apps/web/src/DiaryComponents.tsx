@@ -1,68 +1,9 @@
 import { useCallback, useEffect, useState, type CSSProperties, type RefObject } from 'react';
-import { api, notificarCambio, today, type DaySummary, type Food } from './api';
+import { api, formatDateLabel, getWeekDays, MEALS, notificarCambio, shiftDate, today, type DaySummary, type Food } from './api';
 import Counter from './components/Counter';
 import { BarcodeScanner } from './components/BarcodeScanner';
 import InfiniteMenu from './components/InfiniteMenu';
 import { NewFood } from './NewFood';
-
-export const MEALS = [
-  ['breakfast', 'Desayuno'],
-  ['lunch', 'Almuerzo'],
-  ['dinner', 'Cena'],
-  ['snack', 'Snack'],
-] as const;
-
-export function formatDateLabel(dateStr: string) {
-  if (!dateStr) return '';
-  const [y, m, d] = dateStr.split('-').map(Number);
-  const target = new Date(y, m - 1, d);
-  const now = new Date();
-  const todayStr = today();
-
-  const yesterday = new Date();
-  yesterday.setDate(now.getDate() - 1);
-  const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
-
-  if (dateStr === todayStr) return 'Hoy';
-  if (dateStr === yesterdayStr) return 'Ayer';
-
-  const options: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'short' };
-  const formatted = target.toLocaleDateString('es-ES', options);
-  return formatted.charAt(0).toUpperCase() + formatted.slice(1);
-}
-
-export function shiftDate(dateStr: string, days: number): string {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  const dt = new Date(y, m - 1, d);
-  dt.setDate(dt.getDate() + days);
-  const ny = dt.getFullYear();
-  const nm = String(dt.getMonth() + 1).padStart(2, '0');
-  const nd = String(dt.getDate()).padStart(2, '0');
-  return `${ny}-${nm}-${nd}`;
-}
-
-export function getWeekDays(centerDateStr: string): Array<{ iso: string; dayName: string; dayNum: number; isToday: boolean; isFuture: boolean }> {
-  const [y, m, d] = centerDateStr.split('-').map(Number);
-  const center = new Date(y, m - 1, d);
-  const todayStr = today();
-
-  const result = [];
-  for (let i = -3; i <= 3; i++) {
-    const dt = new Date(center);
-    dt.setDate(center.getDate() + i);
-    const iso = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
-    const dayName = dt.toLocaleDateString('es-ES', { weekday: 'short' }).slice(0, 3).toUpperCase();
-    const dayNum = dt.getDate();
-    result.push({
-      iso,
-      dayName,
-      dayNum,
-      isToday: iso === todayStr,
-      isFuture: iso > todayStr,
-    });
-  }
-  return result;
-}
 
 export function CyberDayStrip({ date, setDate }: { date: string; setDate: (d: string) => void }) {
   const days = getWeekDays(date);
@@ -206,6 +147,13 @@ export function Dial({ day }: { day: DaySummary }) {
         ) : (
           <span className="dial__left muted">Sin objetivo activo</span>
         )}
+        {/* Sin esta línea el objetivo aparece más alto que el del perfil y no
+            se entiende por qué: lo que se quema se suma al margen del día. */}
+        {day.exercise.total_burned > 0 && (
+          <span className="muted num" style={{ fontSize: 'var(--text-sm)' }}>
+            incluye {day.exercise.total_burned} kcal de ejercicio
+          </span>
+        )}
       </div>
     </div>
   );
@@ -282,6 +230,29 @@ export function Water({
       <span className="water__label muted">Agua</span>
       <span className="num water__value">
         {(day.water_ml / 1000).toFixed(2).replace(/\.?0+$/, '')} L
+        <span className="muted water__goal">
+          {' '}
+          de {(day.water_goal_ml / 1000).toFixed(2).replace(/\.?0+$/, '')}
+        </span>
+        {/* La barra va acá y no en una tarjeta aparte: el vaso se suma con los
+            botones de al lado y el progreso tiene que verse sin mover la vista. */}
+        <span
+          className="water__bar"
+          role="meter"
+          aria-label="Progreso de agua"
+          aria-valuenow={day.water_ml}
+          aria-valuemin={0}
+          aria-valuemax={day.water_goal_ml}
+        >
+          <span
+            className="water__bar-fill"
+            style={
+              {
+                '--pct': Math.min((day.water_ml / day.water_goal_ml) * 100, 100),
+              } as CSSProperties
+            }
+          />
+        </span>
       </span>
       <span className="water__buttons">
         <button
@@ -517,6 +488,8 @@ export function AddFood({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
   const [recent, setRecent] = useState<Food[]>([]);
+  const [favorites, setFavorites] = useState<Food[]>([]);
+  const [tab, setTab] = useState<'recent' | 'favorites'>('recent');
   const [activo, setActivo] = useState(-1);
   const [showScanner, setShowScanner] = useState(false);
   const [showNewFood, setShowNewFood] = useState(false);
@@ -581,9 +554,37 @@ export function AddFood({
     }
   };
 
-  const visibles = query.trim().length < 2 ? recent : results;
+  const sugeridos = tab === 'favorites' ? favorites : recent;
+  const visibles = query.trim().length < 2 ? sugeridos : results;
 
-  useEffect(() => setActivo(-1), [query, results, recent]);
+  useEffect(() => setActivo(-1), [query, results, sugeridos]);
+
+  const loadFavorites = useCallback(async () => {
+    try {
+      setFavorites((await api.get<{ data: Food[] }>('/foods/favorites')).data ?? []);
+    } catch {
+      setFavorites([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadFavorites();
+  }, [loadFavorites]);
+
+  const esFavorito = (id: string) => favorites.some((f) => f.id === id);
+
+  async function toggleFavorito(food: Food) {
+    // Optimista: marcar es un gesto de un toque y esperar el round-trip para
+    // pintar la estrella se siente roto.
+    const marcado = esFavorito(food.id);
+    setFavorites((prev) => (marcado ? prev.filter((f) => f.id !== food.id) : [food, ...prev]));
+    try {
+      if (marcado) await api.del(`/foods/${food.id}/favorite`);
+      else await api.put(`/foods/${food.id}/favorite`, {});
+    } catch {
+      void loadFavorites();
+    }
+  }
 
   const loadRecent = useCallback(async () => {
     try {
@@ -860,13 +861,17 @@ export function AddFood({
           type="button"
           className="btn btn--quiet"
           aria-label="Escanear código de barras"
-          title="Escanear código de barras"
+          title="Escanear código de barras (Cámara / EAN-13)"
           onClick={() => setShowScanner(true)}
-          style={{ padding: '0 0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          style={{ padding: '0 0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2" />
-            <line x1="7" y1="12" x2="17" y2="12" />
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="4" y1="6" x2="4" y2="18" strokeWidth="2.5" />
+            <line x1="8" y1="6" x2="8" y2="18" strokeWidth="1.5" />
+            <line x1="11" y1="6" x2="11" y2="18" strokeWidth="2.5" />
+            <line x1="15" y1="6" x2="15" y2="18" strokeWidth="1.5" />
+            <line x1="19" y1="6" x2="19" y2="18" strokeWidth="2.5" />
+            <line x1="2" y1="12" x2="22" y2="12" stroke="var(--color-primary)" strokeWidth="2" />
           </svg>
         </button>
       </div>
@@ -889,18 +894,44 @@ export function AddFood({
         </p>
       )}
 
-      {query.trim().length < 2 && recent.length > 0 && (
+      {query.trim().length < 2 && (
         <div style={{ marginBottom: '0.75rem' }}>
-          <p className="hint muted" style={{ marginTop: 'var(--space-xs)', marginBottom: '0.4rem', fontSize: '0.75rem' }}>
-            Comidas que registraste antes:
-          </p>
-          <InfiniteMenu
-            items={recent.map((f) => ({
-              title: f.name,
-              description: `${f.calories} kcal / ${f.serving_size_amount}${f.serving_size_unit}`,
-              onClick: () => handleSelectFood(f),
-            }))}
-          />
+          <div className="food-tabs" role="tablist" aria-label="Sugerencias">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'recent'}
+              className="btn btn--quiet"
+              onClick={() => setTab('recent')}
+            >
+              Recientes
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'favorites'}
+              className="btn btn--quiet"
+              onClick={() => setTab('favorites')}
+            >
+              Favoritos{favorites.length > 0 && ` (${favorites.length})`}
+            </button>
+          </div>
+
+          {sugeridos.length > 0 ? (
+            <InfiniteMenu
+              items={sugeridos.map((f) => ({
+                title: f.name,
+                description: `${f.calories} kcal / ${f.serving_size_amount}${f.serving_size_unit}`,
+                onClick: () => handleSelectFood(f),
+              }))}
+            />
+          ) : (
+            <p className="hint muted" style={{ fontSize: '0.75rem' }}>
+              {tab === 'favorites'
+                ? 'Marcá un alimento con la estrella para tenerlo acá.'
+                : 'Todavía no registraste nada.'}
+            </p>
+          )}
         </div>
       )}
 
@@ -944,8 +975,28 @@ export function AddFood({
               <strong style={{ fontSize: 'var(--text-base)', display: 'block', color: 'var(--text-main)' }}>{selected.name}</strong>
               {selected.brand && <span className="muted" style={{ fontSize: 'var(--text-xs)' }}>{selected.brand}</span>}
             </div>
-            <span className="num" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-primary)', fontFamily: 'var(--font-mono)' }}>
-              {Math.round(selected.calories * (Number(servings) || 1))} kcal
+            <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-xs)' }}>
+              <span className="num" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-primary)', fontFamily: 'var(--font-mono)' }}>
+                {Math.round(selected.calories * (Number(servings) || 1))} kcal
+              </span>
+              <button
+                type="button"
+                className="btn btn--quiet btn--icon food-fav"
+                aria-pressed={esFavorito(selected.id)}
+                aria-label={esFavorito(selected.id) ? 'Quitar de favoritos' : 'Marcar como favorito'}
+                onClick={() => toggleFavorito(selected)}
+              >
+                {/* Estrella SVG, no un emoji: el proyecto no usa emojis en la UI. */}
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                  <path
+                    d="M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5-5.8-3-5.8 3 1.1-6.5L2.6 9.4l6.5-.9L12 2.6z"
+                    fill={esFavorito(selected.id) ? 'currentColor' : 'none'}
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
             </span>
           </div>
 

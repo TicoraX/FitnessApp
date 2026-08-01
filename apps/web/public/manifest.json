@@ -6,7 +6,19 @@
       "src": "favicon.svg",
       "type": "image/svg+xml",
       "sizes": "512x512 192x192 96x96 48x48",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
     }
   ],
   "start_url": "./",

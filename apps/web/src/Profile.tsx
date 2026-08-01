@@ -19,6 +19,7 @@ interface ProfileData {
   daily_calories: number | null;
   body_fat_pct?: number | null;
   unit_preference?: 'metric' | 'imperial';
+  water_goal_ml?: number;
 }
 
 /**
@@ -62,6 +63,8 @@ export function Profile({ onSaved, onClose }: { onSaved: () => void; onClose: ()
         target_weight_kg: Math.round(targetWeightKg * 10) / 10,
         weekly_goal_kg: Number(raw.weekly_goal_kg),
         unit_preference: unitPref,
+        // En litros en la UI, en mililitros en el API: nadie escribe "2000".
+        water_goal_ml: Math.round(Number(raw.water_goal_l) * 1000),
       };
       if (raw.body_fat_pct !== '' && raw.body_fat_pct !== undefined) {
         payload.body_fat_pct = Number(raw.body_fat_pct);
@@ -196,6 +199,22 @@ export function Profile({ onSaved, onClose }: { onSaved: () => void; onClose: ()
           defaultValue={data.body_fat_pct ?? ''}
         />
         <span className="muted">Cambia la fórmula del cálculo metabólico a Katch-McArdle (masa magra). Dejar en blanco vuelve a Mifflin-St Jeor.</span>
+      </div>
+
+      <div className="field">
+        <label htmlFor="pf-water">Meta de agua (litros)</label>
+        <input
+          id="pf-water"
+          name="water_goal_l"
+          type="number"
+          inputMode="decimal"
+          step="0.25"
+          min={0.25}
+          max={10}
+          required
+          defaultValue={(data.water_goal_ml ?? 2000) / 1000}
+        />
+        <span className="muted">No entra en el cálculo de calorías.</span>
       </div>
 
       {message && (

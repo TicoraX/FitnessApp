@@ -20,6 +20,11 @@ enum UnitPreference {
   imperial
 }
 
+enum RecipeKind {
+  recipe
+  meal
+}
+
 /**
  * Pedido de recuperación de contraseña.
  *
@@ -62,6 +67,10 @@ model User {
   bodyFatPct     Decimal?       @map("body_fat_pct") @db.Decimal(4, 1)
   activityLevel  Decimal        @default(1.200) @map("activity_level") @db.Decimal(4, 3)
   unitPreference UnitPreference @default(metric) @map("unit_preference")
+  /// Los 2 litros de default no salen de ninguna guía seria: es el número que
+  /// la gente espera ver. Se puede cambiar porque el que entrena en verano
+  /// necesita bastante más.
+  waterGoalMl    Int            @default(2000) @map("water_goal_ml")
   /// Sube con cada cambio de contraseña y viaja dentro del token. Sin esto,
   /// resetear la contraseña no echaría al que te robó la cuenta: su token
   /// seguiría sirviendo hasta vencer, que son días.
@@ -75,6 +84,7 @@ model User {
   weights        WeightEntry[]
   recipes        Recipe[]
   passwordResets PasswordReset[]
+  favorites      FoodFavorite[]
 
   @@map("users")
 }
@@ -124,8 +134,29 @@ model FoodItem {
   createdBy   User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
   mealEntries      MealEntry[]
   recipeComponents RecipeComponent[]
+  favorites        FoodFavorite[]
 
   @@map("food_items")
+}
+
+/**
+ * Alimento marcado por el usuario.
+ *
+ * Los recientes ya resuelven "lo que como siempre", pero se ensucian con
+ * cualquier cosa que se registre una vez. Un favorito es explícito y no se cae
+ * de la lista.
+ */
+model FoodFavorite {
+  userId     String   @map("user_id") @db.Uuid
+  foodItemId String   @map("food_item_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  foodItem FoodItem @relation(fields: [foodItemId], references: [id], onDelete: Cascade)
+
+  @@id([userId, foodItemId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("food_favorites")
 }
 
 enum MealType {
@@ -142,11 +173,36 @@ model DailyLog {
   waterMl  Int      @default(0) @map("water_ml")
   notes    String?
 
-  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  entries MealEntry[]
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries   MealEntry[]
+  exercises ExerciseEntry[]
 
   @@unique([userId, logDate])
   @@map("daily_logs")
+}
+
+/**
+ * Actividad del día. La otra mitad de la ecuación: el objetivo diario sube por
+ * lo que se quema, no solo baja por lo que se come.
+ *
+ * El nombre se copia acá y no se referencia un catálogo: las actividades son
+ * una tabla estática en el código (src/exercise/catalog.ts) y guardar el texto
+ * deja el historial intacto si mañana se renombra o se saca una actividad.
+ * caloriesBurned queda persistida por la misma razón: se calculó con el peso
+ * de ese día y volver a pesarse no puede reescribir el pasado.
+ */
+model ExerciseEntry {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dailyLogId     String   @map("daily_log_id") @db.Uuid
+  name           String   @db.VarChar(100)
+  durationMin    Int      @map("duration_min")
+  caloriesBurned Int      @map("calories_burned")
+  loggedAt       DateTime @default(now()) @map("logged_at") @db.Timestamptz(6)
+
+  dailyLog DailyLog @relation(fields: [dailyLogId], references: [id], onDelete: Cascade)
+
+  @@index([dailyLogId])
+  @@map("exercise_entries")
 }
 
 /**
@@ -180,6 +236,10 @@ model Recipe {
   id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId        String   @map("user_id") @db.Uuid
   name          String   @db.VarChar(255)
+  /// Una comida guardada ("mi desayuno") es el mismo motor con totalServings 1:
+  /// se registra entera y no se escala. El flag existe solo para separarlas en
+  /// la interfaz y no preguntar porciones donde no aplica.
+  kind          RecipeKind @default(recipe)
   /// En cuántas porciones rinde la receta entera. Loguear una porción de un
   /// guiso que rinde seis escala cada componente por 1/6.
   totalServings Decimal  @map("total_servings") @db.Decimal(6, 2)

@@ -29,8 +29,6 @@ export class FoodsService {
     const q = normalizeQuery(rawQuery);
     if (q.length < 2) return { status: 'success', data: [] };
 
-    // $queryRaw no aplica el mapeo @map del schema: sin estos alias, las
-    // columnas snake_case llegan como undefined y salen null en el JSON.
     const rows = await this.prisma.$queryRaw<(FoodItem & { score: number })[]>`
       SELECT id, barcode, name, brand, verified, source,
              serving_size_amount AS "servingSizeAmount",
@@ -45,10 +43,57 @@ export class FoodsService {
       WHERE ${q} <% f_unaccent(name)
          OR ${q} <% f_unaccent(COALESCE(brand, ''))
          OR f_unaccent(name) ILIKE ${likeContains(q)}
+         OR COALESCE(brand, '') ILIKE ${likeContains(q)}
       ORDER BY score DESC, verified DESC, name ASC
       LIMIT ${limit}`;
 
-    return { status: 'success', data: rows.map(toResponse) };
+    const resultItems = rows.map(toResponse);
+
+    if (resultItems.length < 3) {
+      const offRemote = await this.searchOpenFoodFacts(q);
+      if (offRemote.length > 0) {
+        for (const item of offRemote) {
+          try {
+            if (item.barcode) {
+              const existing = await this.prisma.foodItem.findUnique({ where: { barcode: item.barcode } });
+              if (!existing) {
+                const created = await this.prisma.foodItem.create({ data: { ...item, source: 'openfoodfacts' } });
+                resultItems.push(toResponse(created));
+              }
+            } else {
+              const created = await this.prisma.foodItem.create({ data: { ...item, source: 'openfoodfacts' } });
+              resultItems.push(toResponse(created));
+            }
+          } catch {
+            // Ignorar duplicados o errores de restricciones
+          }
+        }
+      }
+    }
+
+    return { status: 'success', data: resultItems.slice(0, limit) };
+  }
+
+  private async searchOpenFoodFacts(query: string): Promise<MappedFood[]> {
+    try {
+      const url = `${OFF_API}/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=6`;
+      const res = await fetch(url, {
+        signal: AbortSignal.timeout(2500),
+        headers: { 'User-Agent': OFF_USER_AGENT },
+      });
+      if (!res.ok) return [];
+      const body = (await res.json()) as { products?: OffProduct[] };
+      if (!body.products || !Array.isArray(body.products)) return [];
+
+      const mapped: MappedFood[] = [];
+      for (const p of body.products) {
+        const m = mapOffProduct(p);
+        if (m.ok) mapped.push(m.food);
+      }
+      return mapped;
+    } catch {
+      return [];
+    }
   }
 
   /**
@@ -69,6 +114,39 @@ export class FoodsService {
     });
     // El `!` lo sostiene el filtro de arriba: sin alimento no entra a la lista.
     return { status: 'success', data: entries.map((e) => toResponse(e.foodItem!)) };
+  }
+
+  async favorites(userId: string, limit: number) {
+    const filas = await this.prisma.foodFavorite.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: { foodItem: true },
+    });
+    return { status: 'success', data: filas.map((f) => toResponse(f.foodItem)) };
+  }
+
+  /**
+   * Marcar dos veces el mismo alimento no es un error del usuario, es doble tap:
+   * el upsert lo deja idempotente en vez de romper contra la clave primaria.
+   */
+  async addFavorite(userId: string, foodItemId: string) {
+    const existe = await this.prisma.foodItem.findUnique({ where: { id: foodItemId } });
+    if (!existe) throw new NotFoundException('El alimento no existe');
+
+    await this.prisma.foodFavorite.upsert({
+      where: { userId_foodItemId: { userId, foodItemId } },
+      create: { userId, foodItemId },
+      update: {},
+    });
+    return { status: 'success' };
+  }
+
+  async removeFavorite(userId: string, foodItemId: string) {
+    // deleteMany y no delete: desmarcar algo que no estaba marcado es el mismo
+    // resultado que el usuario pidió, no un 404.
+    await this.prisma.foodFavorite.deleteMany({ where: { userId, foodItemId } });
+    return { status: 'success' };
   }
 
   /**

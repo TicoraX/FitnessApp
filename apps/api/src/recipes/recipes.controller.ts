@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -9,6 +10,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -24,8 +26,11 @@ export class RecipesController {
   constructor(private readonly recipes: RecipesService) {}
 
   @Get()
-  list(@Req() req: AuthedRequest) {
-    return this.recipes.list(req.user.userId);
+  list(@Req() req: AuthedRequest, @Query('kind') kind?: string) {
+    if (kind !== undefined && kind !== 'recipe' && kind !== 'meal') {
+      throw new BadRequestException('kind tiene que ser recipe o meal');
+    }
+    return this.recipes.list(req.user.userId, kind);
   }
 
   @Get(':id')

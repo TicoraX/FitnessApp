@@ -3,6 +3,7 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
+  IsIn,
   IsNumber,
   IsOptional,
   IsString,
@@ -32,11 +33,20 @@ export class CreateRecipeDto {
   @MaxLength(255)
   name!: string;
 
+  /**
+   * Una comida guardada se registra entera y no se escala, así que el servicio
+   * le fuerza total_servings a 1 y el campo se vuelve opcional para ella.
+   */
+  @IsOptional()
+  @IsIn(['recipe', 'meal'])
+  kind?: 'recipe' | 'meal';
+
+  @IsOptional()
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0.5)
   @Max(100)
-  total_servings!: number;
+  total_servings?: number;
 
   // El tope de 50 acota cuántas filas inserta un solo logueo de receta.
   @IsArray()

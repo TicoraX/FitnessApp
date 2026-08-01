@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 
 export type ViewRoute = 'diario' | 'recetas' | 'progreso' | 'perfil' | 'reset';
 
@@ -39,6 +39,13 @@ function getSnapshot() {
   return window.location.hash;
 }
 
+function setHash(path: string) {
+  const targetHash = path.startsWith('#') ? path : `#/${path.replace(/^\//, '')}`;
+  if (window.location.hash !== targetHash) {
+    window.location.hash = targetHash;
+  }
+}
+
 /**
  * Hook ligero de enrutamiento por hash usando useSyncExternalStore nativo.
  */
@@ -46,12 +53,9 @@ export function useHashRoute() {
   const hash = useSyncExternalStore(subscribeHash, getSnapshot, () => '#/diario');
   const route = parseHash(hash);
 
-  const navigate = (path: string) => {
-    const targetHash = path.startsWith('#') ? path : `#/${path.replace(/^\//, '')}`;
-    if (window.location.hash !== targetHash) {
-      window.location.hash = targetHash;
-    }
-  };
+  const navigate = useCallback((path: string) => {
+    setHash(path);
+  }, []);
 
   return { route, navigate };
 }

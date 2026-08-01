@@ -83,7 +83,11 @@ function MacroPresetCalculator() {
           max={6000}
           step={50}
           value={cals}
-          onChange={(e) => setCals(Number(e.target.value))}
+          onChange={(e) => {
+            const val = e.target.value;
+            const num = val ? Number(val) : 0;
+            if (!isNaN(num)) setCals(num);
+          }}
           style={{ fontFamily: 'var(--font-mono)' }}
         />
       </div>
@@ -183,21 +187,58 @@ export function PerfilView({
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
+  const [importStatus, setImportStatus] = useState('');
+
   const handleExportData = async () => {
+    setExporting(true);
     try {
-      setExporting(true);
-      const res = await api.get<Record<string, unknown>>('/account/export');
-      const blob = new Blob([JSON.stringify(res, null, 2)], { type: 'application/json' });
+      const data = await api.get<Record<string, unknown>>('/account/export');
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `fittrack-export-${today()}.json`;
+      a.download = `fittrack-datos-${today()}.json`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'No se pudieron exportar los datos');
+    } catch {
+      alert('Error al exportar los datos.');
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleImportFoodsJson = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportStatus('Procesando e importando alimentos...');
+    try {
+      const text = await file.text();
+      const raw = JSON.parse(text);
+      const items = Array.isArray(raw) ? raw : (raw.foods || raw.data || []);
+      let count = 0;
+      for (const item of items) {
+        if (item.name && (item.calories !== undefined || item.calories_100g !== undefined)) {
+          try {
+            await api.post('/foods', {
+              name: String(item.name).trim(),
+              brand: item.brand ? String(item.brand).trim() : null,
+              serving_size_amount: Number(item.serving_size_amount || item.servingSizeAmount || 100),
+              serving_size_unit: String(item.serving_size_unit || item.servingSizeUnit || 'g'),
+              calories: Number(item.calories || item.calories_100g || 0),
+              protein: Number(item.protein || item.protein_100g || 0),
+              carbohydrates: Number(item.carbohydrates || item.carbs || item.carbohydrates_100g || 0),
+              fat: Number(item.fat || item.fat_100g || 0),
+              barcode: item.barcode ? String(item.barcode) : undefined,
+            });
+            count++;
+          } catch {
+            // Ignorar duplicados
+          }
+        }
+      }
+      setImportStatus(`¡Importación completa! Se agregaron ${count} alimentos/marcas a tu catálogo.`);
+    } catch {
+      setImportStatus('Error al procesar el archivo JSON. Asegurate de que sea un JSON válido con lista de alimentos.');
     }
   };
 

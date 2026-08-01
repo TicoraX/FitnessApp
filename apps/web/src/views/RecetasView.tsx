@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, notificarCambio, today, type Food, type Recipe } from '../api';
 import InfiniteMenu from '../components/InfiniteMenu';
+import { FlowingMenu } from '../components/FlowingMenu';
 
 interface SelectedIngredient {
   food: Food;
@@ -11,6 +12,7 @@ const RECIPE_IDEAS: Recipe[] = [
   {
     id: 'idea-1',
     name: 'Wok de Pollo Fit con Vegetales',
+    kind: 'recipe' as const,
     total_servings: 2,
     per_serving: { calories: 380, protein_g: 42, carbs_g: 28, fat_g: 10 },
     components: [
@@ -21,6 +23,7 @@ const RECIPE_IDEAS: Recipe[] = [
   {
     id: 'idea-2',
     name: 'Bowl Proteico de Avena y Plátano',
+    kind: 'recipe' as const,
     total_servings: 1,
     per_serving: { calories: 420, protein_g: 30, carbs_g: 58, fat_g: 8 },
     components: [
@@ -31,6 +34,7 @@ const RECIPE_IDEAS: Recipe[] = [
   {
     id: 'idea-3',
     name: 'Omelette Fit de Claras y Espinaca',
+    kind: 'recipe' as const,
     total_servings: 1,
     per_serving: { calories: 240, protein_g: 32, carbs_g: 6, fat_g: 9 },
     components: [
@@ -52,6 +56,7 @@ export function RecetasView() {
   const [detailRecipe, setDetailRecipe] = useState<Recipe | null>(null);
   const [recipeName, setRecipeName] = useState('');
   const [totalServings, setTotalServings] = useState('2');
+  const [kind, setKind] = useState<'recipe' | 'meal'>('recipe');
   const [ingredients, setIngredients] = useState<SelectedIngredient[]>([]);
   const [foodQuery, setFoodQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Food[]>([]);
@@ -85,6 +90,7 @@ export function RecetasView() {
   const handleEditRecipe = (r: Recipe) => {
     setEditingRecipe(r);
     setRecipeName(r.name);
+    setKind(r.kind ?? 'recipe');
     setTotalServings(String(r.total_servings || 1));
     setIngredients(
       r.components?.map((c) => ({
@@ -114,6 +120,7 @@ export function RecetasView() {
   const handleOpenCreateNew = () => {
     setEditingRecipe(null);
     setRecipeName('');
+    setKind('recipe');
     setTotalServings('2');
     setIngredients([]);
     setShowCreateModal(true);
@@ -167,13 +174,40 @@ export function RecetasView() {
     setBusy(true);
     setError('');
     try {
+      const isUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
+      const resolvedComponents = [];
+      for (const i of ingredients) {
+        let foodId = i.food.id;
+        if (!isUuid(foodId)) {
+          const searchRes = await api.get<{ data: Food[] }>(`/foods/search?q=${encodeURIComponent(i.food.name)}`);
+          if (searchRes.data && searchRes.data.length > 0) {
+            foodId = searchRes.data[0].id;
+          } else {
+            const created = await api.post<{ data: Food }>('/foods', {
+              name: i.food.name,
+              serving_size_amount: i.food.serving_size_amount || 100,
+              serving_size_unit: i.food.serving_size_unit || 'g',
+              calories: i.food.calories || 100,
+              protein: i.food.protein || 10,
+              carbohydrates: i.food.carbohydrates || 10,
+              fat: i.food.fat || 2,
+            });
+            foodId = created.data.id;
+          }
+        }
+        resolvedComponents.push({
+          food_item_id: foodId,
+          quantity: i.quantity,
+        });
+      }
+
+      // Una comida guardada se registra entera: el API le fija las porciones en 1.
       const payload = {
         name: recipeName.trim(),
-        total_servings: Number(totalServings) || 1,
-        components: ingredients.map((i) => ({
-          food_item_id: i.food.id,
-          quantity: i.quantity,
-        })),
+        kind,
+        ...(kind === 'recipe' && { total_servings: Number(totalServings) || 1 }),
+        components: resolvedComponents,
       };
 
       if (editingRecipe) {
@@ -265,20 +299,20 @@ export function RecetasView() {
         <p className="muted">Cargando recetas...</p>
       ) : recipes.length === 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-          <div>
-            <span className="eyebrow" style={{ color: 'var(--color-primary)', display: 'block', marginBottom: '0.4rem' }}>
-              Ideas & Inspiración de Recetas
+          <div style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border-subtle)', background: 'var(--bg-surface)', marginBottom: '1rem' }}>
+            <span className="eyebrow" style={{ color: 'var(--color-primary)', display: 'block', padding: '0.6rem 1rem', borderBottom: '1px solid var(--border-subtle)' }}>
+              Ideas & Inspiración (Deslizá para Explorar Recetas)
             </span>
-            <InfiniteMenu
-              items={RECIPE_IDEAS.map((r) => {
-                const ingNames = r.components?.map(c => c.food?.name).filter(Boolean).join(', ');
-                return {
-                  title: r.name,
-                  description: ingNames ? `${Math.round(r.per_serving.calories)} kcal · ${ingNames}` : `${Math.round(r.per_serving.calories)} kcal / porción`,
+            <div style={{ height: '210px', position: 'relative' }}>
+              <FlowingMenu
+                items={RECIPE_IDEAS.map((r) => ({
+                  text: r.name,
+                  badge: `${Math.round(r.per_serving.calories)} KCAL • ${Math.round(r.per_serving.protein_g)}G PRO`,
+                  subtext: `${r.total_servings} porciones`,
                   onClick: () => handleCloneIdea(r),
-                };
-              })}
-            />
+                }))}
+              />
+            </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 'var(--space-md)' }}>
@@ -286,8 +320,16 @@ export function RecetasView() {
               <div key={r.id} className="card card--raised" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                    <h3 style={{ fontSize: '1.1rem', margin: 0, color: 'var(--text-main)', cursor: 'pointer' }} onClick={() => setDetailRecipe(r)}>{r.name}</h3>
-                    <span className="badge">{r.total_servings} porciones</span>
+                    <h3
+                      tabIndex={0}
+                      role="button"
+                      style={{ fontSize: '1.1rem', margin: 0, color: 'var(--text-main)', cursor: 'pointer' }}
+                      onClick={() => setDetailRecipe(r)}
+                      onKeyDown={(e) => e.key === 'Enter' && setDetailRecipe(r)}
+                    >
+                      {r.name}
+                    </h3>
+                    <span className="badge">{r.kind === 'meal' ? 'comida' : `${r.total_servings} porciones`}</span>
                   </div>
                   <div className="num" style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-primary)', fontFamily: 'var(--font-mono)', marginBottom: '0.5rem' }}>
                     {Math.round(r.per_serving.calories)} kcal <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-muted)' }}>/ porción</span>
@@ -345,7 +387,7 @@ export function RecetasView() {
             </span>
             <InfiniteMenu
               items={recipes.map((r) => {
-                const ingNames = r.components?.map(c => c.food?.name).filter(Boolean).join(', ');
+                const ingNames = r.components?.flatMap((c) => (c.food?.name ? [c.food.name] : [])).join(', ');
                 return {
                   title: r.name,
                   description: ingNames ? `${Math.round(r.per_serving.calories)} kcal · ${ingNames}` : `${Math.round(r.per_serving.calories)} kcal / porción`,
@@ -360,8 +402,16 @@ export function RecetasView() {
             <div key={r.id} className="card card--raised" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                  <h3 style={{ fontSize: '1.1rem', margin: 0, color: 'var(--text-main)', cursor: 'pointer' }} onClick={() => setDetailRecipe(r)}>{r.name}</h3>
-                  <span className="badge">{r.total_servings} porciones</span>
+                  <h3
+                    tabIndex={0}
+                    role="button"
+                    style={{ fontSize: '1.1rem', margin: 0, color: 'var(--text-main)', cursor: 'pointer' }}
+                    onClick={() => setDetailRecipe(r)}
+                    onKeyDown={(e) => e.key === 'Enter' && setDetailRecipe(r)}
+                  >
+                    {r.name}
+                  </h3>
+                  <span className="badge">{r.kind === 'meal' ? 'comida' : `${r.total_servings} porciones`}</span>
                 </div>
                 <div className="num" style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-primary)', fontFamily: 'var(--font-mono)', marginBottom: '0.5rem' }}>
                   {Math.round(r.per_serving.calories)} kcal <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-muted)' }}>/ porción</span>
@@ -473,16 +523,44 @@ export function RecetasView() {
               </div>
 
               <div>
-                <label style={{ fontSize: '0.85rem', display: 'block', marginBottom: '0.2rem' }}>Rinde porciones totales</label>
-                <input
-                  type="number"
-                  min="1"
-                  required
-                  value={totalServings}
-                  onChange={(e) => setTotalServings(e.target.value)}
-                  style={{ width: '100%', fontFamily: 'var(--font-mono)' }}
-                />
+                <label style={{ fontSize: '0.85rem', display: 'block', marginBottom: '0.2rem' }}>Tipo</label>
+                <div className="food-tabs" role="tablist" aria-label="Tipo">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={kind === 'recipe'}
+                    className="btn btn--quiet"
+                    onClick={() => setKind('recipe')}
+                  >
+                    Receta
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={kind === 'meal'}
+                    className="btn btn--quiet"
+                    onClick={() => setKind('meal')}
+                  >
+                    Comida guardada
+                  </button>
+                </div>
               </div>
+
+              {/* Una comida guardada se registra entera, así que preguntar en
+                  cuántas porciones rinde no tiene sentido. */}
+              {kind === 'recipe' && (
+                <div>
+                  <label style={{ fontSize: '0.85rem', display: 'block', marginBottom: '0.2rem' }}>Rinde porciones totales</label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={totalServings}
+                    onChange={(e) => setTotalServings(e.target.value)}
+                    style={{ width: '100%', fontFamily: 'var(--font-mono)' }}
+                  />
+                </div>
+              )}
 
               <hr style={{ borderColor: 'var(--border-subtle)', margin: '0.5rem 0' }} />
 
@@ -510,33 +588,83 @@ export function RecetasView() {
               </div>
 
               {ingredients.length > 0 ? (
-                <ul className="entries" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  {ingredients.map((ing) => (
-                    <li key={ing.food.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-elevated)', padding: '0.5rem', borderRadius: 'var(--radius-sm)' }}>
-                      <div>
-                        <strong>{ing.food.name}</strong>
-                        <div className="num muted" style={{ fontSize: '0.75rem' }}>
-                          {Math.round(ing.food.calories * ing.quantity)} kcal
+                <ul className="entries" style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                  {ingredients.map((ing) => {
+                    const totalGrams = Math.round(ing.quantity * (ing.food.serving_size_amount || 100));
+                    const totalKcal = Math.round((ing.food.calories || 0) * ing.quantity);
+                    const totalProt = Math.round((ing.food.protein || 0) * ing.quantity);
+
+                    return (
+                      <li key={ing.food.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', background: 'var(--bg-elevated)', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <strong style={{ fontSize: '0.88rem', color: 'var(--text-main)' }}>{ing.food.name}</strong>
+                            <span className="muted" style={{ fontSize: '0.72rem', display: 'block' }}>
+                              Porción base: {ing.food.serving_size_amount}{ing.food.serving_size_unit} ({ing.food.calories} kcal)
+                            </span>
+                          </div>
+                          <button type="button" className="entry__delete" onClick={() => handleRemoveIngredient(ing.food.id)} style={{ color: 'var(--color-danger)' }}>
+                            Quitar
+                          </button>
                         </div>
-                      </div>
-                      {/* step="any": con step="0.25" y min="0.1" los únicos
-                          valores válidos eran 0.1, 0.35, 0.6, 0.85... y la
-                          cantidad por defecto es 1, que no está entre ellos. El
-                          navegador rechazaba el envío y no se podía crear
-                          ninguna receta. */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <input
-                          type="number"
-                          step="any"
-                          min="0.01"
-                          style={{ width: '60px', padding: '0.2rem', fontFamily: 'var(--font-mono)' }}
-                          value={ing.quantity}
-                          onChange={(e) => handleUpdateQuantity(ing.food.id, Number(e.target.value))}
-                        />
-                        <button type="button" className="entry__delete" onClick={() => handleRemoveIngredient(ing.food.id)}>Quitar</button>
-                      </div>
-                    </li>
-                  ))}
+
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', background: 'var(--bg-surface)', padding: '0.4rem 0.6rem', borderRadius: 'var(--radius-xs)' }}>
+                          {/* Selector por porciones */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <label htmlFor={`porc-${ing.food.id}`} style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Porciones:</label>
+                            <input
+                              id={`porc-${ing.food.id}`}
+                              type="number"
+                              step="any"
+                              min="0.01"
+                              style={{ width: '70px', padding: '0.2rem 0.4rem', fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}
+                              value={Math.round(ing.quantity * 100) / 100}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const num = val ? Number(val) : 0;
+                                if (!isNaN(num) && num > 0) handleUpdateQuantity(ing.food.id, num);
+                              }}
+                            />
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>× {ing.food.serving_size_amount}{ing.food.serving_size_unit}</span>
+                          </div>
+
+                          {/* Entrada directa por gramos o mililitros */}
+                          {(ing.food.serving_size_unit === 'g' || ing.food.serving_size_unit === 'ml') && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                              <label htmlFor={`gram-${ing.food.id}`} style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>o Total:</label>
+                              <input
+                                id={`gram-${ing.food.id}`}
+                                type="number"
+                                step="any"
+                                min="1"
+                                style={{ width: '75px', padding: '0.2rem 0.4rem', fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}
+                                value={totalGrams}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  const g = val ? Number(val) : 0;
+                                  const base = ing.food.serving_size_amount || 100;
+                                  if (!isNaN(g) && g > 0 && base > 0) {
+                                    handleUpdateQuantity(ing.food.id, g / base);
+                                  }
+                                }}
+                              />
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{ing.food.serving_size_unit}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Métrica calculada en tiempo real */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--color-primary)' }} className="num">
+                          <span>
+                            Cantidad total: <strong>{totalGrams} {ing.food.serving_size_unit}</strong>
+                          </span>
+                          <span>
+                            Aporte: <strong>{totalKcal} kcal</strong> (P: {totalProt}g)
+                          </span>
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               ) : (
                 <p className="muted" style={{ fontSize: '0.8rem' }}>Buscá e ingresá los alimentos que componen la receta.</p>

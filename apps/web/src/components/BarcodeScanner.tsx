@@ -7,17 +7,17 @@ interface BarcodeScannerProps {
 
 /**
  * Escáner de código de barras a pantalla completa / modal HUD.
- * Usa BarcodeDetector nativo de la plataforma (Chrome/Android).
- * Detiene los tracks de la cámara al desmontar para no dejar el sensor prendido.
+ * Soporta BarcodeDetector nativo y fallback con cámara + ZXing polyfill para navegadores de escritorio e iOS.
+ * Elevado con zIndex: 100000 para quedar siempre por encima del menú inferior flotante (Dock).
  */
 export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState('');
   const [manualCode, setManualCode] = useState('');
-  /** Sin lector no se muestra el recuadro de video: no habría nada que mirar. */
   const [sinCamara, setSinCamara] = useState(false);
+  const [cameraActive, setCameraActive] = useState(false);
 
-  // Escape cierra, como cualquier capa que tape la pantalla.
+  // Cierra con la tecla Escape
   useEffect(() => {
     const cerrar = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', cerrar);
@@ -31,22 +31,9 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
 
     async function startCamera() {
       try {
-        /**
-         * Se chequea el detector ANTES de pedir la cámara. Safari de iOS no
-         * tiene BarcodeDetector, y encender la cámara igual dejaba al usuario
-         * apuntando a un código que nunca se iba a leer, sin un solo mensaje
-         * que se lo dijera. Pedir un permiso que no se puede aprovechar es
-         * peor que no pedirlo: acá se va directo al ingreso manual.
-         */
-        if (!('BarcodeDetector' in window)) {
-          setSinCamara(true);
-          setError('Este navegador no puede leer códigos con la cámara. Escribí el código y listo.');
-          return;
-        }
-
         if (!navigator.mediaDevices?.getUserMedia) {
           setSinCamara(true);
-          setError('Tu navegador no permite acceso a la cámara. Ingresá el código manualmente.');
+          setError('Este navegador no puede leer códigos con la cámara. Escribí el código y listo.');
           return;
         }
 
@@ -57,25 +44,66 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
         if (videoRef.current && active) {
           videoRef.current.srcObject = stream;
           await videoRef.current.play();
+          if (active) setCameraActive(true);
         }
 
-        const Detector = (window as any).BarcodeDetector;
-        const detector = new Detector({
-          formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39'],
-        });
+        // 1. Intentar BarcodeDetector nativo si está disponible
+        let detector: any = null;
+        if ('BarcodeDetector' in window) {
+          const Detector = (window as any).BarcodeDetector;
+          detector = new Detector({
+            formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'qr_code'],
+          });
+        } else {
+          // 2. Si no hay BarcodeDetector nativo, intentar cargar ZXing
+          if (!(window as any).ZXing) {
+            try {
+              await new Promise<void>((resolve) => {
+                const script = document.createElement('script');
+                script.src = 'https://unpkg.com/@zxing/library@latest/umd/index.min.js';
+                script.onload = () => resolve();
+                script.onerror = () => resolve();
+                document.head.appendChild(script);
+              });
+            } catch {
+              // Fallback silencioso
+            }
+          }
+
+          if ((window as any).ZXing) {
+            const reader = new (window as any).ZXing.BrowserMultiFormatReader();
+            detector = {
+              detect: async (videoEl: HTMLVideoElement) => {
+                try {
+                  const res = await reader.decodeFromVideoElement(videoEl);
+                  if (res && res.getText()) {
+                    return [{ rawValue: res.getText() }];
+                  }
+                } catch {
+                  // No barcode in frame
+                }
+                return [];
+              },
+            };
+          }
+        }
+
+        if (!detector) {
+          setError('Camára encendida. Si el escáner no detecta automáticamente en este navegador, escribí el código abajo.');
+        }
 
         const scanLoop = async () => {
           if (!active || !videoRef.current) return;
           try {
-            if (videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
+            if (detector && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
               const barcodes = await detector.detect(videoRef.current);
-              if (barcodes.length > 0 && barcodes[0].rawValue) {
+              if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
                 onDetected(barcodes[0].rawValue);
-                return; // detiene el loop tras detectar
+                return;
               }
             }
           } catch {
-            // Ignorar errores de frame para continuar el loop de detección
+            // Ignorar errores de frame
           }
           if (active) {
             animationFrameId = requestAnimationFrame(scanLoop);
@@ -85,11 +113,12 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
         animationFrameId = requestAnimationFrame(scanLoop);
       } catch (err) {
         if (!active) return;
+        setSinCamara(true);
         const msg = err instanceof Error ? err.message : String(err);
         if (/denied|not allowed|Permission/i.test(msg)) {
           setError('Permiso de cámara denegado. Habilitá la cámara en los ajustes del navegador o ingresá el código manualmente.');
         } else {
-          setError('No se pudo acceder a la cámara posterior. Podés ingresar el código manualmente.');
+          setError('No se pudo abrir la cámara. Podés ingresar el código numérico manualmente.');
         }
       }
     }
@@ -126,84 +155,126 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 999,
-        background: 'rgba(0, 0, 0, 0.92)',
+        zIndex: 100000,
+        background: 'rgba(0, 0, 0, 0.95)',
+        backdropFilter: 'blur(10px)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '1.5rem 1rem',
+        justifyContent: 'center',
+        padding: '1rem',
       }}
     >
-      <div style={{ width: '100%', maxWidth: '440px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span className="eyebrow" style={{ color: 'var(--color-primary)', fontSize: '0.85rem' }}>
-          Escáner Cyber HUD
-        </span>
-        <button
-          type="button"
-          className="btn btn--quiet"
-          onClick={onClose}
-          style={{ padding: '0.4rem 0.8rem', borderRadius: 'var(--radius-md)' }}
-        >
-          Cerrar
-        </button>
-      </div>
-
       <div
-        hidden={sinCamara}
+        className="card"
         style={{
-          position: 'relative',
           width: '100%',
-          maxWidth: '360px',
-          aspectRatio: '1',
+          maxWidth: '460px',
+          maxHeight: '92vh',
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '1rem',
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border-subtle)',
+          boxShadow: 'var(--shadow-lg)',
           borderRadius: 'var(--radius-lg)',
-          overflow: 'hidden',
-          border: '2px solid var(--color-primary)',
-          boxShadow: '0 0 20px oklch(0.82 0.22 145 / 0.3)',
-          background: '#000',
+          padding: '1.25rem',
         }}
       >
-        <video
-          ref={videoRef}
-          playsInline
-          muted
-          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-        />
-        {/* Esquinas y laser animado de encuadre HUD */}
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            pointerEvents: 'none',
-            border: '2px dashed var(--color-primary)',
-            opacity: 0.6,
-            borderRadius: 'var(--radius-md)',
-            margin: '12px',
-          }}
-        />
-      </div>
+        <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <span className="eyebrow" style={{ color: 'var(--color-primary)', fontSize: '0.8rem' }}>
+              Escáner de Código de Barras
+            </span>
+            <h3 className="card__title" style={{ margin: 0, fontSize: '1.1rem' }}>Escanear Producto</h3>
+          </div>
+          <button
+            type="button"
+            className="btn btn--quiet"
+            onClick={onClose}
+            aria-label="Cerrar"
+            style={{ padding: '0.3rem 0.6rem', fontSize: '0.85rem' }}
+          >
+            ✕ Cerrar
+          </button>
+        </div>
 
-      <div style={{ width: '100%', maxWidth: '440px', textAlign: 'center' }}>
-        {error && (
-          <p className="alert" role="alert" style={{ marginBottom: '0.75rem', fontSize: '0.85rem' }}>
-            {error}
-          </p>
+        {!sinCamara && (
+          <div
+            style={{
+              position: 'relative',
+              width: '100%',
+              maxWidth: '320px',
+              aspectRatio: '1',
+              borderRadius: 'var(--radius-md)',
+              overflow: 'hidden',
+              border: '2px solid var(--color-primary)',
+              boxShadow: '0 0 15px oklch(0.82 0.22 145 / 0.3)',
+              background: '#000',
+            }}
+          >
+            <video
+              ref={videoRef}
+              playsInline
+              muted
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+            {/* Mirilla animada HUD */}
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                pointerEvents: 'none',
+                border: '2px dashed var(--color-primary)',
+                opacity: 0.7,
+                borderRadius: 'var(--radius-sm)',
+                margin: '16px',
+              }}
+            />
+            {cameraActive && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '8px',
+                  left: '8px',
+                  background: 'rgba(0,0,0,0.7)',
+                  color: 'var(--color-primary)',
+                  fontSize: '0.68rem',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  fontWeight: 600,
+                }}
+              >
+                ● CÁMARA ACTIVA
+              </div>
+            )}
+          </div>
         )}
 
-        <form onSubmit={handleManualSubmit} style={{ display: 'flex', gap: '0.5rem' }}>
-          <input
-            type="text"
-            inputMode="numeric"
-            placeholder="Código de 8 a 14 dígitos"
-            aria-label="Código de barras manual"
-            value={manualCode}
-            onChange={(e) => setManualCode(e.target.value)}
-            style={{ flex: 1, fontFamily: 'var(--font-mono)' }}
-          />
-          <button type="submit" className="btn">
-            Buscar
-          </button>
-        </form>
+        <div style={{ width: '100%', textAlign: 'center' }}>
+          {error && (
+            <p className="alert" role="alert" style={{ marginBottom: '0.75rem', fontSize: '0.8rem', padding: '0.5rem 0.75rem' }}>
+              {error}
+            </p>
+          )}
+
+          <form onSubmit={handleManualSubmit} style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="Código EAN/UPC (8 a 14 dígitos)"
+              aria-label="Código de barras manual"
+              value={manualCode}
+              onChange={(e) => setManualCode(e.target.value)}
+              style={{ flex: 1, fontFamily: 'var(--font-mono)', fontSize: '0.9rem' }}
+            />
+            <button type="submit" className="btn">
+              Buscar
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

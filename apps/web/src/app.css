@@ -121,6 +121,13 @@ a {
   gap: var(--space-md);
 }
 
+/* Un item de grid arranca en min-width:auto, o sea min-content: si adentro hay
+   algo que no encoge, el item se pasa del ancho de la pantalla en vez de
+   recortarlo. En el teléfono eso cortaba las tarjetas del diario por la derecha. */
+.stack > * {
+  min-width: 0;
+}
+
 /* ---------- Auth: dos paneles ---------- */
 
 .auth {
@@ -525,6 +532,22 @@ a {
   gap: var(--space-sm);
 }
 
+.exercise__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding-bottom: var(--space-xs);
+  border-bottom: var(--rule);
+  margin-bottom: var(--space-sm);
+}
+
+.exercise__row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: var(--space-sm);
+}
+
 .newfood__more {
   margin-top: var(--space-sm);
 }
@@ -651,6 +674,44 @@ a {
 .water__buttons {
   display: flex;
   gap: var(--space-2xs);
+}
+
+.water__goal {
+  font-size: var(--text-sm);
+}
+
+.food-tabs {
+  display: flex;
+  gap: var(--space-2xs);
+  margin: var(--space-xs) 0 0.4rem;
+}
+
+.food-tabs [aria-selected='true'] {
+  background: var(--color-paper-3);
+  color: var(--color-ink);
+}
+
+.food-fav[aria-pressed='true'] {
+  color: var(--color-primary);
+}
+
+/* Mismas medidas que .macro__track: el agua es un progreso más del día. */
+.water__bar {
+  display: block;
+  height: 5px;
+  margin-top: var(--space-2xs);
+  background: var(--color-paper-3);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.water__bar-fill {
+  display: block;
+  height: 100%;
+  width: calc(var(--pct) * 1%);
+  border-radius: 999px;
+  background: var(--color-water);
+  transition: width var(--dur-base) var(--ease-out);
 }
 
 .btn--icon {
