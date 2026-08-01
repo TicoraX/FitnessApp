@@ -113,9 +113,12 @@ blur; el desplazamiento y el fade quedaron.
 ahí con cambios de la Fase 0 y de la Fase 1 juntos. El mensaje solo describe la
 Fase 0. No vale la cirugía para arreglarlo.
 
-**No hay tests de controller ni de servicio en el API.** Los 68 tests son de
-funciones puras. La cobertura de integración son los scripts `smoke.mjs` y
-`probe.mjs` contra un servidor vivo.
+**No hay tests de controller ni de servicio en el API.** Los 68 tests de Jest
+son de funciones puras. La cobertura de integración son los scripts `smoke.mjs`
+y `probe.mjs` contra un servidor vivo, que sí recorren cada endpoint: validación
+de DTOs, propiedad de las filas y los números que devuelve cada uno. Falta el
+punto medio, montar el módulo de Nest con una base de prueba, y no duele
+todavía.
 
 ## Descartado a propósito
 

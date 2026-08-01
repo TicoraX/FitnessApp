@@ -554,5 +554,154 @@ token = '';
   });
 }
 token = principalRep;
+console.log('\nEntrenamiento');
+
+{
+  const movimientos = (await call('GET', '/exercise/movements?q=mancuerna&limit=5')).body.data;
+
+  await check('la búsqueda de movimientos entiende español sobre nombres en inglés', async () => {
+    // Los nombres vienen en inglés del dataset: llegar a ellos escribiendo
+    // "mancuerna" es lo que hace usable el catálogo en esta app.
+    assert.ok(movimientos.length > 0, 'sin resultados para "mancuerna"');
+    assert.ok(movimientos.every((m) => m.equipment === 'mancuerna'));
+    assert.ok(movimientos[0].howTo.length > 0, 'el movimiento no trae instrucciones');
+  });
+
+  await check('las facetas y los filtros acotan de verdad', async () => {
+    const { body } = await call('GET', '/exercise/facets');
+    assert.ok(body.data.body.includes('pecho'));
+    assert.ok(body.data.equipment.includes('barra'));
+
+    const filtrado = (await call('GET', '/exercise/movements?body=pecho&equipment=barra&limit=50')).body.data;
+    assert.ok(filtrado.length > 0);
+    assert.ok(filtrado.every((m) => m.body === 'pecho' && m.equipment === 'barra'));
+  });
+
+  const movimiento = movimientos[0].name;
+
+  await check('una serie se registra y no toca el margen del día', async () => {
+    const antes = (await call('GET', `/logs/${day}`)).body.data.remaining.calories;
+    const { status, body } = await call('POST', '/logs/strength', {
+      log_date: day, name: movimiento, sets: 4, reps: 8, weight_kg: 22.5,
+    });
+    assert.equal(status, 201, JSON.stringify(body));
+    assert.equal(body.data.strength.length, 1);
+    assert.equal(body.data.strength[0].done, true, 'lo cargado a mano nace hecho');
+    // Sin MET no hay calorías: la fuerza es historial de cargas, no gasto.
+    assert.equal(body.data.remaining.calories, antes);
+  });
+
+  await check('los límites de una serie se validan', async () => {
+    assert.equal((await call('POST', '/logs/strength', {
+      log_date: day, name: movimiento, sets: 999, reps: 8,
+    })).status, 400);
+    assert.equal((await call('POST', '/logs/strength', {
+      log_date: day, name: 'x', sets: 3, reps: 8,
+    })).status, 400);
+  });
+
+  await check('la historia del movimiento devuelve lo último y el récord', async () => {
+    const { body } = await call('GET', `/logs/strength/history?name=${encodeURIComponent(movimiento)}`);
+    assert.equal(body.data.last.sets, 4);
+    assert.equal(body.data.last.weight_kg, 22.5);
+    assert.equal(body.data.last.log_date, day);
+    assert.equal(body.data.best.weight_kg, 22.5);
+  });
+
+  await check('un movimiento sin historia no es un error', async () => {
+    const { status, body } = await call('GET', '/logs/strength/history?name=nunca%20hice%20esto');
+    assert.equal(status, 200);
+    assert.equal(body.data.last, null);
+    assert.equal(body.data.best, null);
+  });
+
+  let rutina;
+  await check('una rutina se crea con sus objetivos', async () => {
+    const { status, body } = await call('POST', '/routines', {
+      name: `Empuje ${Date.now()}`,
+      notes: 'Lunes y jueves',
+      items: [
+        { name: movimiento, sets: 4, reps: 6, weight_kg: 30 },
+        { name: 'pull-up', sets: 3, reps: 8 },
+      ],
+    });
+    assert.equal(status, 201, JSON.stringify(body));
+    rutina = body.data;
+    assert.equal(rutina.items.length, 2);
+    // Sin peso agregado es null, no cero: una dominada no se hace con 0 kg.
+    assert.equal(rutina.items[1].weight_kg, null);
+  });
+
+  await check('dos rutinas con el mismo nombre no se distinguen en una lista', async () => {
+    const { status } = await call('POST', '/routines', {
+      name: rutina.name, items: [{ name: 'pull-up', sets: 1, reps: 1 }],
+    });
+    assert.equal(status, 409);
+  });
+
+  await check('cargar la rutina deja las series pendientes, no hechas', async () => {
+    const { status, body } = await call('POST', '/logs/routine', {
+      log_date: day, routine_id: rutina.id,
+    });
+    assert.equal(status, 201, JSON.stringify(body));
+    const pendientes = body.data.strength.filter((s) => !s.done);
+    assert.equal(pendientes.length, 2);
+    assert.deepEqual(
+      pendientes.map((s) => [s.sets, s.reps]),
+      [[4, 6], [3, 8]],
+      'los objetivos no llegaron tal cual',
+    );
+  });
+
+  await check('planear no cuenta como entrenar', async () => {
+    const { body } = await call('GET', `/reports/exercise?from=${day}&to=${day}`);
+    // Solo la serie cargada a mano: 4 x 8 x 22.5. Las dos pendientes no suman.
+    assert.equal(body.data.totals.volume_kg, 720);
+    assert.equal(body.data.totals.sets, 4);
+  });
+
+  await check('confirmar una serie la corrige y recién ahí suma volumen', async () => {
+    const pendiente = (await call('GET', `/logs/${day}`)).body.data.strength.find((s) => !s.done);
+    const { status, body } = await call('PATCH', `/logs/strength/${pendiente.id}`, {
+      sets: 4, reps: 5, weight_kg: 32.5, done: true,
+    });
+    assert.equal(status, 200, JSON.stringify(body));
+
+    const { body: rep } = await call('GET', `/reports/exercise?from=${day}&to=${day}`);
+    // 720 de la primera más 4 x 5 x 32.5 de la confirmada, con lo que salió de
+    // verdad y no con el objetivo que decía la rutina.
+    assert.equal(rep.data.totals.volume_kg, 720 + 650);
+    assert.equal(rep.data.totals.sets, 8);
+    assert.ok(rep.data.by_body.some((b) => b.sets > 0), 'no se resolvió la zona del cuerpo');
+  });
+
+  await check('el récord sigue al peso, no al orden', async () => {
+    const { body } = await call('GET', `/logs/strength/history?name=${encodeURIComponent(movimiento)}`);
+    assert.equal(body.data.best.weight_kg, 32.5);
+  });
+
+  await check('borrar la rutina no toca lo que ya se entrenó', async () => {
+    assert.equal((await call('DELETE', `/routines/${rutina.id}`)).status, 204);
+    const { body } = await call('GET', `/logs/${day}`);
+    assert.equal(body.data.strength.length, 3);
+  });
+
+  await check('las series y las rutinas de otro no se tocan', async () => {
+    const mia = (await call('GET', `/logs/${day}`)).body.data.strength[0].id;
+    const propio = token;
+
+    const otro = await call('POST', '/auth/guest', {
+      first_name: 'Ajeno', dob: '1992-08-14', gender: 'male', height_cm: 178.5,
+      current_weight_kg: 82, target_weight_kg: 75, activity_level: 1.55, weekly_goal_kg: -0.5,
+    });
+    token = otro.body.data.token;
+    assert.equal((await call('DELETE', `/logs/strength/${mia}`)).status, 404);
+    assert.equal((await call('PATCH', `/logs/strength/${mia}`, { done: false })).status, 404);
+
+    token = propio;
+    assert.equal((await call('GET', `/logs/${day}`)).body.data.strength.length, 3);
+  });
+}
+
 
 console.log('\nTodo verde.\n');
