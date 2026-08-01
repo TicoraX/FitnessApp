@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -8,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -15,7 +17,13 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateMealEntryDto } from './dto/create-meal-entry.dto';
 import { UpdateServingsDto, UpdateWaterDto } from './dto/update-entry.dto';
 import { CopyDto, LogRecipeDto, QuickAddDto, UpdateRecipeServingsDto } from './dto/shortcuts.dto';
-import { LogExerciseDto, LogStrengthDto, UpdateExerciseDto } from './dto/exercise.dto';
+import {
+  LogExerciseDto,
+  LogStrengthDto,
+  UpdateExerciseDto,
+  UpdateStrengthDto,
+} from './dto/exercise.dto';
+import { LoadRoutineDto } from '../routines/dto/routine.dto';
 import { parseLogDate } from '../common/log-date';
 import { LogsService } from './logs.service';
 
@@ -99,10 +107,34 @@ export class LogsController {
     return this.logs.addStrength(req.user.userId, dto);
   }
 
+  /** Lo último y lo mejor de un movimiento, para verlo al elegirlo. */
+  @Get('strength/history')
+  strengthHistory(@Req() req: AuthedRequest, @Query('name') name: string) {
+    if (!name || name.length < 2 || name.length > 120) {
+      throw new BadRequestException('Falta el nombre del movimiento');
+    }
+    return this.logs.strengthHistory(req.user.userId, name);
+  }
+
+  @Patch('strength/:id')
+  updateStrength(
+    @Req() req: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateStrengthDto,
+  ) {
+    return this.logs.updateStrength(req.user.userId, id, dto);
+  }
+
   @Delete('strength/:id')
   @HttpCode(204)
   deleteStrength(@Req() req: AuthedRequest, @Param('id', ParseUUIDPipe) id: string) {
     return this.logs.deleteStrength(req.user.userId, id);
+  }
+
+  /** Carga una rutina en el día: sus ítems entran como series pendientes. */
+  @Post('routine')
+  loadRoutine(@Req() req: AuthedRequest, @Body() dto: LoadRoutineDto) {
+    return this.logs.loadRoutine(req.user.userId, dto);
   }
 
   @Patch(':date/water')

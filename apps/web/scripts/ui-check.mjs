@@ -330,7 +330,11 @@ try {
     );
   });
 
-  await step('navegar entre las cuatro vistas por hash router', async () => {
+  await step('navegar entre las cinco vistas por hash router', async () => {
+    await page.goto(`${BASE}/#/ejercicio`);
+    await page.waitForSelector('.view-ejercicio', { timeout: 10_000 });
+    assert.match(page.url(), /#\/ejercicio/);
+
     await page.goto(`${BASE}/#/recetas`);
     await page.waitForSelector('.view-recetas', { timeout: 10_000 });
     assert.match(page.url(), /#\/recetas/);
@@ -415,83 +419,130 @@ try {
   });
 
   /**
-   * La otra mitad de la ecuación: lo que se quema devuelve margen. Se compara
-   * el objetivo antes y después porque es el número que el usuario mira, no el
-   * total de la tarjeta de ejercicio.
+   * La otra mitad de la ecuación: lo que se quema devuelve margen. El registro
+   * vive en su propia vista, así que este paso también verifica el puente: se
+   * carga en #/ejercicio y el número tiene que aparecer en el anillo del diario.
    */
-  await step('el ejercicio suma calorías al margen del día', async () => {
-    await page.goto(`${BASE}/#/diario`);
-    await page.waitForSelector('.view-diario', { timeout: 10_000 });
-
-    const objetivoDe = () =>
-      page.evaluate(() => {
+  await step('el cardio se registra en su vista y suma al margen del diario', async () => {
+    const objetivoDe = async () => {
+      await page.goto(`${BASE}/#/diario`);
+      await page.waitForSelector('.view-diario', { timeout: 10_000 });
+      return page.evaluate(() => {
         const t = document.querySelector('.dial__unit')?.textContent ?? '';
         return Number(t.match(/de (\d+)/)?.[1] ?? 0);
       });
+    };
     const antes = await objetivoDe();
 
+    await page.goto(`${BASE}/#/ejercicio`);
+    await page.waitForSelector('.view-ejercicio', { timeout: 10_000 });
+
     await page.fill('#ex-actividad', 'correr');
-    await page.waitForSelector('.exercise .result', { timeout: 10_000 });
-    await page.locator('.exercise .result').first().click();
+    await page.waitForSelector('.cardio .result', { timeout: 10_000 });
+    await page.locator('.cardio .result').first().click();
     await page.fill('#ex-minutos', '30');
     await page.getByRole('button', { name: 'Registrar ejercicio' }).click();
-
-    await page.waitForSelector('.exercise .entry', { timeout: 10_000 });
-    const quemadas = await page.evaluate(
-      () => Number(document.body.textContent.match(/incluye (\d+) kcal de ejercicio/)?.[1] ?? 0),
-    );
-    assert.ok(quemadas > 0, 'no se estimaron calorías con el MET');
-    assert.equal(await objetivoDe(), antes + quemadas, 'el objetivo no absorbió el ejercicio');
+    await page.waitForSelector('.cardio .entry', { timeout: 10_000 });
     await shot('14-ejercicio');
 
+    const despues = await objetivoDe();
+    assert.ok(despues > antes, 'el objetivo del diario no absorbió el ejercicio');
+    assert.match(
+      await page.locator('.resumen-entreno').innerText(),
+      /kcal quemadas/,
+      'el diario no resume lo entrenado',
+    );
+
     // Y al quitarlo el margen vuelve donde estaba.
-    await page.locator('.exercise .entry button', { hasText: 'Quitar' }).first().click();
-    await page.waitForFunction((n) => {
-      const t = document.querySelector('.dial__unit')?.textContent ?? '';
-      return Number(t.match(/de (\d+)/)?.[1] ?? 0) === n;
-    }, antes, { timeout: 10_000 });
+    await page.goto(`${BASE}/#/ejercicio`);
+    await page.waitForSelector('.cardio .entry', { timeout: 10_000 });
+    await page.locator('.cardio .entry button', { hasText: 'Quitar' }).first().click();
+    await page.waitForSelector('.cardio .entry', { state: 'detached', timeout: 10_000 });
+    assert.equal(await objetivoDe(), antes, 'quitar el ejercicio no devolvió el margen');
   });
 
   /**
    * La fuerza no toca el margen: el catálogo de movimientos no trae MET y
    * estimar calorías sería inventarlas. Se verifica lo contrario que en el
-   * ejercicio: la serie queda registrada y el objetivo del día no se mueve.
+   * cardio: la serie queda registrada y el objetivo del día no se mueve.
    */
   await step('una serie de fuerza queda registrada y no mueve el margen', async () => {
-    await page.goto(`${BASE}/#/diario`);
-    await page.waitForSelector('.view-diario', { timeout: 10_000 });
-
-    const objetivoDe = () =>
-      page.evaluate(() => {
+    const objetivoDe = async () => {
+      await page.goto(`${BASE}/#/diario`);
+      await page.waitForSelector('.view-diario', { timeout: 10_000 });
+      return page.evaluate(() => {
         const t = document.querySelector('.dial__unit')?.textContent ?? '';
         return Number(t.match(/de (\d+)/)?.[1] ?? 0);
       });
+    };
     const antes = await objetivoDe();
 
-    // Buscar en español llega a un catálogo con los nombres en inglés.
-    await page.fill('#fz-movimiento', 'mancuerna');
-    await page.waitForSelector('#fz-movimiento ~ .results .result, .exercise .results .result', {
-      timeout: 10_000,
-    });
-    await page.locator('.exercise').last().locator('.result').first().click();
+    await page.goto(`${BASE}/#/ejercicio`);
+    await page.waitForSelector('.view-ejercicio', { timeout: 10_000 });
+
+    // Las chips exploran el catálogo sin escribir: los nombres vienen en inglés.
+    await page.locator('.fuerza .chip', { hasText: 'pecho' }).first().click();
+    await page.waitForSelector('.fuerza .result', { timeout: 10_000 });
+    await page.locator('.fuerza .result').first().click();
     await page.fill('#fz-series', '4');
     await page.fill('#fz-reps', '8');
     await page.fill('#fz-kilos', '22.5');
     await page.getByRole('button', { name: 'Registrar serie' }).click();
 
-    const fila = page.locator('.exercise').last().locator('.entry');
-    await fila.first().waitFor({ timeout: 10_000 });
-    assert.match(await fila.first().innerText(), /4 × 8/);
-    assert.equal(await objetivoDe(), antes, 'la fuerza no puede mover el objetivo');
+    const fila = page.locator('.fuerza .entry').first();
+    await fila.waitFor({ timeout: 10_000 });
+    assert.match(await fila.innerText(), /4 × 8/);
+    assert.match(
+      await page.locator('.resumen-ej').innerText(),
+      /720 kg/,
+      'el resumen semanal no contó el volumen (4 x 8 x 22.5)',
+    );
     await shot('14b-fuerza');
 
-    await fila.first().locator('button', { hasText: 'Quitar' }).click();
-    await page.waitForFunction(
-      () => document.querySelectorAll('.exercise').length > 1 &&
-        document.querySelectorAll('.exercise')[1].querySelectorAll('.entry').length === 0,
-      null,
-      { timeout: 10_000 },
+    assert.equal(await objetivoDe(), antes, 'la fuerza no puede mover el objetivo');
+
+    await page.goto(`${BASE}/#/ejercicio`);
+    await page.locator('.fuerza .entry button', { hasText: 'Quitar' }).first().click();
+    await page.waitForSelector('.fuerza .entry', { state: 'detached', timeout: 10_000 });
+  });
+
+  /**
+   * El organizador de rutinas: la plantilla se carga en el día como objetivos
+   * pendientes y se confirma con lo que salió de verdad. Hasta que no se
+   * confirma no cuenta para el volumen, que es lo que separa planear de entrenar.
+   */
+  await step('una rutina se crea, se carga en el día y se confirma serie por serie', async () => {
+    await page.goto(`${BASE}/#/ejercicio`);
+    await page.waitForSelector('.view-ejercicio', { timeout: 10_000 });
+
+    await page.getByRole('button', { name: 'Crear rutina' }).click();
+    await page.waitForSelector('.modal-overlay', { timeout: 5_000 });
+    await page.fill('#rt-nombre', 'Empuje A');
+    await page.fill('#rt-buscar', 'bench press');
+    await page.waitForSelector('.modal-overlay .result', { timeout: 10_000 });
+    await page.locator('.modal-overlay .result').first().click();
+    await page.getByRole('button', { name: 'Guardar rutina' }).click();
+    await page.waitForSelector('.modal-overlay', { state: 'detached', timeout: 10_000 });
+
+    const rutina = page.locator('.routines .entry').first();
+    await rutina.waitFor({ timeout: 10_000 });
+    assert.match(await rutina.innerText(), /Empuje A/);
+    await shot('14c-rutinas');
+
+    await rutina.getByRole('button', { name: 'Cargar en el día' }).click();
+    const pendiente = page.locator('.serie-pendiente').first();
+    await pendiente.waitFor({ timeout: 10_000 });
+
+    // Lo planeado no entrena a nadie: el volumen sigue en cero hasta confirmar.
+    assert.doesNotMatch(
+      await page.locator('.resumen-ej__cifras').innerText(),
+      /\d{3,} kg/,
+      'una serie pendiente no puede contar como volumen',
     );
+
+    await pendiente.getByRole('button', { name: 'Hecho' }).click();
+    await page.waitForSelector('.serie-pendiente', { state: 'detached', timeout: 10_000 });
+    assert.match(await page.locator('.fuerza .entry').first().innerText(), /3 × 10/);
   });
 
   await step('la vista de recetas permite consultar y abrir la modal de creación', async () => {

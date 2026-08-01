@@ -1,8 +1,6 @@
 import type { RefObject } from 'react';
 import type { DaySummary } from '../api';
 import { Weight } from '../Weight';
-import { Exercise } from '../Exercise';
-import { Strength } from '../Strength';
 import { AddFood, CyberDayStrip, Dial, Macros, Meals, Water } from '../DiaryComponents';
 
 export function DiarioView({
@@ -44,11 +42,42 @@ export function DiarioView({
           <div className="card" style={{ marginTop: 'var(--space-md)' }}>
             <AddFood date={date} onAdded={() => loadDate(date)} searchInputRef={searchInputRef} />
           </div>
-          {day && <Exercise date={date} day={day} onChanged={() => loadDate(date)} />}
-          {day && <Strength date={date} day={day} onChanged={() => loadDate(date)} />}
+          {day && <ResumenEjercicio day={day} date={date} />}
           <Weight onGoalChanged={() => loadDate(date)} />
         </section>
       </div>
+    </div>
+  );
+}
+
+/**
+ * El entrenamiento vive en su propia vista. Acá queda el saldo del día y el
+ * camino hasta allá: el diario es sobre lo que se come.
+ */
+function ResumenEjercicio({ day, date }: { day: DaySummary; date: string }) {
+  const seriesHechas = day.strength.filter((s) => s.done).length;
+  const pendientes = day.strength.filter((s) => !s.done).length;
+  const nada = day.exercise.total_burned === 0 && day.strength.length === 0;
+
+  return (
+    <div className="card exercise resumen-entreno">
+      <div className="exercise__head">
+        <p className="eyebrow">Entrenamiento</p>
+        <a className="btn btn--quiet" href={`#/ejercicio/${date}`}>
+          {nada ? 'Registrar' : 'Ver'}
+        </a>
+      </div>
+      <p className="muted num">
+        {nada
+          ? 'Sin ejercicio registrado hoy.'
+          : [
+              day.exercise.total_burned > 0 && `${day.exercise.total_burned} kcal quemadas`,
+              seriesHechas > 0 && `${seriesHechas} series hechas`,
+              pendientes > 0 && `${pendientes} sin hacer`,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+      </p>
     </div>
   );
 }

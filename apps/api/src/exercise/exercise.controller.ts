@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { searchActivities, searchMovements } from './met';
+import { movementFacets, searchActivities, searchMovements } from './met';
 
 /**
  * El catálogo de actividades es estático y vive en memoria, así que esto no
@@ -37,11 +37,19 @@ export class ExerciseController {
   movements(
     @Query('q', new DefaultValuePipe('')) q: string,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('body') body?: string,
+    @Query('equipment') equipment?: string,
   ) {
     return {
       status: 'success',
-      data: searchMovements(q, Math.min(Math.max(limit, 1), 50)),
+      data: searchMovements(q, Math.min(Math.max(limit, 1), 50), { body, equipment }),
     };
+  }
+
+  /** Las zonas y equipos que existen, para explorar el catálogo sin escribir. */
+  @Get('facets')
+  facets() {
+    return { status: 'success', data: movementFacets() };
   }
 }
 

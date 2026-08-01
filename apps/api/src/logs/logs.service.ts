@@ -4,7 +4,13 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateMealEntryDto } from './dto/create-meal-entry.dto';
 import { CopyDto, LogRecipeDto, QuickAddDto } from './dto/shortcuts.dto';
-import { LogExerciseDto, LogStrengthDto, UpdateExerciseDto } from './dto/exercise.dto';
+import {
+  LogExerciseDto,
+  LogStrengthDto,
+  UpdateExerciseDto,
+  UpdateStrengthDto,
+} from './dto/exercise.dto';
+import { LoadRoutineDto } from '../routines/dto/routine.dto';
 import { nutrientsOf, remaining, sumEntries } from './totals';
 import { caloriesBurned, metOf } from '../exercise/met';
 import { parseMicros, sumMicros } from '../nutrition/micros';
@@ -372,6 +378,102 @@ export class LogsService {
     };
   }
 
+  /**
+   * Carga una rutina en el día: copia sus ítems a strength_entries en estado
+   * pendiente. Los números son el objetivo del entreno hasta que se confirme
+   * cada serie, así que no cuentan para el volumen todavía.
+   *
+   * Se copian y no se referencia la rutina por el mismo motivo que con las
+   * recetas: editar la plantilla después no puede reescribir lo que ya se
+   * entrenó.
+   */
+  async loadRoutine(userId: string, dto: LoadRoutineDto) {
+    await this.prisma.$transaction(async (tx) => {
+      const rutina = await tx.routine.findFirst({
+        where: { id: dto.routine_id, userId },
+        include: { items: { orderBy: { position: 'asc' } } },
+      });
+      if (!rutina) throw new NotFoundException('La rutina no existe');
+
+      const dailyLogId = await this.ensureDailyLog(tx, userId, dto.log_date);
+      await tx.strengthEntry.createMany({
+        data: rutina.items.map((i) => ({
+          dailyLogId,
+          name: i.name,
+          sets: i.sets,
+          reps: i.reps,
+          weightKg: i.weightKg,
+          done: false,
+        })),
+      });
+    });
+
+    return { status: 'success', data: (await this.getDay(userId, dto.log_date)).data };
+  }
+
+  /** Confirmar o corregir una serie. Mismo patrón de propiedad que el resto. */
+  async updateStrength(userId: string, entryId: string, dto: UpdateStrengthDto) {
+    const actual = await this.prisma.strengthEntry.findFirst({
+      where: { id: entryId, dailyLog: { userId } },
+      include: { dailyLog: { select: { logDate: true } } },
+    });
+    if (!actual) throw new NotFoundException('La serie no existe');
+
+    await this.prisma.strengthEntry.update({
+      where: { id: entryId },
+      data: {
+        ...(dto.sets !== undefined && { sets: dto.sets }),
+        ...(dto.reps !== undefined && { reps: dto.reps }),
+        ...(dto.weight_kg !== undefined && { weightKg: dto.weight_kg }),
+        ...(dto.done !== undefined && { done: dto.done }),
+      },
+    });
+
+    const logDate = actual.dailyLog.logDate.toISOString().slice(0, 10);
+    return { status: 'success', data: (await this.getDay(userId, logDate)).data };
+  }
+
+  /**
+   * Lo último que se hizo con este movimiento y el mejor peso, para que al
+   * elegirlo se vea contra qué se está compitiendo. Solo mira series hechas:
+   * un objetivo cargado y no cumplido no es un récord.
+   */
+  async strengthHistory(userId: string, name: string) {
+    const where = {
+      name,
+      done: true,
+      dailyLog: { userId },
+    };
+
+    const [ultima, mejor] = await Promise.all([
+      this.prisma.strengthEntry.findFirst({
+        where,
+        orderBy: { loggedAt: 'desc' },
+        include: { dailyLog: { select: { logDate: true } } },
+      }),
+      this.prisma.strengthEntry.findFirst({
+        where: { ...where, weightKg: { not: null } },
+        orderBy: [{ weightKg: 'desc' }, { reps: 'desc' }],
+      }),
+    ]);
+
+    const serie = (e: { sets: number; reps: number; weightKg: Prisma.Decimal | null } | null) =>
+      e === null
+        ? null
+        : { sets: e.sets, reps: e.reps, weight_kg: e.weightKg === null ? null : Number(e.weightKg) };
+
+    return {
+      status: 'success',
+      data: {
+        last: ultima && {
+          ...serie(ultima)!,
+          log_date: ultima.dailyLog.logDate.toISOString().slice(0, 10),
+        },
+        best: serie(mejor),
+      },
+    };
+  }
+
   async deleteStrength(userId: string, entryId: string) {
     const { count } = await this.prisma.strengthEntry.deleteMany({
       where: { id: entryId, dailyLog: { userId } },
@@ -551,6 +653,7 @@ export class LogsService {
           sets: s.sets,
           reps: s.reps,
           weight_kg: s.weightKg === null ? null : Number(s.weightKg),
+          done: s.done,
           logged_at: s.loggedAt,
         })),
       },

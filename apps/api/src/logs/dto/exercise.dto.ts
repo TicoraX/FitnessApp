@@ -1,5 +1,15 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+  MinLength,
+} from 'class-validator';
 import { IsLogDate } from '../../common/log-date';
 
 export class LogExerciseDto {
@@ -59,6 +69,38 @@ export class LogStrengthDto {
   @Min(0)
   @Max(999)
   weight_kg?: number;
+}
+
+/**
+ * Confirmar o corregir una serie. Una fila cargada desde una rutina llega con
+ * los números del objetivo: acá se ajustan los que hayan cambiado y se marca
+ * hecha.
+ */
+export class UpdateStrengthDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  sets?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(500)
+  reps?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 1 })
+  @Min(0)
+  @Max(999)
+  weight_kg?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  done?: boolean;
 }
 
 export class UpdateExerciseDto {

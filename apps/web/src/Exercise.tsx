@@ -104,7 +104,7 @@ export function Exercise({
   const { entries, total_burned } = day.exercise;
 
   return (
-    <div className="card exercise" style={{ marginTop: 'var(--space-md)' }}>
+    <div className="card exercise cardio">
       <div className="exercise__head">
         <p className="eyebrow">Ejercicio</p>
         <span className="muted num">{total_burned > 0 ? `${total_burned} kcal` : '—'}</span>

@@ -363,7 +363,7 @@ export function RecetasView() {
 
       {/* Modal para Crear/Editar Receta */}
       {showCreateModal && (
-        <div ref={refCreate} role="dialog" aria-modal="true" aria-label={editingRecipe ? 'Editar receta' : 'Nueva receta'} className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+        <div ref={refCreate} role="dialog" aria-modal="true" aria-label={editingRecipe ? 'Editar receta' : 'Nueva receta'} className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
           <form onSubmit={handleSaveRecipe} className="card" style={{ width: '100%', maxWidth: '520px', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h3 className="card__title">{editingRecipe ? `Editar Receta "${editingRecipe.name}"` : 'Nueva Receta'}</h3>
@@ -541,7 +541,7 @@ export function RecetasView() {
 
       {/* Modal para Registrar Receta en el Diario */}
       {loggingRecipe && (
-        <div ref={refLogging} role="dialog" aria-modal="true" aria-label="Registrar receta" className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+        <div ref={refLogging} role="dialog" aria-modal="true" aria-label="Registrar receta" className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
           <form onSubmit={handleLogRecipe} className="card" style={{ width: '100%', maxWidth: '380px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h3 className="card__title">Registrar Receta</h3>
@@ -587,7 +587,7 @@ export function RecetasView() {
 
       {/* Modal para Ver Detalle Completo de Receta */}
       {detailRecipe && (
-        <div ref={refDetalle} role="dialog" aria-modal="true" aria-label={`Detalle de ${detailRecipe.name}`} className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+        <div ref={refDetalle} role="dialog" aria-modal="true" aria-label={`Detalle de ${detailRecipe.name}`} className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
           <div className="card" style={{ width: '100%', maxWidth: '480px', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <div>
