@@ -98,6 +98,7 @@ const itemsParaCrear = (items: RoutineItemDto[]) =>
     sets: i.sets,
     reps: i.reps,
     weightKg: i.weight_kg ?? null,
+    rpe: i.rpe ?? null,
     position: pos,
   }));
 
@@ -120,6 +121,7 @@ export function detalle(r: RutinaConItems) {
       sets: i.sets,
       reps: i.reps,
       weight_kg: i.weightKg === null ? null : Number(i.weightKg),
+      rpe: i.rpe === null ? null : Number(i.rpe),
     })),
   };
 }

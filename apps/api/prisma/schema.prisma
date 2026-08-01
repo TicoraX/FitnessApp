@@ -223,6 +223,11 @@ model StrengthEntry {
   sets       Int
   reps       Int
   weightKg   Decimal? @map("weight_kg") @db.Decimal(5, 1)
+  /// Esfuerzo percibido, escala RPE de 1 a 10 en pasos de 0.5: 10 es no poder
+  /// hacer una repetición más, 8 es dejarse dos. Es el dato que explica por qué
+  /// un mismo peso rindió distinto entre dos semanas, y lo único de acá que la
+  /// balanza no puede medir. Opcional: quien no lo usa no tiene que inventarlo.
+  rpe        Decimal? @db.Decimal(3, 1)
   /// Una fila cargada desde una rutina nace pendiente: sus números son el
   /// objetivo del entreno, no lo que se hizo. Al confirmarla se corrigen los
   /// que hayan cambiado y pasa a hecha. Lo que se carga a mano nace hecho.
@@ -264,6 +269,8 @@ model RoutineItem {
   sets      Int
   reps      Int
   weightKg  Decimal? @map("weight_kg") @db.Decimal(5, 1)
+  /// El esfuerzo al que se apunta en ese movimiento. Ver StrengthEntry.rpe.
+  rpe       Decimal? @db.Decimal(3, 1)
   position  Int
 
   routine Routine @relation(fields: [routineId], references: [id], onDelete: Cascade)

@@ -195,16 +195,18 @@ function EditorDeRutina({
   }, [query]);
 
   const agregar = (m: Movement) => {
-    setItems((prev) => [...prev, { name: m.name, sets: 3, reps: 10, weight_kg: null }]);
+    setItems((prev) => [...prev, { name: m.name, sets: 3, reps: 10, weight_kg: null, rpe: null }]);
     setQuery('');
     setResults([]);
   };
 
-  const cambiar = (i: number, campo: 'sets' | 'reps' | 'weight_kg', valor: string) => {
+  const cambiar = (i: number, campo: 'sets' | 'reps' | 'weight_kg' | 'rpe', valor: string) => {
+    // sets y reps son obligatorios; kilos y esfuerzo pueden quedar sin poner.
+    const opcional = campo === 'weight_kg' || campo === 'rpe';
     setItems((prev) =>
       prev.map((it, idx) =>
         idx === i
-          ? { ...it, [campo]: campo === 'weight_kg' ? (valor ? Number(valor) : null) : Number(valor) }
+          ? { ...it, [campo]: opcional ? (valor ? Number(valor) : null) : Number(valor) }
           : it,
       ),
     );
@@ -228,6 +230,7 @@ function EditorDeRutina({
         sets: i.sets,
         reps: i.reps,
         ...(i.weight_kg !== null ? { weight_kg: i.weight_kg } : {}),
+        ...(i.rpe !== null ? { rpe: i.rpe } : {}),
       })),
     };
 
@@ -345,6 +348,18 @@ function EditorDeRutina({
                     placeholder="kg"
                     aria-label={`Kilos objetivo de ${it.name}`}
                   />
+                  <select
+                    value={it.rpe ?? ''}
+                    onChange={(e) => cambiar(i, 'rpe', e.target.value)}
+                    aria-label={`Esfuerzo objetivo de ${it.name}`}
+                  >
+                    <option value="">RPE</option>
+                    {['10', '9.5', '9', '8.5', '8', '7.5', '7', '6', '5'].map((v) => (
+                      <option key={v} value={v}>
+                        {v}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <button
                   type="button"
