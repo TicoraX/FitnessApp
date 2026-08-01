@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, today } from './api';
+import { api, getCacheado, invalidarCache, today } from './api';
+import { useVisible } from './hooks/useVisible';
 
 export interface WeightPoint {
   logged_on: string;
@@ -12,18 +13,21 @@ export function Weight({ onGoalChanged }: { onGoalChanged: () => void }) {
   const [value, setValue] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [ref, visible] = useVisible<HTMLElement>();
 
   const load = useCallback(async () => {
     try {
-      setSeries((await api.get<{ data: WeightPoint[] }>('/weight?days=90')).data);
+      setSeries((await getCacheado<{ data: WeightPoint[] }>('/weight?days=90')).data);
     } catch {
       setSeries([]);
     }
   }, []);
 
+  // La serie de 90 días solo se pide cuando la tarjeta asoma: en el teléfono
+  // está abajo del todo y entrar al diario no la muestra.
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (visible) void load();
+  }, [load, visible]);
 
   async function submit() {
     const weight = Number(value);
@@ -37,6 +41,8 @@ export function Weight({ onGoalChanged }: { onGoalChanged: () => void }) {
       });
       setSeries(res.data);
       setValue('');
+      // La respuesta ya trae la serie nueva; esto es para el próximo montaje.
+      invalidarCache('/weight');
       // El objetivo se recalcula en el servidor: hay que releer el día.
       onGoalChanged();
     } catch (err) {
@@ -50,7 +56,7 @@ export function Weight({ onGoalChanged }: { onGoalChanged: () => void }) {
   const delta = last && first ? last.ema_kg - first.ema_kg : 0;
 
   return (
-    <section className="card" aria-labelledby="peso" style={{ marginTop: 'var(--space-lg)' }}>
+    <section ref={ref} className="card" aria-labelledby="peso" style={{ marginTop: 'var(--space-lg)' }}>
       <h2 id="peso" className="card__title">
         Peso
       </h2>

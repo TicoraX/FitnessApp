@@ -109,10 +109,18 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
   useEffect(() => {
     if (route.view !== 'diario') return;
     void load(date);
+  }, [date, load, route.view]);
+
+  /**
+   * Una sola vez por sesión: si la cuenta es de invitado no cambia sola, y lo
+   * único que sale de acá es ese cartel. Pedirlo en cada vuelta al diario era
+   * un round trip por navegación para una respuesta siempre igual.
+   */
+  useEffect(() => {
     api.get<{ data: { is_guest: boolean } }>('/profile')
       .then((res) => setIsGuest(Boolean(res.data.is_guest)))
       .catch(() => {});
-  }, [date, load, route.view]);
+  }, []);
 
   useEffect(() => {
     return escucharCambios((tipo) => {

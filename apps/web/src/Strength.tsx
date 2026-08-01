@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 import {
   api,
+  getCacheado,
   notificarCambio,
   type DaySummary,
   type Movement,
   type StrengthEntry,
   type StrengthHistory,
 } from './api';
+
+type Facets = { body: string[]; equipment: string[] };
 
 /**
  * Registro de fuerza del día: series, repeticiones y kilos.
@@ -31,7 +34,7 @@ export function Strength({
   const [query, setQuery] = useState('');
   const [zona, setZona] = useState('');
   const [equipo, setEquipo] = useState('');
-  const [facets, setFacets] = useState<{ body: string[]; equipment: string[] }>({
+  const [facets, setFacets] = useState<Facets>({
     body: [],
     equipment: [],
   });
@@ -45,8 +48,8 @@ export function Strength({
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api
-      .get<{ data: { body: string[]; equipment: string[] } }>('/exercise/facets')
+    // Las zonas y equipos no cambian entre despliegues: una vez por sesión.
+    getCacheado<{ data: Facets }>('/exercise/facets')
       .then((r) => setFacets(r.data))
       .catch(() => {
         // Sin chips se puede buscar igual escribiendo.

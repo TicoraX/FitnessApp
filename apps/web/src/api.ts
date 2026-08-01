@@ -1,8 +1,52 @@
 const TOKEN_KEY = 'fittrack.token';
 
+/**
+ * Caché de sesión para los GET que casi nunca cambian.
+ *
+ * Cada vista pide lo suyo al montarse, y navegar de acá para allá volvía a
+ * traer favoritos, recientes y la serie de peso aunque nada de eso se hubiera
+ * tocado. Acá se guarda la promesa, no el resultado: dos montajes seguidos
+ * comparten el pedido en vuelo en vez de disparar dos.
+ *
+ * No hay TTL a propósito. Lo que invalida es el cambio, y el cambio siempre
+ * pasa por esta app: marcar un favorito, pesarse, registrar una comida. Un
+ * reloj que adivine cuándo relanzar sería peor que llamar a `invalidarCache`
+ * en los tres lugares donde eso ocurre.
+ */
+const cacheDeSesion = new Map<string, Promise<unknown>>();
+
+export function getCacheado<T>(path: string): Promise<T> {
+  let pedido = cacheDeSesion.get(path) as Promise<T> | undefined;
+  if (!pedido) {
+    // Un fallo no se cachea: la próxima vez se vuelve a intentar.
+    pedido = request<T>(path).catch((e) => {
+      cacheDeSesion.delete(path);
+      throw e;
+    });
+    cacheDeSesion.set(path, pedido);
+  }
+  return pedido;
+}
+
+/** Tira lo cacheado que empiece con este prefijo. Sin argumento, todo. */
+export function invalidarCache(prefijo?: string) {
+  if (prefijo === undefined) return cacheDeSesion.clear();
+  for (const clave of cacheDeSesion.keys()) {
+    if (clave.startsWith(prefijo)) cacheDeSesion.delete(clave);
+  }
+}
+
 export const getToken = () => localStorage.getItem(TOKEN_KEY);
-export const setToken = (t: string | null) =>
-  t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY);
+
+/**
+ * Cambiar de token vacía el caché de sesión. En un teléfono prestado, el que
+ * entra después no puede ver los favoritos ni el peso del anterior.
+ */
+export const setToken = (t: string | null) => {
+  invalidarCache();
+  if (t) localStorage.setItem(TOKEN_KEY, t);
+  else localStorage.removeItem(TOKEN_KEY);
+};
 
 export class ApiError extends Error {}
 

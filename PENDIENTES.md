@@ -81,6 +81,40 @@ movimiento (solo última vez y récord), las rutinas no tienen días de la seman
 ni descansos, y no hay superseries ni series con pesos distintos dentro del
 mismo movimiento.
 
+### Pedir solo lo que se va a usar
+
+Entrar al diario disparaba 6 requests y navegar entre vistas los multiplicaba:
+tres idas y vueltas al ejercicio eran 29. Nada se cacheaba y todo se pedía al
+montar, mirara el usuario esa parte o no.
+
+Tres reglas, en orden de cuánto sacaron:
+
+- **Lo que no está en pantalla no se pide.** `useVisible` (IntersectionObserver,
+  200px de margen) difiere el panel de comida y la tarjeta de peso. En el
+  teléfono los dos arrancan a 1600px de scroll.
+- **Lo que no cambia se pide una vez por sesión.** `getCacheado` guarda la
+  promesa, no el resultado, así dos montajes comparten el pedido en vuelo. Cubre
+  favoritos, recientes, la serie de peso y las facetas del catálogo. Sin TTL: lo
+  invalida el cambio, que siempre pasa por esta app, con `invalidarCache` en los
+  tres lugares donde ocurre. `setToken` lo vacía entero, así un teléfono
+  prestado no le muestra al siguiente los favoritos del anterior.
+- **El perfil una vez y no por navegación.** Solo dice si la cuenta es de
+  invitado y eso no cambia solo.
+
+| | Antes | Ahora |
+|---|---|---|
+| Entrar al diario (teléfono) | 6 | 2 |
+| Volver al diario | 6 | 1 |
+| Tres idas y vueltas | 29 | 12 |
+
+Los números son sobre el build de producción. El dev server duplica todo por
+`StrictMode`, que es contra lo que mide el paso de `ui:check` que fija el techo.
+
+Una trampa que costó encontrar: montar el panel contra un diario todavía vacío
+lo deja arriba del pliegue por un instante, lo suficiente para que el observer
+lo dé por visto y pida igual. Por eso `DiarioView` espera al día antes de
+montarlo, y es una razón de red, no de contenido.
+
 ## Detectado y no tocado
 
 Cosas que aparecieron durante el trabajo y quedaron fuera de alcance.

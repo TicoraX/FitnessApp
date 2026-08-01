@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -20,6 +19,7 @@ import { CopyDto, LogRecipeDto, QuickAddDto, UpdateRecipeServingsDto } from './d
 import {
   LogExerciseDto,
   LogStrengthDto,
+  StrengthHistoryQueryDto,
   UpdateExerciseDto,
   UpdateStrengthDto,
 } from './dto/exercise.dto';
@@ -109,11 +109,8 @@ export class LogsController {
 
   /** Lo último y lo mejor de un movimiento, para verlo al elegirlo. */
   @Get('strength/history')
-  strengthHistory(@Req() req: AuthedRequest, @Query('name') name: string) {
-    if (!name || name.length < 2 || name.length > 120) {
-      throw new BadRequestException('Falta el nombre del movimiento');
-    }
-    return this.logs.strengthHistory(req.user.userId, name);
+  strengthHistory(@Req() req: AuthedRequest, @Query() query: StrengthHistoryQueryDto) {
+    return this.logs.strengthHistory(req.user.userId, query.name);
   }
 
   @Patch('strength/:id')

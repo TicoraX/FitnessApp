@@ -72,6 +72,20 @@ export class LogStrengthDto {
 }
 
 /**
+ * El movimiento cuya historia se pide.
+ *
+ * Va como DTO y no como chequeo a mano sobre el string: con `?name=a&name=b`
+ * Express entrega un array, `length` vale 2 y pasaba el chequeo, y Prisma
+ * reventaba con un 500 en vez de contestar 400. `@IsString` lo rechaza antes.
+ */
+export class StrengthHistoryQueryDto {
+  @IsString()
+  @MinLength(2)
+  @MaxLength(120)
+  name!: string;
+}
+
+/**
  * Confirmar o corregir una serie. Una fila cargada desde una rutina llega con
  * los números del objetivo: acá se ajustan los que hayan cambiado y se marca
  * hecha.
