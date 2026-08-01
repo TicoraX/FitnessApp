@@ -20,7 +20,6 @@ export default defineConfig({
       output: {
         manualChunks: {
           'vendor-motion': ['motion'],
-          'vendor-gsap': ['gsap'],
         },
       },
     },

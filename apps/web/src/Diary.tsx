@@ -17,16 +17,22 @@ const VIEW_INDEX: Record<string, number> = {
   perfil: 3,
 };
 
+/**
+ * Sin blur a propósito: al terminar la transición el elemento queda con
+ * `filter: blur(0px)`, y un filtro no vacío convierte al contenedor en el
+ * bloque de referencia de todo `position: fixed` que haya adentro. Con eso, una
+ * modal de pantalla completa se recorta al alto de la vista y sus botones
+ * quedan fuera de pantalla si la vista es corta. El desplazamiento y el fade
+ * dan la misma sensación y no rompen nada.
+ */
 const pageVariants = {
   enter: (dir: number) => ({
     x: dir > 0 ? 30 : -30,
     opacity: 0,
-    filter: 'blur(3px)',
   }),
   center: {
     x: 0,
     opacity: 1,
-    filter: 'blur(0px)',
     transition: {
       duration: 0.28,
       ease: [0.25, 1, 0.5, 1] as const,
@@ -35,7 +41,6 @@ const pageVariants = {
   exit: (dir: number) => ({
     x: dir > 0 ? -30 : 30,
     opacity: 0,
-    filter: 'blur(3px)',
     transition: {
       duration: 0.18,
       ease: [0.5, 0, 0.75, 0] as const,
@@ -177,7 +182,7 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
     {
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
+          <path d="M3 2v7a2 2 0 002 2h4a2 2 0 002-2V2M7 2v20M21 15V2a5 5 0 00-5 5v6a2 2 0 002 2h3zm0 0v7" />
         </svg>
       ),
       label: 'Recetas (Alt+2)',
