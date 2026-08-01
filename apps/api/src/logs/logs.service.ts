@@ -13,6 +13,7 @@ import {
 import { LoadRoutineDto } from '../routines/dto/routine.dto';
 import { nutrientsOf, remaining, sumEntries } from './totals';
 import { caloriesBurned, metOf } from '../exercise/met';
+import { nombreEs } from '../exercise/movements-es';
 import { parseMicros, sumMicros } from '../nutrition/micros';
 
 /** Fila del diario tal como la devuelve getDay, ya lista para el cliente. */
@@ -660,6 +661,7 @@ export class LogsService {
         strength: (log?.strength ?? []).map((s) => ({
           id: s.id,
           name: s.name,
+          name_es: nombreEs(s.name),
           sets: s.sets,
           reps: s.reps,
           weight_kg: s.weightKg === null ? null : Number(s.weightKg),

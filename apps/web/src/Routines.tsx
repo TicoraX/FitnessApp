@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, notificarCambio, type Movement, type Routine, type RoutineItem } from './api';
 import { useModalDialog } from './hooks/useModalDialog';
 import { IconoCerrar } from './components/IconoCerrar';
+import { NombreMovimiento } from './components/NombreMovimiento';
 
 /**
  * Organizador de rutinas: la plantilla de un entreno con sus objetivos.
@@ -195,7 +196,7 @@ function EditorDeRutina({
   }, [query]);
 
   const agregar = (m: Movement) => {
-    setItems((prev) => [...prev, { name: m.name, sets: 3, reps: 10, weight_kg: null, rpe: null }]);
+    setItems((prev) => [...prev, { name: m.name, name_es: m.name_es, sets: 3, reps: 10, weight_kg: null, rpe: null }]);
     setQuery('');
     setResults([]);
   };
@@ -306,7 +307,7 @@ function EditorDeRutina({
                 className="result"
                 onClick={() => agregar(m)}
               >
-                <span>{m.name}</span>
+                <NombreMovimiento name={m.name} nameEs={m.name_es} />
                 <span className="muted result__kcal">
                   {m.equipment} · {m.target}
                 </span>
@@ -319,7 +320,7 @@ function EditorDeRutina({
           <ul className="entries">
             {items.map((it, i) => (
               <li key={`${it.name}-${i}`} className="entry entry--objetivo">
-                <span className="entry__label">{it.name}</span>
+                <NombreMovimiento name={it.name} nameEs={it.name_es} className="entry__label" />
                 <div className="serie-pendiente__campos">
                   <input
                     type="number"

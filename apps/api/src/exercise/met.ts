@@ -1,5 +1,6 @@
 import { ACTIVITIES, Activity } from './catalog';
 import { MOVEMENTS, Movement } from './movements';
+import { nombreEs } from './movements-es';
 import { normalizeQuery } from '../foods/search-query';
 
 /**
@@ -35,44 +36,60 @@ export function searchActivities(raw: string, limit = 20): Activity[] {
   return [...empiezan, ...contienen].slice(0, limit);
 }
 
+/** Lo que ve el cliente: el nombre real y, si está curado, el de español. */
+export type MovementDto = Movement & { name_es: string | null };
+
+export const conNombreEs = (m: Movement): MovementDto => ({ ...m, name_es: nombreEs(m.name) });
+
 /**
  * Búsqueda de movimientos de gimnasio.
  *
- * Además del nombre mira zona, equipo y músculo objetivo: los nombres vienen en
- * inglés del dataset, así que buscar "pecho" o "mancuerna" es la única forma de
- * llegar a ellos escribiendo en español.
+ * Mira el nombre en inglés, el curado en español, y además zona, equipo y
+ * músculo objetivo. El dataset solo trae los nombres en inglés, así que sin eso
+ * escribir en español no llegaría a nada.
  */
 export function searchMovements(
   raw: string,
   limit = 20,
   filtros: { body?: string; equipment?: string } = {},
-): Movement[] {
+): MovementDto[] {
   const q = normalizeQuery(raw);
   const pasa = (m: Movement) =>
     (!filtros.body || m.body === filtros.body) &&
     (!filtros.equipment || m.equipment === filtros.equipment);
 
-  if (!q) return MOVEMENTS.filter(pasa).slice(0, limit);
+  if (!q) return MOVEMENTS.filter(pasa).slice(0, limit).map(conNombreEs);
 
+  // El exacto va primero: buscar "dominadas" tiene que dar "Dominadas" y no
+  // "Dominadas asistidas", que también empieza igual. Se recorre el catálogo
+  // entero sin cortar al llenar el cupo: cortando antes, un exacto que estuviera
+  // más abajo en la lista no llegaba nunca. Son 1324 comparaciones en memoria.
+  const exactos: Movement[] = [];
   const empiezan: Movement[] = [];
   const contienen: Movement[] = [];
 
   for (const m of MOVEMENTS) {
     if (!pasa(m)) continue;
     const n = normalizeQuery(m.name);
-    if (n.startsWith(q)) empiezan.push(m);
+    // El nombre en español, cuando está curado, pesa igual que el original:
+    // buscar "sentadilla" tiene que encontrar "barbell full squat".
+    const es = nombreEs(m.name);
+    const nEs = es ? normalizeQuery(es) : '';
+
+    if (n === q || nEs === q) exactos.push(m);
+    else if (n.startsWith(q) || (nEs && nEs.startsWith(q))) empiezan.push(m);
     else if (
       n.includes(q) ||
+      (nEs && nEs.includes(q)) ||
       normalizeQuery(m.body).includes(q) ||
       normalizeQuery(m.equipment).includes(q) ||
       normalizeQuery(m.target).includes(q)
     ) {
       contienen.push(m);
     }
-    if (empiezan.length >= limit) break;
   }
 
-  return [...empiezan, ...contienen].slice(0, limit);
+  return [...exactos, ...empiezan, ...contienen].slice(0, limit).map(conNombreEs);
 }
 
 /** Los valores que existen de verdad, para las chips de exploración. */

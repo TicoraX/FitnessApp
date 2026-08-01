@@ -7,6 +7,8 @@ import {
   searchMovements,
 } from './met';
 import { ACTIVITIES } from './catalog';
+import { MOVEMENTS } from './movements';
+import { NOMBRES_ES } from './movements-es';
 
 describe('cálculo MET', () => {
   it('aplica MET x peso x horas', () => {
@@ -90,6 +92,46 @@ describe('búsqueda de movimientos', () => {
   it('bodyOf resuelve la zona por nombre y no inventa una para lo desconocido', () => {
     expect(bodyOf('3/4 sit-up')).toBe('core');
     expect(bodyOf('malabares con motosierras')).toBe('otros');
+  });
+});
+
+describe('nombres en español', () => {
+  it('cada nombre curado corresponde a un movimiento que existe', () => {
+    // Sin esto, renombrar o regenerar el catálogo deja traducciones huérfanas
+    // que no se muestran nunca y nadie se entera.
+    const huerfanos = Object.keys(NOMBRES_ES).filter((n) => !MOVEMENTS.some((m) => m.name === n));
+    expect(huerfanos).toEqual([]);
+  });
+
+  it('no hay dos movimientos con el mismo nombre en español', () => {
+    const valores = Object.values(NOMBRES_ES);
+    expect(new Set(valores).size).toBe(valores.length);
+  });
+
+  it('se puede buscar en español y en inglés el mismo movimiento', () => {
+    const porEspanol = searchMovements('sentadilla con barra', 5);
+    expect(porEspanol[0].name).toBe('barbell full squat');
+    expect(porEspanol[0].name_es).toBe('Sentadilla con barra');
+
+    const porIngles = searchMovements('barbell full squat', 5);
+    expect(porIngles[0].name).toBe('barbell full squat');
+  });
+
+  it('ignora acentos: "dominadas" y "press frances" llegan igual', () => {
+    expect(searchMovements('dominadas', 5)[0].name_es).toBe('Dominadas');
+    expect(searchMovements('press frances', 5)[0].name_es).toMatch(/^Press francés/);
+  });
+
+  it('el exacto gana aunque esté al final del catálogo', () => {
+    // "close-grip push-up" aparece antes que "push-up" en la lista, así que
+    // cortar la búsqueda al llenar el cupo dejaba "Flexiones" afuera.
+    expect(searchMovements('flexiones', 3)[0].name).toBe('push-up');
+    expect(searchMovements('dominadas', 3)[0].name).toBe('pull-up');
+  });
+
+  it('lo que no está curado sale con name_es en null, no inventado', () => {
+    const sinCurar = searchMovements('archer push up', 5);
+    expect(sinCurar[0].name_es).toBeNull();
   });
 });
 

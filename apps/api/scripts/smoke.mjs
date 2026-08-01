@@ -567,6 +567,24 @@ console.log('\nEntrenamiento');
     assert.ok(movimientos[0].howTo.length > 0, 'el movimiento no trae instrucciones');
   });
 
+  await check('los movimientos curados se buscan y se muestran en los dos idiomas', async () => {
+    // El dataset solo trae los nombres en ingles. Los que la gente registra de
+    // verdad estan curados a mano, y buscarlos en espanol tiene que llegar.
+    const { body } = await call('GET', '/exercise/movements?q=sentadilla&limit=5');
+    assert.ok(body.data.length > 0, 'buscar "sentadilla" no devolvio nada');
+    const sentadilla = body.data.find((m) => m.name === 'barbell full squat');
+    assert.ok(sentadilla, 'la sentadilla con barra no aparecio');
+    assert.equal(sentadilla.name_es, 'Sentadilla con barra');
+
+    // El exacto primero, aunque en el catalogo aparezca despues de sus variantes.
+    const { body: flex } = await call('GET', '/exercise/movements?q=flexiones&limit=3');
+    assert.equal(flex.data[0].name, 'push-up');
+
+    // Lo que no esta curado sale en ingles y con el campo en null, no inventado.
+    const { body: raro } = await call('GET', '/exercise/movements?q=archer%20push%20up&limit=1');
+    assert.equal(raro.data[0].name_es, null);
+  });
+
   await check('las facetas y los filtros acotan de verdad', async () => {
     const { body } = await call('GET', '/exercise/facets');
     assert.ok(body.data.body.includes('pecho'));
@@ -737,6 +755,16 @@ console.log('\nEntrenamiento');
     assert.equal(hecha.done, true);
 
     await call('DELETE', `/routines/${creada.data.id}`);
+  });
+
+  await check('una serie guarda el nombre real y devuelve tambien el traducido', async () => {
+    const { body } = await call('POST', '/logs/strength', {
+      log_date: day, name: 'barbell full squat', sets: 5, reps: 5, weight_kg: 100,
+    });
+    const serie = body.data.strength.find((s) => s.name === 'barbell full squat');
+    // Se guarda el ingles: es el identificador, y el espanol se resuelve al leer.
+    // Asi curar una traduccion nueva alcanza para que el historial viejo la use.
+    assert.equal(serie.name_es, 'Sentadilla con barra');
   });
 
   await check('las series y las rutinas de otro no se tocan', async () => {

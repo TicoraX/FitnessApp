@@ -245,6 +245,7 @@ export interface Activity {
 export interface StrengthEntry {
   id: string;
   name: string;
+  name_es: string | null;
   sets: number;
   reps: number;
   weight_kg: number | null;
@@ -258,6 +259,7 @@ export interface StrengthEntry {
 export interface RoutineItem {
   id?: string;
   name: string;
+  name_es?: string | null;
   sets: number;
   reps: number;
   weight_kg: number | null;
@@ -293,7 +295,10 @@ export interface ExerciseReport {
 /** Movimiento del catálogo de gimnasio. El nombre viene en inglés del dataset. */
 export interface Movement {
   id: string;
+  /** El nombre real, en inglés: es el que se guarda y el que se googlea. */
   name: string;
+  /** Curado a mano, solo para los que se registran de verdad. Null si no está. */
+  name_es: string | null;
   body: string;
   equipment: string;
   target: string;

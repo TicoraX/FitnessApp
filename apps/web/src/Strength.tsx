@@ -9,6 +9,7 @@ import {
   type StrengthHistory,
 } from './api';
 import { CampoEsfuerzo } from './components/CampoEsfuerzo';
+import { NombreMovimiento } from './components/NombreMovimiento';
 
 type Facets = { body: string[]; equipment: string[] };
 
@@ -88,7 +89,7 @@ export function Strength({
 
   const elegir = async (m: Movement) => {
     setSelected(m);
-    setQuery(m.name);
+    setQuery(m.name_es ?? m.name);
     setResults([]);
     setError('');
     setHistoria(null);
@@ -190,7 +191,7 @@ export function Strength({
         <ul className="entries">
           {hechas.map((e) => (
             <li key={e.id} className="entry">
-              <span className="entry__label">{e.name}</span>
+              <NombreMovimiento name={e.name} nameEs={e.name_es} className="entry__label" />
               <span className="muted num">
                 {e.sets} × {e.reps}
                 {e.weight_kg !== null ? ` · ${e.weight_kg} kg` : ''}
@@ -261,7 +262,7 @@ export function Strength({
                 className="result"
                 onClick={() => void elegir(m)}
               >
-                <span>{m.name}</span>
+                <NombreMovimiento name={m.name} nameEs={m.name_es} />
                 <span className="muted result__kcal">
                   {m.equipment} · {m.target}
                 </span>
@@ -385,7 +386,7 @@ function SeriePendiente({
 
   return (
     <div className="serie-pendiente">
-      <span className="entry__label">{entry.name}</span>
+      <NombreMovimiento name={entry.name} nameEs={entry.name_es} className="entry__label" />
       <div className="serie-pendiente__campos">
         <input
           type="number"
