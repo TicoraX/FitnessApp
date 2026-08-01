@@ -9,6 +9,7 @@ import { FoodsModule } from './foods/foods.module';
 import { WeightModule } from './weight/weight.controller';
 import { ProfileModule } from './profile/profile.controller';
 import { RecipesModule } from './recipes/recipes.controller';
+import { RoutinesModule } from './routines/routines.controller';
 import { ReportsModule } from './reports/reports.controller';
 import { AccountModule } from './account/account.controller';
 import { MailModule } from './mail/mailer';
@@ -30,6 +31,7 @@ import { validateEnv } from './config/env.validation';
     LogsModule,
     FoodsModule,
     RecipesModule,
+    RoutinesModule,
     ReportsModule,
     WeightModule,
     ProfileModule,

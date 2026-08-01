@@ -1,4 +1,11 @@
-import { caloriesBurned, metOf, searchActivities } from './met';
+import {
+  bodyOf,
+  caloriesBurned,
+  metOf,
+  movementFacets,
+  searchActivities,
+  searchMovements,
+} from './met';
 import { ACTIVITIES } from './catalog';
 
 describe('cálculo MET', () => {
@@ -34,6 +41,55 @@ describe('búsqueda de actividades', () => {
 
   it('un término que no está da vacío, no el catálogo entero', () => {
     expect(searchActivities('ajedrez postal')).toEqual([]);
+  });
+});
+
+describe('búsqueda de movimientos', () => {
+  it('encuentra por nombre en inglés', () => {
+    expect(searchMovements('bench press').length).toBeGreaterThan(0);
+  });
+
+  it('encuentra por zona, equipo y músculo en español', () => {
+    expect(searchMovements('mancuerna').length).toBeGreaterThan(0);
+    expect(searchMovements('cuadriceps').length).toBeGreaterThan(0);
+    expect(searchMovements('espalda').length).toBeGreaterThan(0);
+  });
+
+  it('respeta el límite', () => {
+    expect(searchMovements('press', 5)).toHaveLength(5);
+    expect(searchMovements('', 3)).toHaveLength(3);
+  });
+
+  it('un término que no está da vacío', () => {
+    expect(searchMovements('malabares con motosierras')).toEqual([]);
+  });
+
+  it('filtra por zona y por equipo', () => {
+    const pecho = searchMovements('', 50, { body: 'pecho' });
+    expect(pecho.length).toBeGreaterThan(0);
+    expect(pecho.every((m) => m.body === 'pecho')).toBe(true);
+
+    const combinado = searchMovements('', 50, { body: 'pecho', equipment: 'mancuerna' });
+    expect(combinado.length).toBeGreaterThan(0);
+    expect(combinado.every((m) => m.body === 'pecho' && m.equipment === 'mancuerna')).toBe(true);
+  });
+
+  it('el filtro también acota la búsqueda por texto', () => {
+    const conFiltro = searchMovements('press', 50, { equipment: 'barra' });
+    expect(conFiltro.length).toBeGreaterThan(0);
+    expect(conFiltro.every((m) => m.equipment === 'barra')).toBe(true);
+  });
+
+  it('las facetas son los valores que existen de verdad', () => {
+    const { body, equipment } = movementFacets();
+    expect(body).toContain('pecho');
+    expect(equipment).toContain('mancuerna');
+    for (const b of body) expect(searchMovements('', 1, { body: b })).toHaveLength(1);
+  });
+
+  it('bodyOf resuelve la zona por nombre y no inventa una para lo desconocido', () => {
+    expect(bodyOf('3/4 sit-up')).toBe('core');
+    expect(bodyOf('malabares con motosierras')).toBe('otros');
   });
 });
 

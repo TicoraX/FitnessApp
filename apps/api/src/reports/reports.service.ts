@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { bodyOf } from '../exercise/met';
 
 /**
  * Todo acá se agrega en SQL y no con el sumEntries de logs/totals.ts. Un día
@@ -363,6 +364,92 @@ export class ReportsService {
    * anidado del plan de ejecución y es el rango más grande que muestra
    * cualquier pantalla.
    */
+  /**
+   * Resumen de entrenamiento del rango: volumen por día, series por zona del
+   * cuerpo y calorías de cardio.
+   *
+   * El volumen es series x repeticiones x kilos, la métrica estándar de carga.
+   * Solo cuentan las series hechas: un objetivo cargado desde una rutina y no
+   * cumplido no entrenó a nadie. Lo que va sin peso suma cero volumen pero sí
+   * cuenta como serie, que es la única forma honesta de contar una dominada.
+   */
+  async exercise(userId: string, from: string, to: string) {
+    const [series, cardio] = await Promise.all([
+      this.prisma.$queryRaw<
+        { logDate: Date; name: string; sets: number; reps: number; weightKg: number | null }[]
+      >`
+        SELECT dl.log_date AS "logDate", s.name, s.sets, s.reps, s.weight_kg::float8 AS "weightKg"
+        FROM strength_entries s
+        JOIN daily_logs dl ON dl.id = s.daily_log_id
+        WHERE dl.user_id = ${userId}::uuid
+          AND dl.log_date BETWEEN ${from}::date AND ${to}::date
+          AND s.done
+        ORDER BY dl.log_date`,
+      this.prisma.$queryRaw<{ logDate: Date; burned: number; minutes: number }[]>`
+        SELECT dl.log_date AS "logDate",
+               SUM(e.calories_burned)::int AS burned,
+               SUM(e.duration_min)::int AS minutes
+        FROM exercise_entries e
+        JOIN daily_logs dl ON dl.id = e.daily_log_id
+        WHERE dl.user_id = ${userId}::uuid
+          AND dl.log_date BETWEEN ${from}::date AND ${to}::date
+        GROUP BY dl.log_date
+        ORDER BY dl.log_date`,
+    ]);
+
+    const porDia = new Map<string, { volume_kg: number; sets: number; burned: number }>();
+    const dia = (fecha: string) => {
+      let d = porDia.get(fecha);
+      if (!d) porDia.set(fecha, (d = { volume_kg: 0, sets: 0, burned: 0 }));
+      return d;
+    };
+
+    const porZona = new Map<string, number>();
+    let volumenTotal = 0;
+    let seriesTotal = 0;
+
+    for (const s of series) {
+      const fecha = s.logDate.toISOString().slice(0, 10);
+      const volumen = s.sets * s.reps * (s.weightKg ?? 0);
+      const d = dia(fecha);
+      d.volume_kg += volumen;
+      d.sets += s.sets;
+      volumenTotal += volumen;
+      seriesTotal += s.sets;
+
+      const zona = bodyOf(s.name);
+      porZona.set(zona, (porZona.get(zona) ?? 0) + s.sets);
+    }
+
+    let quemadasTotal = 0;
+    let minutosTotal = 0;
+    for (const c of cardio) {
+      dia(c.logDate.toISOString().slice(0, 10)).burned = c.burned;
+      quemadasTotal += c.burned;
+      minutosTotal += c.minutes;
+    }
+
+    return {
+      status: 'success',
+      data: {
+        range: { from, to },
+        totals: {
+          volume_kg: Math.round(volumenTotal),
+          sets: seriesTotal,
+          calories_burned: quemadasTotal,
+          cardio_minutes: minutosTotal,
+          days_trained: porDia.size,
+        },
+        by_body: [...porZona]
+          .map(([body, sets]) => ({ body, sets }))
+          .sort((a, b) => b.sets - a.sets),
+        days: [...porDia]
+          .map(([log_date, d]) => ({ log_date, ...d, volume_kg: Math.round(d.volume_kg) }))
+          .sort((a, b) => a.log_date.localeCompare(b.log_date)),
+      },
+    };
+  }
+
   validarRango(from: string, to: string) {
     if (to < from) throw new BadRequestException('El rango termina antes de empezar');
     if (this.diasEnRango(from, to) > 366) {

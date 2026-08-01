@@ -85,6 +85,7 @@ model User {
   recipes        Recipe[]
   passwordResets PasswordReset[]
   favorites      FoodFavorite[]
+  routines       Routine[]
 
   @@map("users")
 }
@@ -176,6 +177,7 @@ model DailyLog {
   user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   entries   MealEntry[]
   exercises ExerciseEntry[]
+  strength  StrengthEntry[]
 
   @@unique([userId, logDate])
   @@map("daily_logs")
@@ -203,6 +205,71 @@ model ExerciseEntry {
 
   @@index([dailyLogId])
   @@map("exercise_entries")
+}
+
+/**
+ * Series de gimnasio. Va aparte de ExerciseEntry porque no comparte nada con
+ * ella: acá no hay minutos ni MET, y por lo tanto tampoco calorías quemadas.
+ * El dataset de movimientos no trae MET y estimarlo sería inventarlo, así que
+ * la fuerza no toca el margen del día: es historial de cargas.
+ *
+ * El nombre se copia igual que en ExerciseEntry, por el mismo motivo.
+ * weightKg es opcional: dominadas y flexiones se hacen sin peso agregado.
+ */
+model StrengthEntry {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dailyLogId String   @map("daily_log_id") @db.Uuid
+  name       String   @db.VarChar(120)
+  sets       Int
+  reps       Int
+  weightKg   Decimal? @map("weight_kg") @db.Decimal(5, 1)
+  /// Una fila cargada desde una rutina nace pendiente: sus números son el
+  /// objetivo del entreno, no lo que se hizo. Al confirmarla se corrigen los
+  /// que hayan cambiado y pasa a hecha. Lo que se carga a mano nace hecho.
+  /// El volumen del día solo cuenta lo hecho.
+  done       Boolean  @default(true)
+  loggedAt   DateTime @default(now()) @map("logged_at") @db.Timestamptz(6)
+
+  dailyLog DailyLog @relation(fields: [dailyLogId], references: [id], onDelete: Cascade)
+
+  @@index([dailyLogId])
+  @@map("strength_entries")
+}
+
+/**
+ * Una rutina: la lista de movimientos de un entreno con sus objetivos.
+ *
+ * Es la plantilla, no el registro. Cargarla en un día copia sus ítems a
+ * strength_entries y desde ahí viven aparte: editar la rutina después no
+ * reescribe lo que ya se entrenó, igual que con las recetas.
+ */
+model Routine {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  name      String   @db.VarChar(120)
+  notes     String?  @db.VarChar(500)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items RoutineItem[]
+
+  @@unique([userId, name])
+  @@map("routines")
+}
+
+model RoutineItem {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  routineId String   @map("routine_id") @db.Uuid
+  name      String   @db.VarChar(120)
+  sets      Int
+  reps      Int
+  weightKg  Decimal? @map("weight_kg") @db.Decimal(5, 1)
+  position  Int
+
+  routine Routine @relation(fields: [routineId], references: [id], onDelete: Cascade)
+
+  @@index([routineId])
+  @@map("routine_items")
 }
 
 /**

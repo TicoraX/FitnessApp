@@ -156,6 +156,7 @@ export interface DaySummary {
   remaining: { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null;
   entries: MealEntry[];
   exercise: { total_burned: number; entries: ExerciseEntry[] };
+  strength: StrengthEntry[];
   micros: MicrosSummary;
 }
 
@@ -189,6 +190,67 @@ export interface Activity {
   name: string;
   met: number;
   category: 'cardio' | 'fuerza' | 'deporte' | 'cotidiano';
+}
+
+/**
+ * Una serie de gimnasio. No tiene calorías: no entra en el margen del día.
+ *
+ * Con done en false los números son el objetivo de una rutina cargada, no lo
+ * que se hizo. El volumen solo cuenta lo hecho.
+ */
+export interface StrengthEntry {
+  id: string;
+  name: string;
+  sets: number;
+  reps: number;
+  weight_kg: number | null;
+  done: boolean;
+  logged_at: string;
+}
+
+/** Un objetivo dentro de una rutina. Misma forma que la serie, sin estado. */
+export interface RoutineItem {
+  id?: string;
+  name: string;
+  sets: number;
+  reps: number;
+  weight_kg: number | null;
+}
+
+export interface Routine {
+  id: string;
+  name: string;
+  notes: string | null;
+  items: RoutineItem[];
+}
+
+/** Lo último y lo mejor de un movimiento, para verlo al elegirlo. */
+export interface StrengthHistory {
+  last: { sets: number; reps: number; weight_kg: number | null; log_date: string } | null;
+  best: { sets: number; reps: number; weight_kg: number | null } | null;
+}
+
+export interface ExerciseReport {
+  range: { from: string; to: string };
+  totals: {
+    volume_kg: number;
+    sets: number;
+    calories_burned: number;
+    cardio_minutes: number;
+    days_trained: number;
+  };
+  by_body: { body: string; sets: number }[];
+  days: { log_date: string; volume_kg: number; sets: number; burned: number }[];
+}
+
+/** Movimiento del catálogo de gimnasio. El nombre viene en inglés del dataset. */
+export interface Movement {
+  id: string;
+  name: string;
+  body: string;
+  equipment: string;
+  target: string;
+  howTo: string;
 }
 
 export interface StreakReport {

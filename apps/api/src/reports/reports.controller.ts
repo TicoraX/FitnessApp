@@ -29,6 +29,13 @@ export class ReportsController {
     return this.reports.weight(req.user.userId, desde, hasta);
   }
 
+  /** Volumen, series por zona y cardio del rango. Lo que mira la vista de ejercicio. */
+  @Get('exercise')
+  exercise(@Req() req: AuthedRequest, @Query('from') from: string, @Query('to') to: string) {
+    const [desde, hasta] = this.rango(from, to);
+    return this.reports.exercise(req.user.userId, desde, hasta);
+  }
+
   /**
    * today lo manda el cliente porque el servidor no sabe su zona horaria, y
    * adivinarla le cuesta la racha a alguien a las 21:00. Mismo criterio que el

@@ -1,6 +1,6 @@
 import { useCallback, useSyncExternalStore } from 'react';
 
-export type ViewRoute = 'diario' | 'recetas' | 'progreso' | 'perfil' | 'reset';
+export type ViewRoute = 'diario' | 'ejercicio' | 'recetas' | 'progreso' | 'perfil' | 'reset';
 
 export interface ParsedRoute {
   view: ViewRoute;
@@ -15,7 +15,8 @@ function parseHash(hash: string): ParsedRoute {
 
   const viewName = parts[0]?.toLowerCase();
   let view: ViewRoute = 'diario';
-  if (viewName === 'recetas') view = 'recetas';
+  if (viewName === 'ejercicio') view = 'ejercicio';
+  else if (viewName === 'recetas') view = 'recetas';
   else if (viewName === 'progreso') view = 'progreso';
   else if (viewName === 'perfil') view = 'perfil';
   else if (viewName === 'reset') view = 'reset';

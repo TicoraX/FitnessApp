@@ -5,6 +5,7 @@ import Dock, { type DockItemData } from './components/Dock';
 import { useHashRoute } from './hooks/useHashRoute';
 import { DiarioView } from './views/DiarioView';
 
+const EjercicioView = lazy(() => import('./views/EjercicioView').then((m) => ({ default: m.EjercicioView })));
 const RecetasView = lazy(() => import('./views/RecetasView').then((m) => ({ default: m.RecetasView })));
 const ProgresoView = lazy(() => import('./views/ProgresoView').then((m) => ({ default: m.ProgresoView })));
 const PerfilView = lazy(() => import('./views/PerfilView').then((m) => ({ default: m.PerfilView })));
@@ -12,21 +13,28 @@ const ResetPasswordView = lazy(() => import('./views/ResetPasswordView').then((m
 
 const VIEW_INDEX: Record<string, number> = {
   diario: 0,
-  recetas: 1,
-  progreso: 2,
-  perfil: 3,
+  ejercicio: 1,
+  recetas: 2,
+  progreso: 3,
+  perfil: 4,
 };
 
+/**
+ * Sin blur a propósito: al terminar la transición el elemento queda con
+ * `filter: blur(0px)`, y un filtro no vacío convierte al contenedor en el
+ * bloque de referencia de todo `position: fixed` que haya adentro. Con eso, una
+ * modal de pantalla completa se recorta al alto de la vista y sus botones
+ * quedan fuera de pantalla si la vista es corta. El desplazamiento y el fade
+ * dan la misma sensación y no rompen nada.
+ */
 const pageVariants = {
   enter: (dir: number) => ({
     x: dir > 0 ? 30 : -30,
     opacity: 0,
-    filter: 'blur(3px)',
   }),
   center: {
     x: 0,
     opacity: 1,
-    filter: 'blur(0px)',
     transition: {
       duration: 0.28,
       ease: [0.25, 1, 0.5, 1] as const,
@@ -35,7 +43,6 @@ const pageVariants = {
   exit: (dir: number) => ({
     x: dir > 0 ? -30 : 30,
     opacity: 0,
-    filter: 'blur(3px)',
     transition: {
       duration: 0.18,
       ease: [0.5, 0, 0.75, 0] as const,
@@ -93,12 +100,19 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
     }
   }, []);
 
+  /**
+   * Recarga también al volver de otra vista, no solo al cambiar de día: el
+   * ejercicio se registra en #/ejercicio y devuelve margen, así que el anillo
+   * llegaría desactualizado. El aviso por BroadcastChannel no sirve para esto,
+   * que solo cruza pestañas y no llega al que lo emitió.
+   */
   useEffect(() => {
+    if (route.view !== 'diario') return;
     void load(date);
     api.get<{ data: { is_guest: boolean } }>('/profile')
       .then((res) => setIsGuest(Boolean(res.data.is_guest)))
       .catch(() => {});
-  }, [date, load]);
+  }, [date, load, route.view]);
 
   useEffect(() => {
     return escucharCambios((tipo) => {
@@ -115,11 +129,14 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
           navigate(`diario/${date}`);
         } else if (e.key === '2') {
           e.preventDefault();
-          navigate('recetas');
+          navigate('ejercicio');
         } else if (e.key === '3') {
           e.preventDefault();
-          navigate('progreso');
+          navigate('recetas');
         } else if (e.key === '4') {
+          e.preventDefault();
+          navigate('progreso');
+        } else if (e.key === '5') {
           e.preventDefault();
           navigate('perfil');
         }
@@ -177,10 +194,19 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
     {
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
+          <path d="M7 12h10M6.5 7.5v9M17.5 7.5v9M3 10v4M21 10v4" />
         </svg>
       ),
-      label: 'Recetas (Alt+2)',
+      label: 'Ejercicio (Alt+2)',
+      onClick: () => navigate('ejercicio'),
+    },
+    {
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M3 2v7a2 2 0 002 2h4a2 2 0 002-2V2M7 2v20M21 15V2a5 5 0 00-5 5v6a2 2 0 002 2h3zm0 0v7" />
+        </svg>
+      ),
+      label: 'Recetas (Alt+3)',
       onClick: () => navigate('recetas'),
     },
     {
@@ -189,7 +215,7 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
           <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
         </svg>
       ),
-      label: 'Progreso (Alt+3)',
+      label: 'Progreso (Alt+4)',
       onClick: () => navigate('progreso'),
     },
     {
@@ -199,7 +225,7 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
           <circle cx="12" cy="7" r="4" />
         </svg>
       ),
-      label: 'Perfil (Alt+4)',
+      label: 'Perfil (Alt+5)',
       onClick: () => navigate('perfil'),
     },
   ];
@@ -243,6 +269,8 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
                   searchInputRef={searchInputRef}
                 />
               )}
+
+              {route.view === 'ejercicio' && <EjercicioView fechaInicial={route.param ?? date} />}
 
               {route.view === 'recetas' && <RecetasView />}
 
