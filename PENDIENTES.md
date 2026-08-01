@@ -1,21 +1,25 @@
 # Pendientes
 
-Estado al 31 de julio de 2026, después de cerrar las cinco fases del plan hacia
-paridad con MyFitnessPal.
+Estado al 1 de agosto de 2026, con todo mergeado en `main`.
 
-## Estado de los PRs
+## Lo que entró
 
-Los tres van encadenados. Hay que mergearlos en orden.
+| PR | Contenido |
+|---|---|
+| [#1](https://github.com/TicoraX/FitnessApp/pull/1) | Arreglos de móvil, ejercicio, favoritos, comidas guardadas, meta de agua |
+| [#2](https://github.com/TicoraX/FitnessApp/pull/2) | Foco en modales, cruz SVG, limpieza del topbar |
+| [#3](https://github.com/TicoraX/FitnessApp/pull/3) | Micronutrientes |
+| [#4](https://github.com/TicoraX/FitnessApp/pull/4) | Entrenamiento como vista propia, catálogo de movimientos, rutinas |
 
-| PR | Contenido | Base |
-|---|---|---|
-| [#1](https://github.com/TicoraX/FitnessApp/pull/1) | Arreglos de móvil, ejercicio, favoritos, comidas guardadas, meta de agua | `main` |
-| [#2](https://github.com/TicoraX/FitnessApp/pull/2) | Foco en modales, cruz SVG, limpieza del topbar | #1 |
-| [#3](https://github.com/TicoraX/FitnessApp/pull/3) | Micronutrientes | #2 |
+Iban encadenados, cada uno sobre el anterior. Mergear el #1 con
+`--delete-branch` no reapuntó el #2 a `main`: GitHub cierra el PR cuando
+desaparece su rama base, y uno cerrado no se puede reabrir ni reapuntar sin esa
+rama. Hubo que restaurarla en el remoto para recuperarlo.
 
-`main` local tiene 12 commits que nunca se pushearon y viajan dentro del #1.
+**En una cadena de PRs, reapuntá la base del siguiente antes de mergear el
+anterior, y dejá el borrado de ramas para el final.**
 
-Migraciones nuevas, las cuatro aditivas y sin backfill:
+Migraciones que trajeron, las cuatro aditivas y sin backfill:
 
 - `20260730000000_exercise_entries`
 - `20260730010000_favorites_meals_water_goal`
