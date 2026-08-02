@@ -15,6 +15,7 @@ import { nutrientsOf, remaining, sumEntries } from './totals';
 import { caloriesBurned, metOf } from '../exercise/met';
 import { nombreEs } from '../exercise/movements-es';
 import { parseMicros, sumMicros } from '../nutrition/micros';
+import { objetivoVigente } from '../nutrition/goal-history';
 
 /** Fila del diario tal como la devuelve getDay, ya lista para el cliente. */
 export type EntryDto = {
@@ -579,6 +580,21 @@ export class LogsService {
     return this.getDay(userId, logDate);
   }
 
+  /**
+   * El objetivo que regía ESE día, no el activo hoy. Ver goal-history.ts.
+   *
+   * Trae el historial entero en vez de resolverlo en SQL: son las veces que el
+   * usuario cambió de plan, decenas de filas en el peor caso, y así la elección
+   * queda en una función pura con tests en vez de repartida en dos queries.
+   */
+  private async goalOn(userId: string, logDate: string) {
+    const goals = await this.prisma.userGoal.findMany({
+      where: { userId },
+      orderBy: { effectiveFrom: 'asc' },
+    });
+    return objetivoVigente(goals, logDate);
+  }
+
   async getDay(userId: string, logDate: string) {
     const [log, goal, user] = await Promise.all([
       this.prisma.dailyLog.findUnique({
@@ -592,10 +608,7 @@ export class LogsService {
           strength: { orderBy: { loggedAt: 'asc' } },
         },
       }),
-      this.prisma.userGoal.findFirst({
-        where: { userId, isActive: true },
-        orderBy: { effectiveFrom: 'desc' },
-      }),
+      this.goalOn(userId, logDate),
       this.prisma.user.findUniqueOrThrow({
         where: { id: userId },
         select: { waterGoalMl: true },
