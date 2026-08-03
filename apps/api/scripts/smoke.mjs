@@ -540,6 +540,47 @@ token = '';
     assert.equal(body.data.averages.protein_g, 40);
   });
 
+  await check('con datos suficientes el objetivo sale del gasto medido, no de la fórmula', async () => {
+    // Usuario aparte: siembra 28 días comiendo 2000 y pesándose todos los días,
+    // bajando de 82 a 80 kg. El gasto real es 2000 + 2*7700/27 = 2570, mientras
+    // que la fórmula con actividad 1.55 estima 2753. Con weekly_goal -0.5 el
+    // objetivo tiene que salir de lo medido, no de lo estimado.
+    const previo = token;
+    const reg = await call('POST', '/auth/register', {
+      ...REGISTER,
+      email: `tdee-${Date.now()}@fittrack.test`,
+    });
+    assert.equal(reg.status, 201, JSON.stringify(reg.body));
+    token = reg.body.data.token;
+    const estimado = reg.body.data.calculated_goals.daily_calories;
+
+    const dia = (o) => new Date(Date.now() + o * 86_400_000).toISOString().slice(0, 10);
+    for (let i = 27; i >= 0; i--) {
+      await call('POST', '/logs/quick', {
+        log_date: dia(-i), meal_type: 'lunch', name: 'Día', calories: 2000,
+      });
+    }
+    for (let i = 27; i >= 0; i--) {
+      await call('POST', '/weight', {
+        logged_on: dia(-i), weight_kg: Number((82 - (2 * (27 - i)) / 27).toFixed(2)),
+      });
+    }
+
+    const { body } = await call('GET', `/logs/${dia(0)}`);
+    const objetivo = body.data.remaining.calories + body.data.totals.calories;
+    // 2570 medido menos los 550 de déficit. Margen de 30 por el redondeo de la
+    // EMA sembrada al registrarse.
+    assert.ok(
+      Math.abs(objetivo - 2020) <= 30,
+      `el objetivo dio ${objetivo}; medido esperaba ~2020 y la fórmula habría dado ~${estimado}`,
+    );
+    assert.ok(
+      Math.abs(objetivo - estimado) > 100,
+      `el objetivo (${objetivo}) quedó pegado al de la fórmula (${estimado}): no midió`,
+    );
+    token = previo;
+  });
+
   await check('la adherencia se mide contra el objetivo del día', async () => {
     const { body } = await call('GET', '/reports/summary?from=2026-05-01&to=2026-05-04');
     assert.equal(body.data.adherence.days_with_goal, 3);

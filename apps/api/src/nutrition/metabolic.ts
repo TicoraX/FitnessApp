@@ -63,9 +63,15 @@ export function calculateTargets(input: {
   activityLevel: number;
   weeklyChangeKg: number;
   bodyFatPct?: number;
+  /**
+   * Gasto medido desde el intake y la EMA del peso. Cuando viene, reemplaza al
+   * estimado: bmr x activityLevel sale de un dropdown que el usuario completa a
+   * ojo, y esto sale de lo que realmente pasó. Ver tdee-medido.ts.
+   */
+  tdeeMedidoKcal?: number;
 }): NutritionTargets {
   const bmr = calculateBmr(input);
-  const tdee = calculateTdee(bmr, input.activityLevel);
+  const tdee = input.tdeeMedidoKcal ?? calculateTdee(bmr, input.activityLevel);
 
   const dailyAdjustment = (input.weeklyChangeKg * KCAL_PER_KG) / 7;
   const dailyCalories = Math.max(round(tdee + dailyAdjustment), MIN_CALORIES[input.gender]);

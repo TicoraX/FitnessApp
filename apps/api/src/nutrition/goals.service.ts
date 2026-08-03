@@ -1,6 +1,7 @@
 import { Global, Injectable, Module } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { calculateAge, calculateTargets, type Gender } from './metabolic';
+import { calculateAge, calculateTargets, calculateBmr, calculateTdee, type Gender } from './metabolic';
+import { tdeeMedido, MIN_DIAS_VENTANA, type DiaMedido } from './tdee-medido';
 
 /**
  * Recálculo del objetivo activo. Vive acá y no dentro de un módulo porque lo
@@ -34,7 +35,7 @@ export class GoalsService {
 
     if (!goal || !latest) return;
 
-    const targets = calculateTargets({
+    const base = {
       weightKg: Number(latest.emaKg),
       heightCm: Number(user.heightCm),
       age: calculateAge(user.dob),
@@ -42,7 +43,13 @@ export class GoalsService {
       activityLevel: Number(user.activityLevel),
       weeklyChangeKg: Number(goal.weeklyChangeKg),
       bodyFatPct: user.bodyFatPct === null ? undefined : Number(user.bodyFatPct),
-    });
+    };
+
+    // El multiplicador de actividad lo elige el usuario de un dropdown y es la
+    // fuente de error dominante del objetivo. Cuando hay datos suficientes se
+    // reemplaza por gasto medido; si no los hay, la fórmula sigue mandando.
+    const medido = await this.medirTdee(tx, userId, calculateTdee(calculateBmr(base), base.activityLevel));
+    const targets = calculateTargets(medido.confiable ? { ...base, tdeeMedidoKcal: medido.tdee } : base);
 
     if (targets.dailyCalories === goal.dailyCalories) return;
 
@@ -59,6 +66,61 @@ export class GoalsService {
         ...(vigenteDesde ? { effectiveFrom: new Date(vigenteDesde) } : {}),
       },
     });
+  }
+
+  /**
+   * Arma la ventana que necesita tdeeMedido: un día por fecha, con lo comido,
+   * lo quemado y la EMA del peso de ese día.
+   *
+   * La ventana es de 42 días y el mínimo de 14: sobra margen para que la EMA
+   * se mueva sin arrastrar datos tan viejos que ya no describen al usuario de
+   * hoy. Las tres consultas van en paralelo y se cruzan por fecha en memoria,
+   * que para seis semanas de filas es más simple que un FULL OUTER JOIN.
+   */
+  private async medirTdee(tx: Prisma.TransactionClient, userId: string, tdeeEstimado: number) {
+    const hasta = new Date();
+    const desde = new Date(hasta.getTime() - 42 * 86_400_000);
+
+    const [intakes, quemados, pesadas] = await Promise.all([
+      tx.$queryRaw<{ dia: Date; kcal: number }[]>`
+        SELECT d.log_date AS "dia",
+               ROUND(SUM(COALESCE(f.calories, e.quick_calories) * e.servings_consumed))::int AS "kcal"
+        FROM daily_logs d
+        JOIN meal_entries e ON e.daily_log_id = d.id
+        LEFT JOIN food_items f ON f.id = e.food_item_id
+        WHERE d.user_id = ${userId}::uuid AND d.log_date >= ${desde}::date
+        GROUP BY d.log_date`,
+      tx.$queryRaw<{ dia: Date; kcal: number }[]>`
+        SELECT d.log_date AS "dia", SUM(x.calories_burned)::int AS "kcal"
+        FROM daily_logs d
+        JOIN exercise_entries x ON x.daily_log_id = d.id
+        WHERE d.user_id = ${userId}::uuid AND d.log_date >= ${desde}::date
+        GROUP BY d.log_date`,
+      tx.weightEntry.findMany({
+        where: { userId, loggedOn: { gte: desde } },
+        orderBy: { loggedOn: 'asc' },
+        select: { loggedOn: true, weightKg: true },
+      }),
+    ]);
+
+    const dia = (d: Date) => d.toISOString().slice(0, 10);
+    const porIntake = new Map(intakes.map((r) => [dia(r.dia), r.kcal]));
+    const porQuemado = new Map(quemados.map((r) => [dia(r.dia), r.kcal]));
+    // Peso crudo y no la EMA: la EMA arrastra un retraso que comprime el delta
+    // y sesga el TDEE hacia abajo. tdee-medido.ts lo promedia por semana.
+    const porPeso = new Map(pesadas.map((r) => [dia(r.loggedOn), Number(r.weightKg)]));
+
+    const fechas = [...new Set([...porIntake.keys(), ...porQuemado.keys(), ...porPeso.keys()])].sort();
+    if (fechas.length < MIN_DIAS_VENTANA) return { confiable: false as const };
+
+    const ventana: DiaMedido[] = fechas.map((f) => ({
+      fecha: f,
+      intake: porIntake.get(f) ?? null,
+      quemado: porQuemado.get(f) ?? 0,
+      pesoKg: porPeso.get(f) ?? null,
+    }));
+
+    return tdeeMedido(ventana, tdeeEstimado);
   }
 }
 
