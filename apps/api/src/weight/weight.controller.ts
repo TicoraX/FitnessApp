@@ -1,20 +1,10 @@
-import {
-  Body,
-  Controller,
-  DefaultValuePipe,
-  Get,
-  Module,
-  ParseIntPipe,
-  Post,
-  Query,
-  Req,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Module, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { Type } from 'class-transformer';
 import { IsNumber, Max, Min } from 'class-validator';
 import { IsLogDate } from '../common/log-date';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { WeightService } from './weight.service';
+import { WeightSeriesQueryDto } from './dto/series.dto';
 
 class LogWeightDto {
   @IsLogDate()
@@ -40,11 +30,8 @@ export class WeightController {
   }
 
   @Get()
-  series(
-    @Req() req: AuthedRequest,
-    @Query('days', new DefaultValuePipe(90), ParseIntPipe) days: number,
-  ) {
-    return this.weight.series(req.user.userId, Math.min(Math.max(days, 1), 730));
+  series(@Req() req: AuthedRequest, @Query() query: WeightSeriesQueryDto) {
+    return this.weight.series(req.user.userId, query.days ?? 90);
   }
 }
 

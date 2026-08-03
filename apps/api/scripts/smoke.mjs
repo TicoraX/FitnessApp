@@ -148,6 +148,45 @@ await check('un código de barras mal formado se rechaza sin salir a la red', as
   assert.ok(Date.now() - t0 < 1000, 'el formato se valida después de salir a la red');
 });
 
+await check('una query mal armada se rechaza en vez de reinterpretarse', async () => {
+  // Express arma un array con el parámetro repetido. Antes se colaba hasta la
+  // consulta convertido en "pollo,carne" y devolvía 200 con resultados que
+  // nadie pidió; el mismo defecto ya había dado un 500 en strength/history.
+  for (const url of [
+    '/foods/search?q=pollo&q=carne',
+    '/exercise/search?q=correr&q=nadar',
+    '/exercise/movements?body=pecho&body=espalda',
+    '/exercise/movements?equipment=barra&equipment=mancuerna',
+  ]) {
+    assert.equal((await call('GET', url)).status, 400, `${url} no se rechazó`);
+  }
+
+  // Un límite que no es número caía al default en silencio, que esconde bugs
+  // del cliente. El techo ya existía, lo que cambia es que ahora avisa.
+  for (const url of [
+    '/foods/search?q=pollo&limit=abc',
+    '/foods/search?q=pollo&limit=0',
+    '/foods/search?q=pollo&limit=51',
+    '/weight?days=abc',
+    '/weight?days=0',
+    '/weight?days=731',
+  ]) {
+    assert.equal((await call('GET', url)).status, 400, `${url} no se rechazó`);
+  }
+
+  // Los válidos siguen andando, con y sin el parámetro opcional.
+  assert.equal((await call('GET', '/foods/search?q=pollo&limit=50')).status, 200);
+  assert.equal((await call('GET', '/weight?days=730')).status, 200);
+  assert.equal((await call('GET', '/weight')).status, 200);
+  assert.equal((await call('GET', '/exercise/movements')).status, 200);
+
+  const { body } = await call('GET', '/foods/search?q=pollo&limit=99');
+  assert.ok(
+    body.message.some((m) => /limit va de 1 a 50/.test(m)),
+    `el mensaje no explica el rango: ${JSON.stringify(body.message)}`,
+  );
+});
+
 console.log('\nDiario');
 
 const day = new Date().toISOString().slice(0, 10);

@@ -1,15 +1,8 @@
-import {
-  Controller,
-  DefaultValuePipe,
-  Get,
-  Module,
-  ParseIntPipe,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Module, Query, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { movementFacets, searchActivities, searchMovements } from './met';
+import { ActivitySearchQueryDto, MovementSearchQueryDto } from './dto/query.dto';
 
 /**
  * El catálogo de actividades es estático y vive en memoria, así que esto no
@@ -21,28 +14,23 @@ import { movementFacets, searchActivities, searchMovements } from './met';
 export class ExerciseController {
   @Get('search')
   @Throttle({ default: { ttl: 60_000, limit: 600 } })
-  search(
-    @Query('q', new DefaultValuePipe('')) q: string,
-    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
-  ) {
+  search(@Query() query: ActivitySearchQueryDto) {
     return {
       status: 'success',
-      data: searchActivities(q, Math.min(Math.max(limit, 1), 50)),
+      data: searchActivities(query.q ?? '', query.limit ?? 20),
     };
   }
 
   /** Movimientos de gimnasio: los que se registran en series y repeticiones. */
   @Get('movements')
   @Throttle({ default: { ttl: 60_000, limit: 600 } })
-  movements(
-    @Query('q', new DefaultValuePipe('')) q: string,
-    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
-    @Query('body') body?: string,
-    @Query('equipment') equipment?: string,
-  ) {
+  movements(@Query() query: MovementSearchQueryDto) {
     return {
       status: 'success',
-      data: searchMovements(q, Math.min(Math.max(limit, 1), 50), { body, equipment }),
+      data: searchMovements(query.q ?? '', query.limit ?? 20, {
+        body: query.body,
+        equipment: query.equipment,
+      }),
     };
   }
 
