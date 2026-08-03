@@ -10,6 +10,7 @@ import {
 } from './api';
 import { CampoEsfuerzo } from './components/CampoEsfuerzo';
 import { NombreMovimiento } from './components/NombreMovimiento';
+import { MediaMovimiento } from './components/MediaMovimiento';
 
 type Facets = { body: string[]; equipment: string[] };
 
@@ -284,6 +285,7 @@ export function Strength({
             <details>
               <summary>Cómo se hace</summary>
               <p className="muted">{selected.howTo}</p>
+              <MediaMovimiento name={selected.name} media={selected.media} />
             </details>
           </>
         )}
