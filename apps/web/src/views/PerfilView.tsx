@@ -46,8 +46,11 @@ function MacroPresetCalculator() {
       setUserCals(cals);
       setSavedMsg(`Estrategia "${preset.name}" (${cals} kcal/día) aplicada a tu perfil.`);
       notificarCambio('diario-cambiado');
-    } catch {
-      setSavedMsg('No se pudo guardar la estrategia.');
+    } catch (e) {
+      // El mensaje del servidor y no uno genérico: este botón lleva roto desde
+      // que existe (el API no acepta daily_calories) y el catch mudo es la
+      // razón de que nadie lo notara.
+      setSavedMsg(e instanceof Error ? e.message : 'No se pudo guardar la estrategia.');
     } finally {
       setSaving(false);
     }

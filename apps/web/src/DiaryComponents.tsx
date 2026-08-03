@@ -6,6 +6,7 @@ import Counter from './components/Counter';
 import { BarcodeScanner } from './components/BarcodeScanner';
 import InfiniteMenu from './components/InfiniteMenu';
 import { NewFood } from './NewFood';
+import { ErrorConReintento } from './components/ErrorConReintento';
 
 export function CyberDayStrip({ date, setDate }: { date: string; setDate: (d: string) => void }) {
   const days = getWeekDays(date);
@@ -283,20 +284,33 @@ export function Water({
 export function Meals({ day, date, onChanged }: { day: DaySummary; date: string; onChanged: () => void }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [copyingMeal, setCopyingMeal] = useState<string | null>(null);
+  const [avisoCopia, setAvisoCopia] = useState<{ meal: string; texto: string } | null>(null);
 
   async function handleCopyYesterday(mealType: string) {
     setCopyingMeal(mealType);
+    setAvisoCopia(null);
     try {
       const yesterday = shiftDate(date, -1);
-      await api.post('/logs/copy', {
+      const antes = day.entries.filter((e) => e.meal_type === mealType).length;
+      const res = await api.post<{ data: DaySummary }>('/logs/copy', {
         from_date: yesterday,
         to_date: date,
         meal_type: mealType,
       });
+      // Copiar un día vacío no es un error: inserta cero filas y devuelve el
+      // día igual que estaba. Sin este chequeo el botón gira y no pasa nada,
+      // que desde afuera se ve idéntico a que la app se haya colgado.
+      const despues = res.data.entries.filter((e) => e.meal_type === mealType).length;
+      if (despues === antes) {
+        setAvisoCopia({ meal: mealType, texto: 'Ayer no registraste nada en este tiempo.' });
+      }
       notificarCambio('diario-cambiado');
       onChanged();
-    } catch {
-      // Ignorar si no había comidas ayer
+    } catch (e) {
+      setAvisoCopia({
+        meal: mealType,
+        texto: e instanceof Error ? e.message : 'No se pudo copiar de ayer.',
+      });
     } finally {
       setCopyingMeal(null);
     }
@@ -325,6 +339,11 @@ export function Meals({ day, date, onChanged }: { day: DaySummary; date: string;
               </div>
               <span className="muted num">{subtotal > 0 ? `${subtotal} kcal` : '—'}</span>
             </div>
+            {avisoCopia?.meal === key && (
+              <p className="alert" role="status" style={{ marginBottom: 'var(--space-xs)' }}>
+                {avisoCopia.texto}
+              </p>
+            )}
             {entries.length > 0 ? (
               <ul className="entries">
                 {entries.map((e) => (
@@ -356,6 +375,12 @@ export function Entry({
 }) {
   const [servings, setServings] = useState(() => formatEntryVal(entry.servings_consumed));
   const [expanded, setExpanded] = useState(false);
+  /**
+   * Revertir el número sin decir nada deja al usuario sin saber si se equivocó
+   * él o si falló la red. El caso normal es el segundo y desde el teléfono es
+   * frecuente.
+   */
+  const [error, setError] = useState('');
 
   useEffect(() => setServings(formatEntryVal(entry.servings_consumed)), [entry.servings_consumed]);
 
@@ -368,6 +393,7 @@ export function Entry({
       return;
     }
     setBusy(entry.id);
+    setError('');
     try {
       if (isRecipe) {
         await api.patch(`/logs/recipe/${entry.id}`, { servings: value });
@@ -376,8 +402,9 @@ export function Entry({
       }
       notificarCambio('diario-cambiado');
       onChanged();
-    } catch {
+    } catch (e) {
       setServings(formatEntryVal(entry.servings_consumed));
+      setError(e instanceof Error ? e.message : 'No se pudo cambiar las porciones.');
     } finally {
       setBusy(null);
     }
@@ -385,6 +412,7 @@ export function Entry({
 
   async function remove() {
     setBusy(entry.id);
+    setError('');
     try {
       if (isRecipe) {
         await api.del(`/logs/recipe/${entry.id}`);
@@ -393,8 +421,9 @@ export function Entry({
       }
       notificarCambio('diario-cambiado');
       onChanged();
-    } catch {
+    } catch (e) {
       setServings(formatEntryVal(entry.servings_consumed));
+      setError(e instanceof Error ? e.message : 'No se pudo quitar.');
     } finally {
       setBusy(null);
     }
@@ -457,6 +486,12 @@ export function Entry({
         </span>
       </div>
 
+      {error && (
+        <p className="alert" role="alert" style={{ marginTop: 'var(--space-xs)' }}>
+          {error}
+        </p>
+      )}
+
       {isRecipe && expanded && entry.components && entry.components.length > 0 && (
         <div style={{ marginTop: '0.5rem', paddingLeft: '1rem', borderLeft: '2px solid var(--border-subtle)', fontSize: '0.8rem' }} className="muted num">
           {entry.components.map((c) => (
@@ -492,6 +527,14 @@ export function AddFood({
   const [recent, setRecent] = useState<Food[]>([]);
   const [favorites, setFavorites] = useState<Food[]>([]);
   const [tab, setTab] = useState<'recent' | 'favorites'>('recent');
+  /**
+   * Sin esto, un fallo de red se lee como un catálogo vacío: la lista de
+   * sugerencias dice "todavía no registraste nada" y la búsqueda ofrece dar de
+   * alta un alimento que ya existe. Lo segundo no solo desinforma, ensucia el
+   * catálogo con duplicados.
+   */
+  const [falloSugeridos, setFalloSugeridos] = useState(false);
+  const [falloBusqueda, setFalloBusqueda] = useState(false);
   const [activo, setActivo] = useState(-1);
   const [showScanner, setShowScanner] = useState(false);
   const [showNewFood, setShowNewFood] = useState(false);
@@ -570,8 +613,9 @@ export function AddFood({
   const loadFavorites = useCallback(async () => {
     try {
       setFavorites((await getCacheado<{ data: Food[] }>('/foods/favorites')).data ?? []);
+      setFalloSugeridos(false);
     } catch {
-      setFavorites([]);
+      setFalloSugeridos(true);
     }
   }, []);
 
@@ -604,12 +648,14 @@ export function AddFood({
         const cat = await api.get<{ data: Food[] }>('/foods/search?q=a');
         setRecent(cat.data ? cat.data.slice(0, 8) : []);
       }
+      setFalloSugeridos(false);
     } catch {
       try {
         const cat = await api.get<{ data: Food[] }>('/foods/search?q=a');
         setRecent(cat.data ? cat.data.slice(0, 8) : []);
+        setFalloSugeridos(false);
       } catch {
-        setRecent([]);
+        setFalloSugeridos(true);
       }
     }
   }, []);
@@ -617,6 +663,25 @@ export function AddFood({
   useEffect(() => {
     if (panelVisible) void loadRecent();
   }, [loadRecent, panelVisible]);
+
+  /**
+   * Aparte del efecto que la dispara, para que el botón de reintentar pueda
+   * volver a llamarla sin tocar el texto buscado.
+   */
+  const buscar = useCallback(async () => {
+    try {
+      const res = await api.get<{ data: Food[] }>(`/foods/search?q=${encodeURIComponent(query)}`);
+      setResults((prev) => {
+        if (prev.length === 0 && res.data.length === 0) return prev;
+        return res.data;
+      });
+      setFalloBusqueda(false);
+    } catch {
+      // Los resultados viejos quedan: son de otra búsqueda, pero borrarlos
+      // dejaría la pantalla afirmando que este alimento no existe.
+      setFalloBusqueda(true);
+    }
+  }, [query]);
 
   const handleBarcodeDetected = useCallback(async (barcode: string) => {
     setShowScanner(false);
@@ -642,19 +707,9 @@ export function AddFood({
       return () => clearTimeout(id);
     }
 
-    const id = setTimeout(async () => {
-      try {
-        const res = await api.get<{ data: Food[] }>(`/foods/search?q=${encodeURIComponent(query)}`);
-        setResults((prev) => {
-          if (prev.length === 0 && res.data.length === 0) return prev;
-          return res.data;
-        });
-      } catch {
-        setResults((prev) => (prev.length === 0 ? prev : []));
-      }
-    }, 250);
+    const id = setTimeout(() => void buscar(), 250);
     return () => clearTimeout(id);
-  }, [query, handleBarcodeDetected]);
+  }, [query, handleBarcodeDetected, buscar]);
 
   const handleSelectFood = (food: Food) => {
     setSelected(food);
@@ -937,6 +992,11 @@ export function AddFood({
                 onClick: () => handleSelectFood(f),
               }))}
             />
+          ) : falloSugeridos ? (
+            <ErrorConReintento
+              mensaje="No se pudieron cargar las sugerencias."
+              onReintentar={() => (tab === 'favorites' ? loadFavorites() : loadRecent())}
+            />
           ) : (
             <p className="hint muted" style={{ fontSize: '0.75rem' }}>
               {tab === 'favorites'
@@ -971,7 +1031,12 @@ export function AddFood({
           ))}
         </ul>
       )}
-      {query.trim().length >= 2 && results.length === 0 && (
+      {query.trim().length >= 2 && falloBusqueda && (
+        <div style={{ marginTop: 'var(--space-md)' }}>
+          <ErrorConReintento mensaje="No se pudo buscar." onReintentar={buscar} />
+        </div>
+      )}
+      {query.trim().length >= 2 && !falloBusqueda && results.length === 0 && (
         <div style={{ marginTop: 'var(--space-md)' }}>
           <p className="muted" style={{ marginBottom: 'var(--space-xs)' }}>
             No encontramos &ldquo;{query}&rdquo;. Podés darlo de alta para usarlo hoy y que le quede a la comunidad.

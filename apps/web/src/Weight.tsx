@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, getCacheado, invalidarCache, today } from './api';
 import { useVisible } from './hooks/useVisible';
+import { ErrorConReintento } from './components/ErrorConReintento';
 
 export interface WeightPoint {
   logged_on: string;
@@ -13,13 +14,18 @@ export function Weight({ onGoalChanged }: { onGoalChanged: () => void }) {
   const [value, setValue] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [falloCarga, setFalloCarga] = useState(false);
   const [ref, visible] = useVisible<HTMLElement>();
 
   const load = useCallback(async () => {
     try {
       setSeries((await getCacheado<{ data: WeightPoint[] }>('/weight?days=90')).data);
+      setFalloCarga(false);
     } catch {
-      setSeries([]);
+      // Vaciar la serie sin más mostraría "Registrá tu peso para ver la
+      // tendencia" a quien tiene noventa pesadas: el error de red se leería
+      // como que no hay nada cargado.
+      setFalloCarga(true);
     }
   }, []);
 
@@ -92,6 +98,8 @@ export function Weight({ onGoalChanged }: { onGoalChanged: () => void }) {
             </>
           )}
         </>
+      ) : falloCarga ? (
+        <ErrorConReintento mensaje="No se pudo cargar la tendencia." onReintentar={load} />
       ) : (
         <p className="hint">
           Registrá tu peso para ver la tendencia. El objetivo se recalcula con cada cambio.
