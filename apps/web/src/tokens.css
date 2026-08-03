@@ -3,7 +3,6 @@
   --font-display: 'Plus Jakarta Sans', Inter, system-ui, sans-serif;
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
-  --font-body: Inter, system-ui, sans-serif;
 
   --radius-sm: 8px;
   --radius-md: 14px;
@@ -12,10 +11,8 @@
 
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-bounce: 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
 
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
   --dur-fast: 150ms;
   --dur-base: 250ms;
 
@@ -51,7 +48,6 @@
   /* Borders & Glass Effects */
   --border-subtle: oklch(0.28 0.025 260 / 0.6);
   --border-strong: oklch(0.38 0.04 260);
-  --border-glow: oklch(0.82 0.22 145 / 0.25);
   --color-rule: oklch(0.28 0.025 260 / 0.8);
   --rule: 1px solid var(--border-subtle);
 
@@ -85,7 +81,6 @@
   /* Glows & Shadows */
   --shadow-card: 0 12px 32px -8px oklch(0 0 0 / 0.6);
   --shadow-glow: 0 0 20px -3px oklch(0.82 0.22 145 / 0.2);
-  --glass-blur: blur(16px) saturate(180%);
 }
 
 /* LIGHT MODE OVERRIDES */
@@ -133,7 +128,6 @@
   --color-danger-soft: oklch(0.48 0.19 27 / 0.10);
   --color-accent-soft: oklch(0.38 0.15 152 / 0.10);
   --color-focus: oklch(0.38 0.15 152);
-  --border-glow: oklch(0.38 0.15 152 / 0.25);
 
   --shadow-card: 0 10px 30px -5px oklch(0 0 0 / 0.06);
   --shadow-glow: 0 0 20px -3px oklch(0.38 0.15 152 / 0.1);

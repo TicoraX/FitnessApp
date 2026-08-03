@@ -26,23 +26,11 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-.card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  padding: var(--space-lg);
-  box-shadow: var(--shadow-card);
-  transition: border-color var(--transition-fast), 
-              box-shadow var(--transition-fast);
-  position: relative;
-  overflow: hidden;
-}
-
 .card:hover {
   border-color: var(--border-strong);
 }
 
-.card.interactive:hover,
+/* .interactive no existe en el código; el hover de las elevadas sí. */
 .card--raised:hover {
   border-color: var(--color-primary);
   box-shadow: var(--shadow-card), var(--shadow-glow);
@@ -61,18 +49,7 @@ body {
   border: 1px solid var(--border-subtle);
 }
 
-/* El borde sale del propio token: hardcodeado se quedaba con el valor oscuro
-   cuando el tema cambiaba a claro. */
-.badge-protein { color: var(--color-protein); border-color: color-mix(in oklch, var(--color-protein) 30%, transparent); }
-.badge-carbs   { color: var(--color-carbs);   border-color: color-mix(in oklch, var(--color-carbs) 30%, transparent); }
-.badge-fats    { color: var(--color-fats);    border-color: color-mix(in oklch, var(--color-fats) 30%, transparent); }
-
 /* Todas las cifras en tabular para que no bailen al actualizarse. */
-.num {
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
-}
-
 h1,
 h2,
 h3 {
@@ -232,12 +209,6 @@ a {
   letter-spacing: -0.01em;
 }
 
-.topbar__tools {
-  display: flex;
-  gap: var(--space-xs);
-  align-items: center;
-}
-
 .columns {
   display: grid;
   gap: var(--space-xl);
@@ -256,6 +227,14 @@ a {
   border: var(--rule);
   border-radius: var(--radius-lg);
   padding: var(--space-lg);
+  /* Estas cuatro venían de un segundo bloque .card que el rediseño dejó arriba
+     del archivo; las otras cuatro que traía las pisaba este mismo bloque. */
+  box-shadow: var(--shadow-card);
+  position: relative;
+  overflow: hidden;
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .card--raised {
@@ -431,13 +410,6 @@ a {
   gap: var(--space-sm);
   padding-bottom: var(--space-xs);
   border-bottom: var(--rule);
-}
-
-.meal__empty {
-  padding: var(--space-sm) 0 var(--space-2xs);
-  color: var(--color-ink-3);
-  font-size: var(--text-sm);
-  margin: 0;
 }
 
 .entries {
@@ -727,6 +699,7 @@ a {
   padding: var(--space-sm) 0;
   color: var(--color-ink-3);
   font-size: var(--text-sm);
+  margin: 0;
 }
 
 /* ---------- Buscador ---------- */
@@ -868,13 +841,11 @@ input[aria-invalid='true'] {
     transform var(--dur-fast) var(--ease-out);
 }
 
-.btn:hover:not(:disabled),
-.btn.is-hover {
+.btn:hover:not(:disabled) {
   filter: brightness(1.08);
 }
 
-.btn:active:not(:disabled),
-.btn.is-active {
+.btn:active:not(:disabled) {
   transform: translateY(1px);
 }
 

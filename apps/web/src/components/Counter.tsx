@@ -1,166 +1,68 @@
-import { motion, useSpring, useTransform, type MotionValue } from 'motion/react';
+import { motion, useSpring, useTransform } from 'motion/react';
 import { useEffect, type CSSProperties } from 'react';
 import './Counter.css';
 
-interface NumberProps {
-  mv: MotionValue<number>;
-  number: number;
-  height: number;
-  isCurrent: boolean;
-}
-
-function NumberDigit({ mv, number, height, isCurrent }: NumberProps) {
-  const y = useTransform(mv, (latest) => (number - latest) * height);
-
-  if (!isCurrent) return null;
-
-  return (
-    <motion.span
-      className="counter-number"
-      data-active={true}
-      style={{ y }}
-    >
-      {number}
-    </motion.span>
-  );
-}
-
-function normalizeNearInteger(num: number): number {
-  const nearest = Math.round(num);
-  const tolerance = 1e-9 * Math.max(1, Math.abs(num));
-  return Math.abs(num - nearest) < tolerance ? nearest : num;
-}
-
-function getDigitForPlace(value: number, place: number): number {
-  const scaled = Math.floor(normalizeNearInteger(value / place));
-  return Math.abs(scaled % 10);
-}
-
+/**
+ * Un número que cambia deslizando el dígito, no saltando.
+ *
+ * Viene de un kit y llegó con la maquinaria de un odómetro completo: cada
+ * posición renderizaba los diez dígitos apilados para que se viera la tira
+ * girar. Nunca se vio: `NumberDigit` devolvía null salvo para el dígito actual,
+ * así que nueve de cada diez se creaban y se descartaban en cada render. Lo que
+ * sí ocurre, y es lo que se quería, es que el dígito entra desplazado y el
+ * spring lo lleva a su lugar, recortado por el overflow del contenedor.
+ *
+ * También traía diecisiete props de las que se usaban tres. Quedan esas.
+ */
 interface DigitProps {
-  place: number | string;
+  place: number;
   value: number;
   height: number;
-  digitStyle?: CSSProperties;
-  stiffness?: number;
-  damping?: number;
 }
 
-function Digit({ place, value, height, digitStyle, stiffness = 40, damping = 20 }: DigitProps) {
-  const isDecimal = place === '.';
-  const numericPlace = typeof place === 'number' ? place : 1;
-  const targetDigit = isDecimal ? 0 : getDigitForPlace(value, numericPlace);
-  const animatedValue = useSpring(targetDigit, { mass: 1, stiffness, damping });
+function Digit({ place, value, height }: DigitProps) {
+  // Redondear antes de dividir: en coma flotante 4.999...e2 daría 4 en vez de 5.
+  const cerca = (n: number) => {
+    const entero = Math.round(n);
+    return Math.abs(n - entero) < 1e-9 * Math.max(1, Math.abs(n)) ? entero : n;
+  };
+  const objetivo = Math.abs(Math.floor(cerca(value / place)) % 10);
+
+  const animado = useSpring(objetivo, { mass: 1, stiffness: 40, damping: 20 });
+  const y = useTransform(animado, (actual) => (objetivo - actual) * height);
 
   useEffect(() => {
-    if (!isDecimal) {
-      animatedValue.set(targetDigit);
-    }
-  }, [animatedValue, targetDigit, isDecimal]);
-
-  if (isDecimal) {
-    return (
-      <span className="counter-digit" style={{ height, ...digitStyle, width: 'fit-content' }}>
-        .
-      </span>
-    );
-  }
+    animado.set(objetivo);
+  }, [animado, objetivo]);
 
   return (
-    <span className="counter-digit" style={{ height, ...digitStyle }}>
-      {Array.from({ length: 10 }, (_, i) => (
-        <NumberDigit key={i} mv={animatedValue} number={i} height={height} isCurrent={i === targetDigit} />
-      ))}
+    <span className="counter-digit" style={{ height }}>
+      <motion.span className="counter-number" style={{ y }}>
+        {objetivo}
+      </motion.span>
     </span>
   );
-}
-
-export interface CounterProps {
-  value: number;
-  fontSize?: number;
-  padding?: number;
-  places?: (number | string)[];
-  gap?: number;
-  borderRadius?: number;
-  horizontalPadding?: number;
-  textColor?: string;
-  fontWeight?: string | number;
-  containerStyle?: CSSProperties;
-  counterStyle?: CSSProperties;
-  digitStyle?: CSSProperties;
-  gradientHeight?: number;
-  gradientFrom?: string;
-  gradientTo?: string;
-  topGradientStyle?: CSSProperties;
-  bottomGradientStyle?: CSSProperties;
 }
 
 export default function Counter({
   value,
   fontSize = 48,
-  padding = 0,
-  places,
-  gap = 2,
-  borderRadius = 4,
-  horizontalPadding = 0,
-  textColor = 'inherit',
   fontWeight = 'inherit',
-  containerStyle,
-  counterStyle,
-  digitStyle,
-  gradientHeight = 0,
-  gradientFrom = 'transparent',
-  gradientTo = 'transparent',
-  topGradientStyle,
-  bottomGradientStyle,
-}: CounterProps) {
-  const strVal = Math.round(value).toString();
-  const computedPlaces = places ?? [...strVal].map((ch, i, a) => {
-    if (ch === '.') {
-      return '.';
-    } else {
-      return (
-        10 **
-        (a.indexOf('.') === -1 ? a.length - i - 1 : i < a.indexOf('.') ? a.indexOf('.') - i - 1 : -(i - a.indexOf('.')))
-      );
-    }
-  });
-
-  const height = fontSize + padding;
-  const defaultCounterStyle: CSSProperties = {
-    fontSize,
-    gap,
-    borderRadius,
-    paddingLeft: horizontalPadding,
-    paddingRight: horizontalPadding,
-    color: textColor,
-    fontWeight,
-    direction: 'ltr',
-  };
-  const defaultTopGradientStyle: CSSProperties = {
-    height: gradientHeight,
-    background: `linear-gradient(to bottom, ${gradientFrom}, ${gradientTo})`,
-  };
-  const defaultBottomGradientStyle: CSSProperties = {
-    height: gradientHeight,
-    background: `linear-gradient(to top, ${gradientFrom}, ${gradientTo})`,
-  };
+}: {
+  value: number;
+  fontSize?: number;
+  fontWeight?: CSSProperties['fontWeight'];
+}) {
+  const digitos = Math.round(value).toString().length;
+  const posiciones = Array.from({ length: digitos }, (_, i) => 10 ** (digitos - i - 1));
 
   return (
-    <span className="counter-container" style={containerStyle}>
-      <span className="counter-counter" style={{ ...defaultCounterStyle, ...counterStyle }}>
-        {computedPlaces.map((place, idx) => (
-          <Digit key={`${place}-${idx}`} place={place} value={value} height={height} digitStyle={digitStyle} />
+    <span className="counter-container">
+      <span className="counter-counter" style={{ fontSize, fontWeight, gap: 2, direction: 'ltr' }}>
+        {posiciones.map((place) => (
+          <Digit key={place} place={place} value={value} height={fontSize} />
         ))}
       </span>
-      {gradientHeight > 0 && (
-        <span className="gradient-container">
-          <span className="top-gradient" style={topGradientStyle ? topGradientStyle : defaultTopGradientStyle}></span>
-          <span
-            className="bottom-gradient"
-            style={bottomGradientStyle ? bottomGradientStyle : defaultBottomGradientStyle}
-          ></span>
-        </span>
-      )}
     </span>
   );
 }

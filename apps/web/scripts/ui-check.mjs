@@ -841,8 +841,6 @@ try {
     const desbordan = await page.evaluate(() =>
       [...document.querySelectorAll('.view-container *')]
         .filter((e) => e.getBoundingClientRect().right > document.documentElement.clientWidth + 1)
-        // El marquee de recetas se sale a propósito y su contenedor lo recorta.
-        .filter((e) => !e.closest('.marquee'))
         .map((e) => String(e.className || e.tagName).slice(0, 40))
         .slice(0, 5),
     );
