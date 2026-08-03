@@ -1,6 +1,6 @@
 # Pendientes
 
-Estado al 1 de agosto de 2026, con todo mergeado en `main`.
+Estado al 2 de agosto de 2026, con todo mergeado en `main`.
 
 ## Lo que entró
 
@@ -15,6 +15,8 @@ Estado al 1 de agosto de 2026, con todo mergeado en `main`.
 | [#7](https://github.com/TicoraX/FitnessApp/pull/7) | Pedir solo lo que el usuario va a usar |
 | [#8](https://github.com/TicoraX/FitnessApp/pull/8) | Esfuerzo percibido en las series |
 | [#9](https://github.com/TicoraX/FitnessApp/pull/9) | Nombres de movimientos bilingües |
+| [#10](https://github.com/TicoraX/FitnessApp/pull/10) | Los tres md al día con lo que hay |
+| [#11](https://github.com/TicoraX/FitnessApp/pull/11) | El diario de un día pasado usa el objetivo que regía ese día |
 
 Los cuatro primeros iban encadenados, cada uno sobre el anterior. Mergear el #1
 con `--delete-branch` no reapuntó el #2 a `main`: GitHub cierra el PR cuando
@@ -188,9 +190,42 @@ margen, pero el anillo del diario seguía mostrando el número viejo hasta cambi
 de día. El aviso por BroadcastChannel no sirve para eso: solo cruza pestañas y no
 llega al que lo emitió.
 
+### El pasado no se reescribe
+
+Auditoría del esquema entero buscando dónde editar un dato de hoy podía cambiar
+un registro de ayer. El principio ya estaba aplicado casi en todos lados, con el
+motivo escrito en cada comentario:
+
+| Primitivo | Qué lo protege |
+|---|---|
+| `ExerciseEntry` | copia `name`, persiste `caloriesBurned`, que se calculó con el peso de ese día |
+| `StrengthEntry` | copia `name`, el catálogo de movimientos puede cambiar |
+| `Recipe` | se archiva, no se borra |
+| `MealEntry.recipeServings` | desnormalizado para reescalar sin releer la receta |
+| `MealEntry → FoodItem` | `onDelete: Restrict` |
+| `UserGoal` | se desactiva, no se borra, y guarda `effectiveFrom` |
+| `WeightEntry.emaKg` | la EMA queda persistida, no se recalcula |
+
+Faltaba un solo lugar, el del PR #11: `getDay` pedía el objetivo por `is_active`
+y evaluaba cualquier día pasado contra el plan de hoy. `reports.service.ts` ya
+lo hacía bien con un `LATERAL`.
+
+La regla quedó escrita como sección "Modelo de datos" en el `CLAUDE.md` global
+del usuario, para que aplique a cualquier proyecto y no haya que redescubrirla.
+
 ## Detectado y no tocado
 
 Cosas que aparecieron durante el trabajo y quedaron fuera de alcance.
+
+**Los macros de una comida se leen en vivo del catálogo.** `getDay` hace
+`include: { foodItem: true }` y los totales salen de ahí, así que editar un
+`FoodItem` reescribiría el historial de todos los que lo loguearon. Hoy no pasa
+porque `/foods` solo tiene `POST` y favoritos: no hay endpoint que edite un
+alimento. El historial está a salvo por omisión, no por diseño, y eso se rompe
+solo el día que alguien agregue "corregir este alimento" o un importador que
+actualice filas. Las dos salidas son snapshotear los siete nutrientes en
+`MealEntry`, que es lo caro y lo correcto, o dejar `FoodItem` inmutable de
+verdad y que corregir signifique crear una fila nueva.
 
 **El catálogo curado no declara micronutrientes.** Los 226 alimentos de
 `apps/api/prisma/foods-dataset.ts` van a la base con `micros_json` en `{}`. La
@@ -206,7 +241,7 @@ horizontalmente.
 ahí con cambios de la Fase 0 y de la Fase 1 juntos. El mensaje solo describe la
 Fase 0. No vale la cirugía para arreglarlo.
 
-**No hay tests de controller ni de servicio en el API.** Los 74 tests de Jest
+**No hay tests de controller ni de servicio en el API.** Los 80 tests de Jest
 son de funciones puras. La cobertura de integración son los scripts `smoke.mjs`
 y `probe.mjs` contra un servidor vivo, que sí recorren cada endpoint: validación
 de DTOs, propiedad de las filas y los números que devuelve cada uno. Falta el
@@ -240,6 +275,17 @@ usuario; una tabla solo agregaba una migración, un seed y un JOIN por consulta.
 
 **Social, feed, premium, foto con IA, sync offline, wearables.** Cada uno es un
 proyecto propio y ninguno mejora el uso diario de una app personal.
+
+**Portar el motor de [Nut AI](https://github.com/Blueturboguy07/nut-ai).** Un
+tracker de calorías por foto, open source y bien construido: el modelo solo
+percibe, los gramos salen de una escalera determinista y los nutrientes de una
+fila de base de datos, con banda de incertidumbre. Se descartó por la licencia,
+AGPL-3.0-or-later, que dispara con el uso en red y obligaría a publicar el API y
+el cliente enteros. Aparte la arquitectura es la opuesta: local-first sin
+servidor, SQLite con FTS5, catálogo USDA completo y todo en inglés.
+
+De ahí sí se tomó una idea, que no tiene licencia: un número estimado se muestra
+con su rango y con las suposiciones editables, nunca como un dato cerrado.
 
 ## Entorno
 
