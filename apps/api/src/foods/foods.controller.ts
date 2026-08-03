@@ -2,12 +2,10 @@ import {
   BadRequestException,
   Body,
   Controller,
-  DefaultValuePipe,
   Delete,
   Get,
   HttpCode,
   Param,
-  ParseIntPipe,
   ParseUUIDPipe,
   Post,
   Put,
@@ -18,6 +16,7 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateFoodDto } from './dto/create-food.dto';
+import { FoodSearchQueryDto } from './dto/search.dto';
 import { FoodsService } from './foods.service';
 
 type AuthedRequest = { user: { userId: string } };
@@ -30,12 +29,8 @@ export class FoodsController {
   // La búsqueda es el camino caliente: el cliente dispara una por tecleo.
   @Get('search')
   @Throttle({ default: { limit: 600, ttl: 60_000 } })
-  search(
-    @Query('q') q: string,
-    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
-  ) {
-    if (!q) throw new BadRequestException('q es obligatorio');
-    return this.foods.search(q, Math.min(Math.max(limit, 1), 50));
+  search(@Query() query: FoodSearchQueryDto) {
+    return this.foods.search(query.q, query.limit ?? 20);
   }
 
   @Get('recent')
