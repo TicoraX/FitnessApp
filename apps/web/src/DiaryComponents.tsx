@@ -7,6 +7,7 @@ import { BarcodeScanner } from './components/BarcodeScanner';
 import InfiniteMenu from './components/InfiniteMenu';
 import { NewFood } from './NewFood';
 import { ErrorConReintento } from './components/ErrorConReintento';
+import { teclaModificadora } from './hooks/useTeclaModificadora';
 
 export function CyberDayStrip({ date, setDate }: { date: string; setDate: (d: string) => void }) {
   const days = getWeekDays(date);
@@ -896,7 +897,7 @@ export function AddFood({
         <input
           ref={searchInputRef}
           type="search"
-          placeholder="Buscar alimento o código (⌘K o /)..."
+          placeholder={`Buscar alimento o código (${teclaModificadora()}K o /)...`}
           aria-label="Buscar alimento"
           role="combobox"
           aria-expanded={visibles.length > 0}
