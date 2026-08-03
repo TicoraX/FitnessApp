@@ -1,6 +1,6 @@
 # Pendientes
 
-Estado al 2 de agosto de 2026, con todo mergeado en `main`.
+Estado al 3 de agosto de 2026, con todo mergeado en `main`.
 
 ## Lo que entró
 
@@ -17,6 +17,10 @@ Estado al 2 de agosto de 2026, con todo mergeado en `main`.
 | [#9](https://github.com/TicoraX/FitnessApp/pull/9) | Nombres de movimientos bilingües |
 | [#10](https://github.com/TicoraX/FitnessApp/pull/10) | Los tres md al día con lo que hay |
 | [#11](https://github.com/TicoraX/FitnessApp/pull/11) | El diario de un día pasado usa el objetivo que regía ese día |
+| [#12](https://github.com/TicoraX/FitnessApp/pull/12) | Auditoría de primitivos, hueco pendiente y descarte de Nut AI |
+| [#13](https://github.com/TicoraX/FitnessApp/pull/13) | El objetivo nuevo rige desde el día del usuario, no el del servidor |
+| [#14](https://github.com/TicoraX/FitnessApp/pull/14) | Un fallo de red se explica y se puede reintentar |
+| [#15](https://github.com/TicoraX/FitnessApp/pull/15) | Las queries mal armadas se rechazan en vez de reinterpretarse |
 
 Los cuatro primeros iban encadenados, cada uno sobre el anterior. Mergear el #1
 con `--delete-branch` no reapuntó el #2 a `main`: GitHub cierra el PR cuando
@@ -213,6 +217,48 @@ lo hacía bien con un `LATERAL`.
 La regla quedó escrita como sección "Modelo de datos" en el `CLAUDE.md` global
 del usuario, para que aplique a cualquier proyecto y no haya que redescubrirla.
 
+### Un fallo de red se explica
+
+De los 56 `catch` del cliente la mayoría ya reportaban bien. Ocho no, y ninguno
+se quedaba callado: dejaban la pantalla afirmando algo falso. La tarjeta de peso
+decía "Registrá tu peso para ver la tendencia" a quien tiene noventa pesadas, y
+la búsqueda ofrecía dar de alta un alimento que ya existe, que además de
+desinformar llena el catálogo de duplicados.
+
+`ErrorConReintento` usa `.alert` como el resto y agrega el botón, con 44px de
+alto. El estado de reintento vive en el componente. Donde el error es de una
+mutación y el control para repetirla ya está a la vista (porciones, quitar,
+copiar de ayer) va un `.alert` común, sin botón.
+
+`copiar de ayer` estaba mal diagnosticado: el comentario decía ignorar el caso
+de un día vacío, pero copiar un día vacío no tira, inserta cero filas. Ese
+`catch` solo se alcanzaba con un error real y el caso que quería tapar quedaba
+mudo. Ahora avisan los dos.
+
+### El servidor corre en UTC y el usuario no
+
+`effective_from` caía por defecto en `now()`. Pesarse a las 20:00 en Argentina
+estampaba el objetivo nuevo con la fecha de mañana, y el día que el usuario mira
+nunca lo alcanzaba. No se notaba mientras todo preguntaba por `is_active`, que
+ignora la fecha; el PR #11 lo destapó y `ui:check` lo agarró.
+
+La fecha correcta la tiene el cliente. Para el peso ya viajaba en `logged_on`;
+`PATCH /profile` sumó un `today` opcional.
+
+**Cualquier fecha que decida qué le mostramos al usuario tiene que venir del
+cliente.** El servidor no sabe en qué día vive quien pregunta.
+
+### Query params: el pendiente estaba mal caracterizado
+
+Se probaron los seis endpoints antes de tocar nada. Ninguno tiraba 500 y ninguno
+dejaba una consulta sin techo: los límites ya se acotaban con `Math.min` en el
+controller. Lo que fallaba era que un parámetro repetido llegaba como array y se
+colaba hasta la consulta (`?q=pollo&q=carne` devolvía 200 con resultados de
+"pollo,carne"), y que un `limit` no numérico caía al default sin avisar.
+
+`recipes` y los cuatro de `reports` ya devolvían 400 correctos y quedaron como
+estaban.
+
 ## Detectado y no tocado
 
 Cosas que aparecieron durante el trabajo y quedaron fuera de alcance.
@@ -241,20 +287,23 @@ horizontalmente.
 ahí con cambios de la Fase 0 y de la Fase 1 juntos. El mensaje solo describe la
 Fase 0. No vale la cirugía para arreglarlo.
 
-**No hay tests de controller ni de servicio en el API.** Los 80 tests de Jest
+**No hay tests de controller ni de servicio en el API.** Los 81 tests de Jest
 son de funciones puras. La cobertura de integración son los scripts `smoke.mjs`
 y `probe.mjs` contra un servidor vivo, que sí recorren cada endpoint: validación
 de DTOs, propiedad de las filas y los números que devuelve cada uno. Falta el
 punto medio, montar el módulo de Nest con una base de prueba, y no duele
 todavía.
 
-**Quedan query params sin DTO.** El de `GET /logs/strength/history` se pasó a
-DTO después de que un `?name=a&name=b` devolviera 500; el resto de endpoints que
-leen query a mano no se revisó uno por uno.
+**El botón de aplicar estrategia del perfil nunca funcionó.** `PerfilView` manda
+`PATCH /profile { daily_calories }`, que no está en el DTO, así que
+`forbidNonWhitelisted` lo rechaza con 400. El `catch` mudo es exactamente la
+razón de que nadie lo notara; el PR #14 lo dejó mostrando el error real, que es
+lo mínimo, no el arreglo.
 
-**Un fallo de red deja tarjetas vacías sin decir por qué.** Varios `catch` se
-comen el error en silencio y la vista queda en blanco. Falta el estado y el
-botón de reintentar.
+Que el API acepte un objetivo puesto a mano no es agregar un campo: `refresh()`
+recalcula desde el peso y lo pisaría en la próxima pesada, así que hace falta
+decidir si un objetivo manual gana sobre el cálculo y hasta cuándo. Decisión de
+producto, no de código.
 
 ## Descartado a propósito
 
