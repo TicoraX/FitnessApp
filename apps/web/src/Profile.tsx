@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { api } from './api';
+import { api, today } from './api';
 
 const ACTIVITY = [
   [1.2, 'Sedentario'],
@@ -65,6 +65,9 @@ export function Profile({ onSaved, onClose }: { onSaved: () => void; onClose: ()
         unit_preference: unitPref,
         // En litros en la UI, en mililitros en el API: nadie escribe "2000".
         water_goal_ml: Math.round(Number(raw.water_goal_l) * 1000),
+        // El servidor corre en UTC: sin esto el objetivo nuevo puede quedar
+        // fechado mañana y no aplicar al día que el usuario está viendo.
+        today: today(),
       };
       if (raw.body_fat_pct !== '' && raw.body_fat_pct !== undefined) {
         payload.body_fat_pct = Number(raw.body_fat_pct);
