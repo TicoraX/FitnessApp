@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, notificarCambio, setToken, today } from '../api';
+import { api, setToken, today } from '../api';
 import { useTheme, type ThemeOption } from '../hooks/useTheme';
 import { useModalDialog } from '../hooks/useModalDialog';
 import { Profile } from '../Profile';
@@ -15,8 +15,6 @@ function MacroPresetCalculator() {
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [cals, setCals] = useState(2000);
   const [userCals, setUserCals] = useState<number | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [savedMsg, setSavedMsg] = useState('');
 
   useEffect(() => {
     async function loadUserProfile() {
@@ -38,45 +36,27 @@ function MacroPresetCalculator() {
   const carbsG = Math.round((cals * (preset.c / 100)) / 4);
   const fatG = Math.round((cals * (preset.f / 100)) / 9);
 
-  const handleApplyStrategy = async () => {
-    setSaving(true);
-    setSavedMsg('');
-    try {
-      await api.patch('/profile', { daily_calories: cals });
-      setUserCals(cals);
-      setSavedMsg(`Estrategia "${preset.name}" (${cals} kcal/día) aplicada a tu perfil.`);
-      notificarCambio('diario-cambiado');
-    } catch (e) {
-      // El mensaje del servidor y no uno genérico: este botón lleva roto desde
-      // que existe (el API no acepta daily_calories) y el catch mudo es la
-      // razón de que nadie lo notara.
-      setSavedMsg(e instanceof Error ? e.message : 'No se pudo guardar la estrategia.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
     <section className="card">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem' }}>
         <div>
           <h2 className="card__title" style={{ margin: 0 }}>Estrategias Nutricionales & Macros</h2>
           <p className="muted" style={{ fontSize: '0.85rem', marginTop: '0.2rem' }}>
-            Ajustá y calculá las metas en gramos según tu objetivo de calorías diarias.
+            Calculadora: cuántos gramos de cada macro salen de un reparto y unas
+            calorías. No cambia tu objetivo, que se calcula desde tu peso y tu
+            ritmo semanal en Perfil.
           </p>
         </div>
         {userCals && (
-          <span className="badge" style={{ background: 'var(--color-primary-dim)', color: 'var(--color-primary)', border: '1px solid var(--color-primary-glow)' }}>
-            ✔ Sincronizado con tu perfil ({userCals} kcal)
+          <span className="badge">
+            {/* SVG y no un ✔: el proyecto no usa caracteres icónicos en la UI. */}
+            <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true" style={{ marginRight: '0.35rem' }}>
+              <path d="M4 12.5l5 5L20 6.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Arranca en tu objetivo de hoy ({userCals} kcal)
           </span>
         )}
       </div>
-
-      {savedMsg && (
-        <p className="alert alert--ok" style={{ marginBottom: 'var(--space-md)', fontSize: '0.85rem' }} role="status">
-          {savedMsg}
-        </p>
-      )}
 
       <div className="field" style={{ marginBottom: 'var(--space-md)' }}>
         <label htmlFor="preset-cals">Calorías Diarias Objetivo (kcal)</label>
@@ -140,16 +120,6 @@ function MacroPresetCalculator() {
           <strong style={{ fontSize: '1.2rem', color: 'var(--text-main)' }}>{fatG} g</strong>
         </div>
       </div>
-
-      <button
-        type="button"
-        className="btn"
-        onClick={handleApplyStrategy}
-        disabled={saving}
-        style={{ width: '100%' }}
-      >
-        {saving ? 'Guardando en perfil...' : `Guardar Estrategia "${preset.name}" en Mi Perfil`}
-      </button>
     </section>
   );
 }

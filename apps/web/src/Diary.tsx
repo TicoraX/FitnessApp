@@ -4,6 +4,7 @@ import { api, escucharCambios, setToken, today, type DaySummary } from './api';
 import Dock, { type DockItemData } from './components/Dock';
 import { useHashRoute } from './hooks/useHashRoute';
 import { DiarioView } from './views/DiarioView';
+import { teclaModificadora } from './hooks/useTeclaModificadora';
 
 const EjercicioView = lazy(() => import('./views/EjercicioView').then((m) => ({ default: m.EjercicioView })));
 const RecetasView = lazy(() => import('./views/RecetasView').then((m) => ({ default: m.RecetasView })));
@@ -193,7 +194,7 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
           <line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
       ),
-      label: 'Buscar (⌘K)',
+      label: `Buscar (${teclaModificadora()}K)`,
       onClick: () => {
         navigate(`diario/${date}`);
         setTimeout(() => searchInputRef.current?.focus(), 80);
