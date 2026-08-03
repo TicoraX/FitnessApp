@@ -303,6 +303,12 @@ export interface Movement {
   equipment: string;
   target: string;
   howTo: string;
+  /**
+   * Nombre del archivo de animación, sin extensión ni ruta. La base la pone el
+   * cliente: las imágenes son © Gym visual y no están en este repo. Ver
+   * components/MediaMovimiento.tsx.
+   */
+  media: string | null;
 }
 
 export interface StreakReport {

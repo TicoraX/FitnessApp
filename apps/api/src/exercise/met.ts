@@ -1,6 +1,7 @@
 import { ACTIVITIES, Activity } from './catalog';
 import { MOVEMENTS, Movement } from './movements';
 import { nombreEs } from './movements-es';
+import { mediaDe } from './movements-media';
 import { normalizeQuery } from '../foods/search-query';
 
 /**
@@ -36,10 +37,21 @@ export function searchActivities(raw: string, limit = 20): Activity[] {
   return [...empiezan, ...contienen].slice(0, limit);
 }
 
-/** Lo que ve el cliente: el nombre real y, si está curado, el de español. */
-export type MovementDto = Movement & { name_es: string | null };
+/**
+ * Lo que ve el cliente: el nombre real, el de español si está curado, y el
+ * nombre del archivo de media.
+ *
+ * `media` es un nombre de archivo, no una URL: quién la sirve lo decide el
+ * cliente con su propia base, porque las imágenes no están en este repo. Ver
+ * movements-media.ts para el motivo.
+ */
+export type MovementDto = Movement & { name_es: string | null; media: string | null };
 
-export const conNombreEs = (m: Movement): MovementDto => ({ ...m, name_es: nombreEs(m.name) });
+export const conNombreEs = (m: Movement): MovementDto => ({
+  ...m,
+  name_es: nombreEs(m.name),
+  media: mediaDe(m.id),
+});
 
 /**
  * Búsqueda de movimientos de gimnasio.
