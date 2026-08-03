@@ -19,7 +19,9 @@ export class WeightService {
         update: { weightKg },
       });
       await this.recomputeEma(tx, userId);
-      await this.goals.refresh(tx, userId);
+      // El objetivo nuevo rige desde el día que el usuario dice que es, que es
+      // el mismo que va a mirar en el diario cuando cierre esta pantalla.
+      await this.goals.refresh(tx, userId, loggedOn);
     });
 
     return this.series(userId, 90);

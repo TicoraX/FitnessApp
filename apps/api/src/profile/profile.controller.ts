@@ -4,6 +4,7 @@ import { IsIn, IsInt, IsNumber, IsOptional, Max, Min, ValidateIf } from 'class-v
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { GoalsService } from '../nutrition/goals.service';
+import { IsLogDate } from '../common/log-date';
 
 class UpdateProfileDto {
   @IsOptional()
@@ -53,6 +54,16 @@ class UpdateProfileDto {
   @IsOptional()
   @IsIn(['metric', 'imperial'])
   unit_preference?: 'metric' | 'imperial';
+
+  /**
+   * Qué día es para el usuario. El servidor corre en UTC y estamparía el
+   * objetivo nuevo con una fecha que al oeste de Greenwich todavía no llegó,
+   * dejándolo fuera del día que se está mirando. Opcional: si no viene, se cae
+   * al now() del servidor, que es lo que había antes.
+   */
+  @IsOptional()
+  @IsLogDate()
+  today?: string;
 
   /** No entra en el cálculo metabólico: es una meta que el usuario se pone. */
   @IsOptional()
@@ -140,7 +151,7 @@ export class ProfileService {
         }
       }
 
-      await this.goals.refresh(tx, userId);
+      await this.goals.refresh(tx, userId, dto.today);
     });
 
     return this.get(userId);

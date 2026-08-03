@@ -16,7 +16,16 @@ export class GoalsService {
    * bodyFatPct se arrastra desde el usuario para no cambiar de fórmula a mitad
    * de camino: si el registro calculó con Katch-McArdle, el recálculo también.
    */
-  async refresh(tx: Prisma.TransactionClient, userId: string) {
+  /**
+   * `vigenteDesde` es el día del usuario, no el del servidor.
+   *
+   * effective_from cae por defecto en now(), que es UTC. Para cualquiera al
+   * oeste de Greenwich eso adelanta la fecha: pesarse a las 20:00 en Argentina
+   * estampa el objetivo nuevo con la fecha de mañana, y el día que el usuario
+   * está mirando nunca lo alcanza. Quien tiene la fecha correcta es el cliente,
+   * que ya la manda en logged_on.
+   */
+  async refresh(tx: Prisma.TransactionClient, userId: string, vigenteDesde?: string) {
     const [user, goal, latest] = await Promise.all([
       tx.user.findUniqueOrThrow({ where: { id: userId } }),
       tx.userGoal.findFirst({ where: { userId, isActive: true }, orderBy: { effectiveFrom: 'desc' } }),
@@ -47,6 +56,7 @@ export class GoalsService {
         proteinGrams: targets.macros.proteinG,
         carbsGrams: targets.macros.carbsG,
         fatGrams: targets.macros.fatG,
+        ...(vigenteDesde ? { effectiveFrom: new Date(vigenteDesde) } : {}),
       },
     });
   }
