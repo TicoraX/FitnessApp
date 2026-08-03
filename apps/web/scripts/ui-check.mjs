@@ -785,6 +785,33 @@ try {
     assert.deepEqual(chicos, []);
   });
 
+  await step('un fallo de red se explica y se puede reintentar, no se ve como vacío', async () => {
+    // Sin esto la búsqueda ofrecía dar de alta un alimento que ya existe, que
+    // no solo desinforma: llena el catálogo de duplicados.
+    await page.route('**/foods/search**', (r) => r.abort());
+    await page.getByLabel('Buscar alimento').fill('');
+    await page.getByLabel('Buscar alimento').fill('merluza');
+
+    const aviso = page.locator('.alert--reintento');
+    await aviso.waitFor({ timeout: 10_000 });
+    assert.match(await aviso.innerText(), /No se pudo buscar/);
+    assert.equal(await page.getByText('Podés darlo de alta').count(), 0, 'ofreció crear un duplicado');
+
+    // El botón tiene que ser tocable con el pulgar, no un link de 12px.
+    const alto = await page.locator('.alert__btn').evaluate((el) => el.getBoundingClientRect().height);
+    assert.ok(alto >= 44, `el botón de reintentar mide ${alto}px, el piso táctil es 44`);
+    await shot('13-error-reintento');
+
+    // Con la red de vuelta, el mismo botón resuelve sin recargar la página.
+    await page.unroute('**/foods/search**');
+    await page.locator('.alert__btn').click();
+    await page.waitForSelector('.result', { timeout: 10_000 });
+    assert.equal(await page.locator('.alert--reintento').count(), 0, 'el aviso quedó después de reintentar');
+
+    const sinAbort = errors.filter((e) => !/Failed to fetch|ERR_FAILED|net::/i.test(e));
+    errors.splice(0, errors.length, ...sinAbort);
+  });
+
   await step('una sesión vencida vuelve al login, no a un error', async () => {
     await page.evaluate(() => localStorage.setItem('fittrack.token', 'token.invalido.a-proposito'));
     await page.reload();

@@ -917,6 +917,33 @@ input[aria-invalid='true'] {
   color: var(--color-accent);
 }
 
+/* El texto y el botón se apilan en pantallas angostas en vez de apretarse. */
+.alert--reintento {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.alert__btn {
+  font: inherit;
+  /* Piso táctil: en el teléfono esto se toca con el pulgar. */
+  min-height: 2.75rem;
+  padding: 0 var(--space-md);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.alert__btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;

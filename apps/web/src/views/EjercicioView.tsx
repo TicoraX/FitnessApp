@@ -3,6 +3,7 @@ import { api, type DaySummary, type ExerciseReport } from '../api';
 import { Exercise } from '../Exercise';
 import { Strength } from '../Strength';
 import { Routines } from '../Routines';
+import { ErrorConReintento } from '../components/ErrorConReintento';
 
 /**
  * Entrenamiento: cardio, fuerza y rutinas, con su propia navegación por fecha.
@@ -16,6 +17,7 @@ export function EjercicioView({ fechaInicial }: { fechaInicial: string }) {
   const [day, setDay] = useState<DaySummary | null>(null);
   const [reporte, setReporte] = useState<ExerciseReport | null>(null);
   const [error, setError] = useState('');
+  const [falloResumen, setFalloResumen] = useState(false);
   /** Contador de recarga: cualquier cambio en el día vuelve a pedir día y resumen. */
   const [recarga, setRecarga] = useState(0);
 
@@ -40,12 +42,14 @@ export function EjercicioView({ fechaInicial }: { fechaInicial: string }) {
     const from = desde.toISOString().slice(0, 10);
 
     let vigente = true;
+    setFalloResumen(false);
     api
       .get<{ data: ExerciseReport }>(`/reports/exercise?from=${from}&to=${hasta}`)
       .then((r) => vigente && setReporte(r.data))
-      .catch(() => {
-        // El resumen es contexto: sin él la vista sigue sirviendo para registrar.
-      });
+      // El resumen es contexto: sin él la vista sigue sirviendo para registrar,
+      // por eso no bloquea nada. Pero que no aparezca tiene que tener una
+      // explicación, o se lee como una semana sin entrenar.
+      .catch(() => vigente && setFalloResumen(true));
     return () => {
       vigente = false;
     };
@@ -79,7 +83,11 @@ export function EjercicioView({ fechaInicial }: { fechaInicial: string }) {
         </p>
       )}
 
-      {reporte && <ResumenSemanal reporte={reporte} />}
+      {reporte ? (
+        <ResumenSemanal reporte={reporte} />
+      ) : falloResumen ? (
+        <ErrorConReintento mensaje="No se pudo cargar el resumen de la semana." onReintentar={recargar} />
+      ) : null}
 
       <Routines date={date} onLoaded={recargar} />
 
