@@ -29,10 +29,15 @@ export function Strength({
   date,
   day,
   onChanged,
+  movimientoInicial,
+  onMovimientoConsumido,
 }: {
   date: string;
   day: DaySummary;
   onChanged: () => void;
+  /** Un movimiento elegido desde el Catálogo, para arrancar el registro sin buscarlo de nuevo. */
+  movimientoInicial?: Movement | null;
+  onMovimientoConsumido?: () => void;
 }) {
   const [query, setQuery] = useState('');
   const [zona, setZona] = useState('');
@@ -110,6 +115,16 @@ export function Strength({
       // Un movimiento nuevo no tiene historia y eso no es un error.
     }
   };
+
+  // Un movimiento llegado del Catálogo se elige una sola vez: sin el aviso al
+  // padre, cada re-render con la misma prop lo volvería a seleccionar y
+  // pisaría lo que el usuario ya haya tocado en el formulario.
+  useEffect(() => {
+    if (movimientoInicial) {
+      void elegir(movimientoInicial);
+      onMovimientoConsumido?.();
+    }
+  }, [movimientoInicial]);
 
   async function registrar() {
     const s = Number(series);

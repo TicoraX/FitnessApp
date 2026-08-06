@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { api, type DaySummary, type ExerciseReport } from '../api';
+import { api, type DaySummary, type ExerciseReport, type Movement } from '../api';
 import { Exercise } from '../Exercise';
 import { Strength } from '../Strength';
 import { Routines } from '../Routines';
 import { ErrorConReintento } from '../components/ErrorConReintento';
+import { CatalogoEjercicios } from './CatalogoEjercicios';
+import type { ParsedRoute } from '../hooks/useHashRoute';
 
 /**
  * Entrenamiento: cardio, fuerza y rutinas, con su propia navegación por fecha.
@@ -12,7 +14,15 @@ import { ErrorConReintento } from '../components/ErrorConReintento';
  * quemadas y linkea acá. Cargar el día es cosa de esta vista, no del shell,
  * para poder mirar entrenos viejos sin mover la fecha del diario.
  */
-export function EjercicioView({ fechaInicial }: { fechaInicial: string }) {
+export function EjercicioView({
+  fechaInicial,
+  route,
+  navigate,
+}: {
+  fechaInicial: string;
+  route: ParsedRoute;
+  navigate: (path: string) => void;
+}) {
   const [date, setDate] = useState(fechaInicial);
   const [day, setDay] = useState<DaySummary | null>(null);
   const [reporte, setReporte] = useState<ExerciseReport | null>(null);
@@ -20,6 +30,10 @@ export function EjercicioView({ fechaInicial }: { fechaInicial: string }) {
   const [falloResumen, setFalloResumen] = useState(false);
   /** Contador de recarga: cualquier cambio en el día vuelve a pedir día y resumen. */
   const [recarga, setRecarga] = useState(0);
+  /** El movimiento que Catálogo pasó para registrar: Strength lo consume una vez y lo suelta. */
+  const [movimientoParaRegistrar, setMovimientoParaRegistrar] = useState<Movement | null>(null);
+
+  const isCatalogo = route.rest[0] === 'catalogo';
 
   useEffect(() => {
     let vigente = true;
@@ -46,9 +60,6 @@ export function EjercicioView({ fechaInicial }: { fechaInicial: string }) {
     api
       .get<{ data: ExerciseReport }>(`/reports/exercise?from=${from}&to=${hasta}`)
       .then((r) => vigente && setReporte(r.data))
-      // El resumen es contexto: sin él la vista sigue sirviendo para registrar,
-      // por eso no bloquea nada. Pero que no aparezca tiene que tener una
-      // explicación, o se lee como una semana sin entrenar.
       .catch(() => vigente && setFalloResumen(true));
     return () => {
       vigente = false;
@@ -83,21 +94,62 @@ export function EjercicioView({ fechaInicial }: { fechaInicial: string }) {
         </p>
       )}
 
-      {reporte ? (
-        <ResumenSemanal reporte={reporte} />
-      ) : falloResumen ? (
-        <ErrorConReintento mensaje="No se pudo cargar el resumen de la semana." onReintentar={recargar} />
-      ) : null}
+      <div className="chips" role="tablist" aria-label="Sección de entrenamiento">
+        <button
+          type="button"
+          role="tab"
+          className="chip"
+          aria-selected={!isCatalogo}
+          aria-pressed={!isCatalogo}
+          onClick={() => navigate('ejercicio')}
+        >
+          Registrar
+        </button>
+        <button
+          type="button"
+          role="tab"
+          className="chip"
+          aria-selected={isCatalogo}
+          aria-pressed={isCatalogo}
+          onClick={() => navigate('ejercicio/catalogo')}
+        >
+          Catálogo
+        </button>
+      </div>
 
-      <Routines date={date} onLoaded={recargar} />
-
-      {day ? (
-        <>
-          <Strength date={date} day={day} onChanged={recargar} />
-          <Exercise date={date} day={day} onChanged={recargar} />
-        </>
+      {isCatalogo ? (
+        <CatalogoEjercicios
+          route={route}
+          navigate={navigate}
+          onRegistrar={(m) => {
+            setMovimientoParaRegistrar(m);
+          }}
+        />
       ) : (
-        !error && <p className="muted">Cargando el día.</p>
+        <>
+          {reporte ? (
+            <ResumenSemanal reporte={reporte} />
+          ) : falloResumen ? (
+            <ErrorConReintento mensaje="No se pudo cargar el resumen de la semana." onReintentar={recargar} />
+          ) : null}
+
+          <Routines date={date} onLoaded={recargar} />
+
+          {day ? (
+            <>
+              <Strength
+                date={date}
+                day={day}
+                onChanged={recargar}
+                movimientoInicial={movimientoParaRegistrar}
+                onMovimientoConsumido={() => setMovimientoParaRegistrar(null)}
+              />
+              <Exercise date={date} day={day} onChanged={recargar} />
+            </>
+          ) : (
+            !error && <p className="muted">Cargando el día.</p>
+          )}
+        </>
       )}
     </div>
   );

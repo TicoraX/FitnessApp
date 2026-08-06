@@ -25,6 +25,11 @@ export class ActivitySearchQueryDto {
 
 export class MovementSearchQueryDto extends ActivitySearchQueryDto {
   @IsOptional()
+  @IsString({ message: 'id tiene que venir una sola vez y ser texto' })
+  @MaxLength(50, { message: 'id no puede pasar de 50 caracteres' })
+  id?: string;
+
+  @IsOptional()
   @IsString({ message: 'body tiene que venir una sola vez y ser texto' })
   @MaxLength(50, { message: 'body no puede pasar de 50 caracteres' })
   body?: string;
@@ -33,4 +38,19 @@ export class MovementSearchQueryDto extends ActivitySearchQueryDto {
   @IsString({ message: 'equipment tiene que venir una sola vez y ser texto' })
   @MaxLength(50, { message: 'equipment no puede pasar de 50 caracteres' })
   equipment?: string;
+
+  /** Para el paginador del catálogo: qué tanto saltarse antes de devolver limit. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'offset tiene que ser un número entero' })
+  @Min(0, { message: 'offset no puede ser negativo' })
+  offset?: number;
+}
+
+/** Con zona elegida, el equipo que se ofrece se filtra a lo que esa zona de verdad tiene. */
+export class FacetsQueryDto {
+  @IsOptional()
+  @IsString({ message: 'body tiene que venir una sola vez y ser texto' })
+  @MaxLength(50, { message: 'body no puede pasar de 50 caracteres' })
+  body?: string;
 }

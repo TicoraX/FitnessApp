@@ -273,10 +273,28 @@ export interface Routine {
   items: RoutineItem[];
 }
 
-/** Lo último y lo mejor de un movimiento, para verlo al elegirlo. */
+/** Una serie ya hecha de un movimiento. */
+export interface StrengthSerie {
+  sets: number;
+  reps: number;
+  weight_kg: number | null;
+  rpe: number | null;
+  log_date: string;
+}
+
+/** Lo último, lo mejor y las últimas 50 series de un movimiento. */
 export interface StrengthHistory {
-  last: { sets: number; reps: number; weight_kg: number | null; rpe: number | null; log_date: string } | null;
+  last: StrengthSerie | null;
   best: { sets: number; reps: number; weight_kg: number | null; rpe: number | null } | null;
+  series: StrengthSerie[];
+}
+
+/** Un movimiento del catálogo, ordenado por cuánto se registró. */
+export interface MovementTrending {
+  name: string;
+  count: number;
+  id?: string | null;
+  body?: string | null;
 }
 
 export interface ExerciseReport {

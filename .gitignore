@@ -10,3 +10,4 @@ AGENTS.md
 # Animaciones de los movimientos. Son © Gym visual: se pueden usar dentro de la
 # app con licencia, y NO se pueden subir a un repo público. Ver apps/web/.env.example
 apps/web/public/movimientos/
+.gstack/

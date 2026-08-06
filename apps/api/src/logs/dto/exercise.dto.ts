@@ -98,6 +98,16 @@ export class StrengthHistoryQueryDto {
   name!: string;
 }
 
+/** Cuántos movimientos trending devolver: el catálogo no necesita más de una tira corta. */
+export class StrengthTrendingQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  limit?: number;
+}
+
 /**
  * Confirmar o corregir una serie. Una fila cargada desde una rutina llega con
  * los números del objetivo: acá se ajustan los que hayan cambiado y se marca

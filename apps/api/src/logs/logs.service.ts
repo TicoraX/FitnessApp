@@ -12,7 +12,7 @@ import {
 } from './dto/exercise.dto';
 import { LoadRoutineDto } from '../routines/dto/routine.dto';
 import { nutrientsOf, remaining, sumEntries } from './totals';
-import { caloriesBurned, metOf } from '../exercise/met';
+import { caloriesBurned, metOf, movementByName } from '../exercise/met';
 import { nombreEs } from '../exercise/movements-es';
 import { parseMicros, sumMicros } from '../nutrition/micros';
 import { objetivoVigente } from '../nutrition/goal-history';
@@ -450,7 +450,7 @@ export class LogsService {
       dailyLog: { userId },
     };
 
-    const [ultima, mejor] = await Promise.all([
+    const [ultima, mejor, serieCompleta] = await Promise.all([
       this.prisma.strengthEntry.findFirst({
         where,
         orderBy: { loggedAt: 'desc' },
@@ -459,6 +459,14 @@ export class LogsService {
       this.prisma.strengthEntry.findFirst({
         where: { ...where, weightKg: { not: null } },
         orderBy: [{ weightKg: 'desc' }, { reps: 'desc' }],
+      }),
+      // Las últimas 50 series: alcanza para el gráfico y la tabla de historial
+      // sin cargar años de entreno en una sola respuesta.
+      this.prisma.strengthEntry.findMany({
+        where,
+        orderBy: { loggedAt: 'desc' },
+        take: 50,
+        include: { dailyLog: { select: { logDate: true } } },
       }),
     ]);
 
@@ -482,7 +490,39 @@ export class LogsService {
           log_date: ultima.dailyLog.logDate.toISOString().slice(0, 10),
         },
         best: serie(mejor),
+        series: serieCompleta.map((e) => ({
+          ...serie(e)!,
+          log_date: e.dailyLog.logDate.toISOString().slice(0, 10),
+        })),
       },
+    };
+  }
+
+  /**
+   * Los movimientos que más se registraron, para explorar el catálogo por lo
+   * que de verdad se usa en vez de por orden alfabético. Solo cuenta series
+   * hechas y solo del propio usuario: no cruza datos entre cuentas.
+   */
+  async strengthTrending(userId: string, limit = 10) {
+    const agrupado = await this.prisma.strengthEntry.groupBy({
+      by: ['name'],
+      where: { done: true, dailyLog: { userId } },
+      _count: { name: true },
+      orderBy: { _count: { name: 'desc' } },
+      take: limit,
+    });
+
+    return {
+      status: 'success',
+      data: agrupado.map((g) => {
+        const mov = movementByName(g.name);
+        return {
+          name: g.name,
+          count: g._count.name,
+          id: mov?.id ?? null,
+          body: mov?.body ?? 'otros',
+        };
+      }),
     };
   }
 

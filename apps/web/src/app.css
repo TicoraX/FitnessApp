@@ -1099,3 +1099,21 @@ input[aria-invalid='true'] {
   font-size: var(--text-sm);
   color: var(--color-accent);
 }
+
+.catalogo-ej__historial {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.catalogo-ej__historial th,
+.catalogo-ej__historial td {
+  text-align: left;
+  padding: var(--space-2xs) var(--space-xs);
+  border-bottom: var(--rule);
+}
+
+.catalogo-ej__historial th {
+  color: var(--color-ink-2);
+  font-weight: 500;
+}

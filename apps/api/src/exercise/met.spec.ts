@@ -2,6 +2,7 @@ import {
   bodyOf,
   caloriesBurned,
   metOf,
+  movementByName,
   movementFacets,
   searchActivities,
   searchMovements,
@@ -92,6 +93,22 @@ describe('búsqueda de movimientos', () => {
   it('bodyOf resuelve la zona por nombre y no inventa una para lo desconocido', () => {
     expect(bodyOf('3/4 sit-up')).toBe('core');
     expect(bodyOf('malabares con motosierras')).toBe('otros');
+  });
+
+  it('filtra por id exacto', () => {
+    const unMov = searchMovements('', 1)[0];
+    const porId = searchMovements('', 10, { id: unMov.id });
+    expect(porId).toHaveLength(1);
+    expect(porId[0].id).toBe(unMov.id);
+  });
+
+  it('movementByName resuelve por nombre exacto en inglés o español', () => {
+    const porIngles = movementByName('barbell full squat');
+    expect(porIngles?.name).toBe('barbell full squat');
+    expect(porIngles?.name_es).toBe('Sentadilla con barra');
+
+    const porEspanol = movementByName('Sentadilla con barra');
+    expect(porEspanol?.name).toBe('barbell full squat');
   });
 });
 

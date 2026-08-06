@@ -5,13 +5,15 @@ export type ViewRoute = 'diario' | 'ejercicio' | 'recetas' | 'progreso' | 'perfi
 export interface ParsedRoute {
   view: ViewRoute;
   param?: string; // e.g. date 'YYYY-MM-DD' for #/diario/YYYY-MM-DD or token for #/reset?token=...
+  rest: string[];
+  query: URLSearchParams;
 }
 
 function parseHash(hash: string): ParsedRoute {
   // Limpiar # y slashes iniciales
   const clean = hash.replace(/^#\/?/, '').trim();
   const [pathPart, queryPart] = clean.split('?');
-  const parts = pathPart.split('/').filter(Boolean);
+  const parts = pathPart ? pathPart.split('/').filter(Boolean) : [];
 
   const viewName = parts[0]?.toLowerCase();
   let view: ViewRoute = 'diario';
@@ -22,13 +24,15 @@ function parseHash(hash: string): ParsedRoute {
   else if (viewName === 'reset') view = 'reset';
   else if (viewName === 'diario') view = 'diario';
 
+  const query = new URLSearchParams(queryPart || '');
   let param: string | undefined = parts[1];
   if (!param && queryPart) {
-    const params = new URLSearchParams(queryPart);
-    const token = params.get('token');
+    const token = query.get('token');
     if (token) param = token;
   }
-  return { view, param };
+
+  const rest = parts.slice(1);
+  return { view, param, rest, query };
 }
 
 function subscribeHash(callback: () => void) {

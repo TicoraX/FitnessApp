@@ -279,7 +279,13 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
                 />
               )}
 
-              {route.view === 'ejercicio' && <EjercicioView fechaInicial={route.param ?? date} />}
+              {route.view === 'ejercicio' && (
+                <EjercicioView
+                  fechaInicial={route.param && /^\d{4}-\d{2}-\d{2}$/.test(route.param) ? route.param : date}
+                  route={route}
+                  navigate={navigate}
+                />
+              )}
 
               {route.view === 'recetas' && <RecetasView />}
 
