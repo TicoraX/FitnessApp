@@ -44,7 +44,7 @@ jobs:
           cache-dependency-path: apps/api/package-lock.json
 
       - run: npm ci
-      - run: npx prisma migrate deploy
+      - run: npx prisma migrate reset --force
       - run: npx prisma generate
       - name: Typecheck
         run: npx tsc --noEmit
@@ -102,7 +102,7 @@ jobs:
         working-directory: apps/api
         run: |
           npm ci
-          npx prisma migrate deploy
+          npx prisma migrate reset --force
           npx prisma generate
           npm run seed
           npm run build

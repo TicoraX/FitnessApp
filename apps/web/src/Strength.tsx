@@ -70,6 +70,11 @@ export function Strength({
   // punto de las chips, y exigir además dos letras lo anularía.
   const hayFiltro = Boolean(zona || equipo);
   useEffect(() => {
+    if (isProgrammaticRef.current) {
+      isProgrammaticRef.current = false;
+      setResults([]);
+      return;
+    }
     if (query.trim().length < 2 && !hayFiltro) {
       setResults([]);
       return;
@@ -95,14 +100,25 @@ export function Strength({
   }, [query, zona, equipo, hayFiltro]);
 
   const elegirRef = useRef(0);
+  const isProgrammaticRef = useRef(false);
+
+  const invalidarPendientes = () => {
+    ++elegirRef.current;
+  };
 
   const elegir = async (m: Movement) => {
-    const id = ++elegirRef.current;
+    invalidarPendientes();
+    const id = elegirRef.current;
+    isProgrammaticRef.current = true;
     setSelected(m);
     setQuery(m.name_es ?? m.name);
     setResults([]);
     setError('');
     setHistoria(null);
+    setSeries('3');
+    setReps('10');
+    setKilos('');
+    setEsfuerzo('');
     try {
       const r = await api.get<{ data: StrengthHistory }>(
         `/logs/strength/history?name=${encodeURIComponent(m.name)}`,
@@ -149,6 +165,8 @@ export function Strength({
         ...(esfuerzo ? { rpe: Number(esfuerzo) } : {}),
       });
       notificarCambio('diario-cambiado');
+      invalidarPendientes();
+      isProgrammaticRef.current = false;
       setQuery('');
       setSelected(null);
       setHistoria(null);
@@ -241,6 +259,8 @@ export function Strength({
               type="text"
               value={query}
               onChange={(ev) => {
+                invalidarPendientes();
+                isProgrammaticRef.current = false;
                 setQuery(ev.target.value);
                 setSelected(null);
                 setHistoria(null);
@@ -254,6 +274,8 @@ export function Strength({
                 type="button"
                 className="btn btn--quiet"
                 onClick={() => {
+                  invalidarPendientes();
+                  isProgrammaticRef.current = false;
                   setQuery('');
                   setSelected(null);
                   setHistoria(null);
@@ -265,7 +287,8 @@ export function Strength({
                   position: 'absolute',
                   right: '0.4rem',
                   padding: '0.25rem 0.5rem',
-                  minHeight: '36px',
+                  minHeight: '44px',
+                  minWidth: '44px',
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -296,6 +319,8 @@ export function Strength({
           valores={facets.body}
           activo={zona}
           onElegir={(v) => {
+            invalidarPendientes();
+            isProgrammaticRef.current = false;
             setZona(v);
             setSelected(null);
             setQuery('');
@@ -311,6 +336,8 @@ export function Strength({
             valores={facets.equipment}
             activo={equipo}
             onElegir={(v) => {
+              invalidarPendientes();
+              isProgrammaticRef.current = false;
               setEquipo(v);
               setSelected(null);
               setQuery('');

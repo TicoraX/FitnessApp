@@ -83,22 +83,28 @@ function PantallaZonas({ navigate }: { navigate: (path: string) => void }) {
             Lo que más venís haciendo
           </p>
           <div className="chips" role="group" aria-label="Trending">
-            {trending.map((t) => (
-              <button
-                key={t.name}
-                type="button"
-                className="chip"
-                onClick={() => {
-                  if (t.id && t.body) {
-                    navigate(`ejercicio/catalogo/${encodeURIComponent(t.body)}/${encodeURIComponent(t.id)}`);
-                  } else {
-                    navigate(`ejercicio/catalogo`);
-                  }
-                }}
-              >
-                {t.name} · {t.count}
-              </button>
-            ))}
+            {trending.map((t) =>
+              t.id ? (
+                <button
+                  key={t.name}
+                  type="button"
+                  className="chip"
+                  onClick={() => {
+                    if (t.body) {
+                      navigate(`ejercicio/catalogo/${encodeURIComponent(t.body)}/${encodeURIComponent(t.id!)}`);
+                    } else {
+                      navigate(`ejercicio/catalogo`);
+                    }
+                  }}
+                >
+                  {t.name} · {t.count}
+                </button>
+              ) : (
+                <span key={t.name} className="chip">
+                  {t.name} · {t.count}
+                </span>
+              )
+            )}
           </div>
         </div>
       )}

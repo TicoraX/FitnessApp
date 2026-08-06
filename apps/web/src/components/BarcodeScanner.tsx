@@ -29,6 +29,9 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
     let stream: MediaStream | null = null;
     let animationFrameId: number | null = null;
     let active = true;
+    // El tipo sale del import dinámico, que es el que mantiene a ZXing fuera
+    // del bundle principal.
+    let zxingReader: InstanceType<typeof import('@zxing/library').BrowserMultiFormatReader> | null = null;
 
     async function startCamera() {
       try {
@@ -62,11 +65,12 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
           const ZXing = await import('@zxing/library').catch(() => null);
 
           if (ZXing) {
-            const reader = new ZXing.BrowserMultiFormatReader();
+            const lector = new ZXing.BrowserMultiFormatReader();
+            zxingReader = lector;
             detector = {
               detect: async (videoEl: HTMLVideoElement) => {
                 try {
-                  const res = await reader.decodeFromVideoElement(videoEl);
+                  const res = lector.decode(videoEl);
                   if (res && res.getText()) {
                     return [{ rawValue: res.getText() }];
                   }
@@ -120,6 +124,11 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
       active = false;
       if (animationFrameId !== null) {
         cancelAnimationFrame(animationFrameId);
+      }
+      if (zxingReader) {
+        try {
+          zxingReader.reset();
+        } catch {}
       }
       if (stream) {
         stream.getTracks().forEach((track) => track.stop());

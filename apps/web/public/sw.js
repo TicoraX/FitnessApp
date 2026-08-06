@@ -42,7 +42,11 @@ self.addEventListener('fetch', (event) => {
         .then((res) => {
           if (res && res.status === 200) {
             const copia = res.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copia));
+            return caches
+              .open(CACHE_NAME)
+              .then((cache) => cache.put(event.request, copia))
+              .catch(() => {})
+              .then(() => res);
           }
           return res;
         })

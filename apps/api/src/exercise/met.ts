@@ -170,8 +170,14 @@ export function movementByName(name: string): MovementDto | null {
     for (const m of MOVEMENTS) {
       const dto = conNombreEs(m);
       indiceMovimiento.set(normalizeQuery(m.name), dto);
+    }
+    for (const m of MOVEMENTS) {
+      const dto = conNombreEs(m);
       if (dto.name_es) {
-        indiceMovimiento.set(normalizeQuery(dto.name_es), dto);
+        const keyEs = normalizeQuery(dto.name_es);
+        if (!indiceMovimiento.has(keyEs)) {
+          indiceMovimiento.set(keyEs, dto);
+        }
       }
     }
   }

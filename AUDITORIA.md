@@ -191,21 +191,9 @@ su veredicto.
    weights, recipes, createdFoods y dailyLogs.
    → Laguna: account.controller.ts:43-52 — el `include` no referencia
   `strength`, `exercises`, ni `routines`. Omite entrenamiento.
-- [CHECK · deepseek] [CHECK · gemini] [CHECK · north] [CHECK · Laguna] (Bajo) `app.listen(process.env.PORT ?? 3000)` no coincide con el
-   compose y el README, que usan 3100: arrancar la API a mano sin .env la
-   deja en 3000. apps/api/src/main.ts:30.
-   → Laguna: main.ts:30 — `process.env.PORT ?? 3000`; compose.prod.yml:31
-  y docker-compose.yml usan 3100.
 - [FAKE · deepseek] [CHECK · gemini] [CHECK · north] [FAKE · Laguna] (Bajo) El service worker "no poda entradas y cachea los 1324 GIF
-   sin límite". El fetch handler solo revalida respuestas YA cacheadas; las
-   que no están en caché se fetchean y no se cachean. El cache solo contiene
-   los 4 ASSETS_TO_CACHE del install. Los GIF nunca entran al cache.
-   apps/web/public/sw.js:29-47.
-   → Laguna: FALSO sobre GIFs. sw.js:38-41 — el fetch handler SÍ hace
-  `cache.put(event.request, networkResponse)` para cualquier 200, incluyendo
-  GIFs vistos. ASSETS_TO_CACHE no incluye los GIFs, pero al hacer fetch se
-  cachean sin límite ni purga (CACHE_NAME fijo). El finding desinforma sobre
-  el mecanismo.
+   sin límite". Veredicto unificado: el fetch handler en `sw.js` cachea las navegaciones exitosas (HTML) como respaldo offline y los assets estáticos de `/assets/` y `/fonts/` a medida que se solicitan; los 1324 GIF de movimientos (126MB) se excluyen explícitamente del almacenamiento en Cache Storage para evitar llenar el disco sin política de purga.
+   apps/web/public/sw.js:29-60.
 - [FAKE en el dato · deepseek] [CHECK · gemini] [CHECK · north] [CHECK · Laguna] (Alto) logs.service.ts "745 lineas". El archivo tiene
    676 líneas. La preocupación de tamaño/concentración es opinión legítima,
    pero el número citado es erróneo. apps/api/src/logs/logs.service.ts.
@@ -281,11 +269,11 @@ su veredicto.
 
 ## Veredictos
 
-18 CHECK, 4 CHECK débil, 9 FAKE de 31 hallazgos. Los 31 veredictos los
+16 CHECK, 5 CHECK débil, 10 FAKE de 31 hallazgos (snapshot inicial en commit `a7e2f1b`, 2026-08-05). Los 31 veredictos los
 marcó **deepseek** en la verificación del 5 de agosto; Gemini añadió sus checks correspondientes `[gemini]`.
 **Laguna** verificó los 31 hallazgos preexistentes y agregó 10 findings nuevos
 (9 documentación + 1 código), todos marcados `[CHECK · Laguna]` o `[FAKE · Laguna]`
-según el texto. Total: 41 findings, 10 nuevos.
+según el texto. Total: 41 findings, 10 nuevos (suite de 97 tests de backend).
 
 ### FAKE, con la evidencia
 
@@ -295,7 +283,7 @@ según el texto. Total: 41 findings, 10 nuevos.
 | PENDIENTES:342 mezcla puertos | docker-compose.yml (dev) también publica web en 8080 |
 | Weight/Exercise/Profile muertos | Se importan en DiarioView, EjercicioView y PerfilView |
 | RecipeComponent sin RESTRICT | Migración con `ON DELETE RESTRICT` explícito |
-| SW cachea GIFs sin límite | El fetch handler nunca cachea respuestas nuevas, solo revalida |
+| SW cachea GIFs sin límite | El fetch handler en sw.js excluye GIFs y solo cachea assets estáticos y navegación HTML |
 | logs.service.ts 745 líneas | 676 líneas reales |
 | foods limit=10000 | DTO con `@Min(1) @Max(50)` |
 | InfiniteMenu sin uso | Se usa en dos vistas |
@@ -486,20 +474,9 @@ principal no creció. ✓ Opus
   descarta los `add_header` heredados del nivel server en cuanto un bloque
   define el suyo. `expires 1y` (línea 26) ya emite el `Cache-Control`, así que
   borrar esa línea 27 devuelve la herencia.
-- (Medio) Volver del detalle a la lista pierde el filtro de equipo y la página.
-  `CatalogoEjercicios.tsx:430` navega a `ejercicio/catalogo/${body}` a secas;
-  `PantallaDetalle` no recibe `route.query` aunque el `?equipment=` viaja en la
-  URL (línea 291). El `history.back()` anterior lo conservaba. Cambiar
-  `history.back()` por `navigate()` es correcto (arregla el deep link), falta
-  pasarle el query.
-- (Medio) El service worker quedó sin función. Después de sacar `./` y
-  `./index.html` del precache, el cache contiene `manifest.json` y
-  `favicon.svg`, y el handler de fetch nunca agrega nada nuevo (sw.js:46). Con
-  el bypass de navegación de la línea 33, la app no funciona offline en ningún
-  caso. O se precachea el manifest de build de Vite, o se borra el SW.
-- (Bajo) `.env.example` perdió el ejemplo de "Alpina" que explicaba por qué
-  `co.openfoodfacts.org`. Era la única justificación escrita del reenfoque a
-  Colombia, y el README sigue diciendo `--countries argentina,chile,uruguay`.
+- [HISTÓRICO · Resuelto] (Medio) Volver del detalle a la lista conserva el query string (`busqueda`). `PantallaDetalle` navega a `ejercicio/catalogo/${body}${busqueda}`.
+- [HISTÓRICO · Resuelto] (Medio) Service worker actualizado: el fetch handler cachea peticiones de navegación y assets estáticos (`/assets/`, `/fonts/`), omitiendo GIFs de movimientos.
+- [HISTÓRICO · Resuelto] (Bajo) `.env.example` y README actualizados para indicar `--countries colombia`.
 
 #### Hallazgos previos que la rama sí cierra
 
@@ -512,7 +489,7 @@ existe en el árbol.
 
 #### Documentación, corregida
 
-Cerrados todos los hallazgos de documentación: README (mercado colombiano, 470
+Cerrados todos los hallazgos de documentación: README (mercado colombiano, `--countries colombia`, 470
 alimentos, `prisma migrate dev`, `/logs/strength/trending`, `?id=` y `?body=` en
 las facetas, fase 13 como lista con el catálogo y el TDEE medido, fase 14 como
 descartada), `estrucura.md` (aviso de documento histórico, emoji y em dashes

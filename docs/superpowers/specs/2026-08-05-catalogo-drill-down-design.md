@@ -64,8 +64,9 @@ según `route.rest`, uno visible a la vez:
   actualiza el query string sin cambiar de pantalla. Tocar un movimiento
   navega a `catalogo/<body>/<id>`.
 - **`PantallaDetalle`** (`rest = ['catalogo', body, id]`) — GIF, cómo se
-  hace, gráfico de línea, tabla de historial. El "← Volver" navega un nivel
-  atrás (a la Lista) en vez de solo limpiar estado local.
+  hace, gráfico de línea, tabla de historial. El "← Volver" navega explícitamente a la
+  ruta padre `catalogo/<body>` (conservando la búsqueda en query string), funcionando
+  igual en recarga, enlace directo o entrada desde PantallaZonas.
 
 Cada pantalla recibe sus datos por props resueltas desde la URL, sin estado
 interno redundante: `PantallaLista` no sabe "estoy en la pantalla 2", solo
@@ -77,9 +78,8 @@ Este esquema es el mismo en mobile, no una variante aparte: cada URL es una
 pantalla de ancho completo que reemplaza a la anterior (push/pop real), no
 contenido apilado en una página larga.
 
-- El botón "← Volver" llama `history.back()`, que en el celular también
-  dispara con el swipe-desde-el-borde y el botón/gesto físico de atrás de
-  Android — gratis, porque es historial real del navegador.
+- El botón "← Volver" navega explícitamente a la ruta padre `catalogo/<body>`, mientras
+  que el gesto de atrás del navegador y el botón físico de Android siguen usando `history.back()`.
 - Los botones de zona y las filas de lista cumplen el mínimo de 44px.
 - Si el día de mañana esto se empaqueta en un shell nativo (Capacitor/WebView)
   o se reescribe nativo, cada URL mapea 1 a 1 con una pantalla del stack de
