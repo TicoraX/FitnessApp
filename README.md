@@ -46,8 +46,12 @@ cd apps/web && npm install && npm run dev    # http://localhost:5177
   el mapeo de OpenFoodFacts.
 - `npm run smoke` en `apps/api`: recorre el flujo completo contra el API real
   (registro, login, búsqueda, alta de comidas, totales y casos de error).
-  El limiter de auth es de 5/15min en producción. El compose de dev lo sube a
-  100 con `AUTH_RATE_LIMIT`, para correr las suites varias veces seguidas.
+  Los limiters de auth son de 5/15min y el de `forgot` de 3/15min en producción.
+  El compose de dev los sube con `AUTH_RATE_LIMIT` y `FORGOT_RATE_LIMIT`, para
+  correr las suites varias veces seguidas.
+- `npm run probe` en `apps/api`: bordes del API contra un servidor vivo, los que
+  no se ven en el camino feliz. Aislamiento entre usuarios, concurrencia,
+  estados vacíos, fechas imposibles y lo que devuelve cada validación.
 - `npm run contrast:check` en `apps/web`: contraste WCAG de la paleta en los dos
   temas.
 - `npm run ui:check` en `apps/web`: recorre la interfaz con Playwright como un

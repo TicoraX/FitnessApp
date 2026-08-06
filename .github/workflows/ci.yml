@@ -10,8 +10,10 @@ env:
   JWT_SECRET: clave-de-integracion-continua-no-usar-en-produccion
   PORT: '3100'
   # La suite registra varios usuarios seguidos; el default de 5/15min la
-  # cortaría por la mitad.
+  # cortaría por la mitad. El probe hace lo propio contra /auth/forgot, que
+  # lleva su propio límite de 3.
   AUTH_RATE_LIMIT: '500'
+  FORGOT_RATE_LIMIT: '500'
 
 jobs:
   # Rápido y sin navegador: si esto falla, no vale la pena arrancar el resto.

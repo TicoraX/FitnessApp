@@ -39,6 +39,11 @@ services:
       # se come un 429 y el comando falla por el entorno. El compose de
       # producción no pasa la variable: ahí rige el default de 5 cada 15 minutos.
       AUTH_RATE_LIMIT: ${AUTH_RATE_LIMIT:-100}
+      # Lo mismo con /auth/forgot, que tiene su propio límite de 3. El probe
+      # verifica que la respuesta no distinga entre una cuenta que existe y una
+      # que no; con 3, la segunda corrida ve un 429 y lee esa diferencia como
+      # una filtración. Producción tampoco pasa esta variable.
+      FORGOT_RATE_LIMIT: ${FORGOT_RATE_LIMIT:-50}
     ports:
       - '3100:3100'
     depends_on:
