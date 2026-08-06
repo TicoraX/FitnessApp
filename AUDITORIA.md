@@ -452,9 +452,23 @@ Los agentes se contradicen en cinco hallazgos. Resueltos con evidencia:
 
 #### Regresiones que introduce esta rama (corregidas)
 
-Las seis quedaron arregladas en el mismo working tree. `tsc --noEmit` limpio y
-`npm run build` en verde después de los arreglos; ZXing salió como chunk
-aparte, el bundle principal no creció. ✓ Opus
+Siete, y las siete quedaron arregladas. Las seis primeras en el mismo working
+tree; la séptima la encontró el code review del PR #22, después de que yo
+revisara esa misma CSP y no la viera. `tsc --noEmit` limpio y `npm run build` en
+verde después de los arreglos; ZXing salió como chunk aparte, el bundle
+principal no creció. ✓ Opus
+
+- (Alto) La misma CSP bloquea las fuentes. `style-src 'self' 'unsafe-inline'`
+  corta la hoja de `fonts.googleapis.com` y `font-src 'self'` corta los archivos
+  de `fonts.gstatic.com`, de donde `index.html:14-19` cargaba Plus Jakarta Sans,
+  Inter y JetBrains Mono. No estaban self-hosteadas ni había `@font-face` en el
+  bundle: en producción la app entera caía a fuentes de sistema, sin error en
+  consola. Arreglado self-hosteando las tres familias en versión variable, seis
+  woff2 de 225KB en total, más sacar los dos `preconnect` que quedaban apuntando
+  a dominios que ya no se usan. La CSP no se tocó, que era el punto.
+  → La lección: revisé esa CSP contra los scripts y contra los permisos de
+  cámara, y no contra lo que la propia línea ya listaba. El `img-src` abierto a
+  `https:` para los GIF estaba dos tokens antes.
 
 
 - (Alto) `Permissions-Policy: camera=()` en `nginx.conf:11` apaga el escáner de

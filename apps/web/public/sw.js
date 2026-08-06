@@ -51,10 +51,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Assets con hash en el nombre: cache first, y se llena a medida que se
-  // piden. Solo /assets/: los GIF de movimientos son 126MB y llenarían el
-  // disco del teléfono sin que nada los pode.
-  const esAsset = new URL(event.request.url).pathname.startsWith('/assets/');
+  // Bundles y fuentes: cache first, y se llena a medida que se piden. Solo
+  // esas dos rutas, que son chicas y no cambian; los GIF de movimientos son
+  // 126MB y llenarían el disco del teléfono sin que nada los pode.
+  const ruta = new URL(event.request.url).pathname;
+  const esAsset = ruta.startsWith('/assets/') || ruta.startsWith('/fonts/');
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
