@@ -1,6 +1,7 @@
 import {
   bodyOf,
   caloriesBurned,
+  countMovements,
   metOf,
   movementByName,
   movementFacets,
@@ -109,6 +110,25 @@ describe('búsqueda de movimientos', () => {
 
     const porEspanol = movementByName('Sentadilla con barra');
     expect(porEspanol?.name).toBe('barbell full squat');
+  });
+
+  it('offset salta resultados sin cambiar el orden', () => {
+    const primeros = searchMovements('', 4, { body: 'pecho' });
+    const saltados = searchMovements('', 2, { body: 'pecho' }, 2);
+    expect(saltados.map((m) => m.id)).toEqual(primeros.slice(2).map((m) => m.id));
+  });
+
+  it('countMovements cuenta todos los que matchean, no solo la página', () => {
+    const total = countMovements('', { body: 'pecho' });
+    expect(total).toBeGreaterThan(searchMovements('', 1, { body: 'pecho' }).length);
+    expect(searchMovements('', total + 10, { body: 'pecho' })).toHaveLength(total);
+  });
+
+  it('las facetas de equipo se acotan a la zona elegida', () => {
+    const { equipment } = movementFacets({ body: 'core' });
+    for (const eq of equipment) {
+      expect(searchMovements('', 1, { body: 'core', equipment: eq })).toHaveLength(1);
+    }
   });
 });
 

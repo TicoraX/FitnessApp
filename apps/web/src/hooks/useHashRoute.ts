@@ -10,10 +10,16 @@ export interface ParsedRoute {
 }
 
 function parseHash(hash: string): ParsedRoute {
-  // Limpiar # y slashes iniciales
   const clean = hash.replace(/^#\/?/, '').trim();
   const [pathPart, queryPart] = clean.split('?');
-  const parts = pathPart ? pathPart.split('/').filter(Boolean) : [];
+  const raw = pathPart ? pathPart.split('/').filter(Boolean) : [];
+  const parts = raw.map((seg) => {
+    try {
+      return decodeURIComponent(seg);
+    } catch {
+      return seg;
+    }
+  });
 
   const viewName = parts[0]?.toLowerCase();
   let view: ViewRoute = 'diario';

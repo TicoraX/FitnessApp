@@ -45,9 +45,14 @@ export class AccountService {
         weights: { orderBy: { loggedOn: 'asc' } },
         recipes: { include: { components: { include: { foodItem: true } } } },
         createdFoods: true,
+        routines: { include: { items: { orderBy: { position: 'asc' } } } },
         dailyLogs: {
           orderBy: { logDate: 'asc' },
-          include: { entries: { include: { foodItem: true }, orderBy: { loggedAt: 'asc' } } },
+          include: {
+            entries: { include: { foodItem: true }, orderBy: { loggedAt: 'asc' } },
+            exercises: { orderBy: { loggedAt: 'asc' } },
+            strength: { orderBy: { loggedAt: 'asc' } },
+          },
         },
       },
     });
@@ -96,6 +101,18 @@ export class AccountService {
           quantity: n(c.quantity),
         })),
       })),
+      routines: user.routines.map((r) => ({
+        name: r.name,
+        notes: r.notes,
+        items: r.items.map((i) => ({
+          name: i.name,
+          sets: i.sets,
+          reps: i.reps,
+          weight_kg: n(i.weightKg),
+          rpe: n(i.rpe),
+          position: i.position,
+        })),
+      })),
       created_foods: user.createdFoods.map((f) => ({
         name: f.name,
         brand: f.brand,
@@ -120,6 +137,21 @@ export class AccountService {
           calories: e.foodItem
             ? e.foodItem.calories * Number(e.servingsConsumed)
             : (e.quickCalories ?? 0) * Number(e.servingsConsumed),
+        })),
+        exercises: d.exercises.map((ex) => ({
+          name: ex.name,
+          duration_min: ex.durationMin,
+          calories_burned: ex.caloriesBurned,
+          logged_at: ex.loggedAt.toISOString(),
+        })),
+        strength: d.strength.map((s) => ({
+          name: s.name,
+          sets: s.sets,
+          reps: s.reps,
+          weight_kg: n(s.weightKg),
+          rpe: n(s.rpe),
+          done: s.done,
+          logged_at: s.loggedAt.toISOString(),
         })),
       })),
     };

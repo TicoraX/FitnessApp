@@ -282,7 +282,10 @@ export interface StrengthSerie {
   log_date: string;
 }
 
-/** Lo último, lo mejor y las últimas 50 series de un movimiento. */
+/**
+ * Lo último, lo mejor y las últimas 50 series de un movimiento.
+ * `series` viene de la más reciente a la más vieja.
+ */
 export interface StrengthHistory {
   last: StrengthSerie | null;
   best: { sets: number; reps: number; weight_kg: number | null; rpe: number | null } | null;
@@ -293,8 +296,10 @@ export interface StrengthHistory {
 export interface MovementTrending {
   name: string;
   count: number;
-  id?: string | null;
-  body?: string | null;
+  /** null cuando el nombre registrado no está en el catálogo. */
+  id: string | null;
+  /** 'otros' cuando el nombre registrado no está en el catálogo. */
+  body: string;
 }
 
 export interface ExerciseReport {

@@ -992,7 +992,8 @@ input[aria-invalid='true'] {
   min-height: 2.75rem;
 }
 
-.chip[aria-pressed='true'] {
+.chip[aria-pressed='true'],
+.chip[aria-current='page'] {
   background: var(--color-accent);
   border-color: var(--color-accent);
   color: var(--bg-base);

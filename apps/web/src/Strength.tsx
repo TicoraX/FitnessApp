@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   api,
   getCacheado,
@@ -39,6 +39,7 @@ export function Strength({
   movimientoInicial?: Movement | null;
   onMovimientoConsumido?: () => void;
 }) {
+  const inputMovimiento = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
   const [zona, setZona] = useState('');
   const [equipo, setEquipo] = useState('');
@@ -93,7 +94,10 @@ export function Strength({
     };
   }, [query, zona, equipo, hayFiltro]);
 
+  const elegirRef = useRef(0);
+
   const elegir = async (m: Movement) => {
+    const id = ++elegirRef.current;
     setSelected(m);
     setQuery(m.name_es ?? m.name);
     setResults([]);
@@ -103,8 +107,8 @@ export function Strength({
       const r = await api.get<{ data: StrengthHistory }>(
         `/logs/strength/history?name=${encodeURIComponent(m.name)}`,
       );
+      if (id !== elegirRef.current) return;
       setHistoria(r.data);
-      // Arrancar donde quedó la última vez ahorra tres campos en el 90% de los casos.
       if (r.data.last) {
         setSeries(String(r.data.last.sets));
         setReps(String(r.data.last.reps));
@@ -233,6 +237,7 @@ export function Strength({
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
             <input
               id="fz-movimiento"
+              ref={inputMovimiento}
               type="text"
               value={query}
               onChange={(ev) => {
@@ -253,8 +258,9 @@ export function Strength({
                   setSelected(null);
                   setHistoria(null);
                   setResults([]);
+                  inputMovimiento.current?.focus();
                 }}
-                aria-label="Limpiar movimiento seleccionado"
+                aria-label="Limpiar búsqueda de movimiento"
                 style={{
                   position: 'absolute',
                   right: '0.4rem',

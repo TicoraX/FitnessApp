@@ -24,7 +24,16 @@ export function CatalogoEjercicios({
 
   if (subpath.length >= 2) {
     const [body, id] = subpath;
-    return <PantallaDetalle body={body} id={id} navigate={navigate} onRegistrar={onRegistrar} />;
+    const busqueda = route.query.toString() ? `?${route.query}` : '';
+    return (
+      <PantallaDetalle
+        body={body}
+        id={id}
+        busqueda={busqueda}
+        navigate={navigate}
+        onRegistrar={onRegistrar}
+      />
+    );
   }
 
   if (subpath.length === 1) {
@@ -43,6 +52,7 @@ function PantallaZonas({ navigate }: { navigate: (path: string) => void }) {
   const [facets, setFacets] = useState<Facets>({ body: [], equipment: [] });
   const [trending, setTrending] = useState<MovementTrending[]>([]);
   const [error, setError] = useState(false);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     let vigente = true;
@@ -58,7 +68,7 @@ function PantallaZonas({ navigate }: { navigate: (path: string) => void }) {
     return () => {
       vigente = false;
     };
-  }, []);
+  }, [retry]);
 
   return (
     <div className="card catalogo-ej">
@@ -96,7 +106,7 @@ function PantallaZonas({ navigate }: { navigate: (path: string) => void }) {
       {error ? (
         <ErrorConReintento
           mensaje="No se pudieron cargar las zonas musculares."
-          onReintentar={() => window.location.reload()}
+          onReintentar={() => setRetry((n) => n + 1)}
         />
       ) : (
         <div className="stack" style={{ gap: 'var(--space-xs)' }}>
@@ -150,13 +160,17 @@ function PantallaLista({
 }) {
   const equipment = query.get('equipment') || '';
   const pageParam = Number(query.get('page') || '1');
-  const page = isNaN(pageParam) || pageParam < 1 ? 0 : pageParam - 1;
+  const page = Number.isNaN(pageParam) || pageParam < 1 ? 0 : Math.floor(pageParam) - 1;
+  // El detalle se lleva el filtro y la página para poder volver acá tal cual.
+  // `history.back()` no sirve: al detalle también se llega por link directo.
+  const busqueda = query.toString() ? `?${query}` : '';
 
   const [facets, setFacets] = useState<Facets>({ body: [], equipment: [] });
   const [items, setItems] = useState<Movement[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     let vigente = true;
@@ -197,7 +211,7 @@ function PantallaLista({
     return () => {
       vigente = false;
     };
-  }, [body, equipment, page]);
+  }, [body, equipment, page, retry]);
 
   const seleccionarEquipo = (eq: string) => {
     const nuevoEq = equipment === eq ? '' : eq;
@@ -224,7 +238,7 @@ function PantallaLista({
           <button
             type="button"
             className="btn btn--quiet"
-            onClick={() => window.history.back()}
+            onClick={() => navigate('ejercicio/catalogo')}
             style={{ padding: '0.2rem 0.5rem' }}
           >
             ← Zonas
@@ -258,7 +272,7 @@ function PantallaLista({
       {error ? (
         <ErrorConReintento
           mensaje="No se pudieron cargar los movimientos."
-          onReintentar={() => window.location.reload()}
+          onReintentar={() => setRetry((n) => n + 1)}
         />
       ) : loading ? (
         <p className="muted">Cargando movimientos...</p>
@@ -275,23 +289,23 @@ function PantallaLista({
         </div>
       ) : (
         <>
-          <ul className="results" role="listbox" aria-label={`Movimientos de ${body}`}>
+          <ul className="results" aria-label={`Movimientos de ${body}`}>
             {items.map((m) => (
-              <li
-                key={m.id}
-                role="option"
-                aria-selected={false}
-                className="result"
-                style={{ cursor: 'pointer' }}
-                onClick={() => {
-                  const qStr = equipment ? `?equipment=${encodeURIComponent(equipment)}` : '';
-                  navigate(`ejercicio/catalogo/${encodeURIComponent(body)}/${encodeURIComponent(m.id)}${qStr}`);
-                }}
-              >
-                <NombreMovimiento name={m.name} nameEs={m.name_es} />
-                <span className="muted result__kcal">
-                  {m.equipment} · {m.target}
-                </span>
+              <li key={m.id}>
+                <button
+                  type="button"
+                  className="result"
+                  onClick={() =>
+                    navigate(
+                      `ejercicio/catalogo/${encodeURIComponent(body)}/${encodeURIComponent(m.id)}${busqueda}`,
+                    )
+                  }
+                >
+                  <NombreMovimiento name={m.name} nameEs={m.name_es} />
+                  <span className="muted result__kcal">
+                    {m.equipment} · {m.target}
+                  </span>
+                </button>
               </li>
             ))}
           </ul>
@@ -332,11 +346,13 @@ function PantallaLista({
 function PantallaDetalle({
   body,
   id,
+  busqueda,
   navigate,
   onRegistrar,
 }: {
   body: string;
   id: string;
+  busqueda: string;
   navigate: (path: string) => void;
   onRegistrar: (m: Movement) => void;
 }) {
@@ -345,12 +361,14 @@ function PantallaDetalle({
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState(false);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     let vigente = true;
     setLoading(true);
     setNotFound(false);
     setError(false);
+    setHistoria(null);
 
     api
       .get<{ data: Movement[] }>(`/exercise/movements?id=${encodeURIComponent(id)}&limit=1`)
@@ -382,12 +400,23 @@ function PantallaDetalle({
     return () => {
       vigente = false;
     };
-  }, [id]);
+  }, [id, retry]);
 
   if (loading) {
     return (
       <div className="card catalogo-ej">
         <p className="muted">Cargando detalle del movimiento...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="card catalogo-ej">
+        <ErrorConReintento
+          mensaje="No se pudo cargar la información del movimiento."
+          onReintentar={() => setRetry((n) => n + 1)}
+        />
       </div>
     );
   }
@@ -399,21 +428,10 @@ function PantallaDetalle({
         <button
           type="button"
           className="btn btn--quiet"
-          onClick={() => navigate(`ejercicio/catalogo/${encodeURIComponent(body)}`)}
+          onClick={() => navigate(`ejercicio/catalogo/${encodeURIComponent(body)}${busqueda}`)}
         >
           Volver a {body}
         </button>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="card catalogo-ej">
-        <ErrorConReintento
-          mensaje="No se pudo cargar la información del movimiento."
-          onReintentar={() => window.location.reload()}
-        />
       </div>
     );
   }
@@ -424,7 +442,7 @@ function PantallaDetalle({
         <button
           type="button"
           className="btn btn--quiet"
-          onClick={() => window.history.back()}
+          onClick={() => navigate(`ejercicio/catalogo/${encodeURIComponent(body)}${busqueda}`)}
           style={{ padding: '0.2rem 0.5rem' }}
         >
           ← Volver
@@ -520,7 +538,7 @@ function HistorialChart({ series }: { series: { log_date: string; weight_kg: num
   const linea = puntos.map((p, i) => `${x(i)},${y(p.weight_kg)}`).join(' ');
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: 'auto', minWidth: '400px' }}>
+    <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: 'auto' }}>
       <polyline points={linea} fill="none" stroke="var(--color-primary)" strokeWidth="2" />
       {puntos.map((p, i) => (
         <circle key={`${p.log_date}-${i}`} cx={x(i)} cy={y(p.weight_kg)} r="2.5" fill="var(--color-primary)" />

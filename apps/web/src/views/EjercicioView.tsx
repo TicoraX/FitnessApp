@@ -94,23 +94,19 @@ export function EjercicioView({
         </p>
       )}
 
-      <div className="chips" role="tablist" aria-label="Sección de entrenamiento">
+      <div className="chips" role="group" aria-label="Sección de entrenamiento">
         <button
           type="button"
-          role="tab"
           className="chip"
-          aria-selected={!isCatalogo}
-          aria-pressed={!isCatalogo}
+          aria-current={!isCatalogo ? 'page' : undefined}
           onClick={() => navigate('ejercicio')}
         >
           Registrar
         </button>
         <button
           type="button"
-          role="tab"
           className="chip"
-          aria-selected={isCatalogo}
-          aria-pressed={isCatalogo}
+          aria-current={isCatalogo ? 'page' : undefined}
           onClick={() => navigate('ejercicio/catalogo')}
         >
           Catálogo

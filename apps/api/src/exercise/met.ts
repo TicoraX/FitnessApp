@@ -117,6 +117,21 @@ export function countMovements(raw: string, filtros: { id?: string; body?: strin
 }
 
 /**
+ * Página y total en un solo escaneo del catálogo. Sin esto, searchMovements
+ * y countMovements cada uno llama matchMovements, que recorre los 1324
+ * movimientos cada vez.
+ */
+export function pageMovements(
+  raw: string,
+  limit = 20,
+  filtros: { id?: string; body?: string; equipment?: string } = {},
+  offset = 0,
+): { data: MovementDto[]; total: number } {
+  const todos = matchMovements(raw, filtros);
+  return { data: todos.slice(offset, offset + limit).map(conNombreEs), total: todos.length };
+}
+
+/**
  * Los valores que existen de verdad, para las chips de exploración.
  *
  * Con una zona elegida, el equipo se filtra a los que de verdad tienen

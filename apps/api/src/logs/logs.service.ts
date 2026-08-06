@@ -450,12 +450,7 @@ export class LogsService {
       dailyLog: { userId },
     };
 
-    const [ultima, mejor, serieCompleta] = await Promise.all([
-      this.prisma.strengthEntry.findFirst({
-        where,
-        orderBy: { loggedAt: 'desc' },
-        include: { dailyLog: { select: { logDate: true } } },
-      }),
+    const [mejor, serieCompleta] = await Promise.all([
       this.prisma.strengthEntry.findFirst({
         where: { ...where, weightKg: { not: null } },
         orderBy: [{ weightKg: 'desc' }, { reps: 'desc' }],
@@ -469,6 +464,9 @@ export class LogsService {
         include: { dailyLog: { select: { logDate: true } } },
       }),
     ]);
+    // La primera de la serie es la última cronológicamente; no hace falta una
+    // consulta aparte porque comparten el mismo where y el mismo orderBy.
+    const ultima = serieCompleta[0] ?? null;
 
     const serie = (
       e: { sets: number; reps: number; weightKg: Prisma.Decimal | null; rpe: Prisma.Decimal | null } | null,

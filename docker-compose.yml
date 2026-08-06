@@ -25,7 +25,7 @@ services:
       context: ./apps/api
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-fittrack}:${POSTGRES_PASSWORD:-fittrack}@db:5432/${POSTGRES_DB:-fittrack}?schema=public
-      JWT_SECRET: ${JWT_SECRET:-desarrollo_secret_key_fit_track_123456789}
+      JWT_SECRET: ${JWT_SECRET:-cambiar_jwt_secret_en_produccion}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       PORT: '3100'
       # El subdominio de país sesga la búsqueda de OpenFoodFacts a ese mercado.

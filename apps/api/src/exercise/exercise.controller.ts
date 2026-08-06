@@ -1,7 +1,7 @@
 import { Controller, Get, Module, Query, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { countMovements, movementFacets, searchActivities, searchMovements } from './met';
+import { movementFacets, pageMovements, searchActivities } from './met';
 import { ActivitySearchQueryDto, FacetsQueryDto, MovementSearchQueryDto } from './dto/query.dto';
 
 /**
@@ -26,11 +26,8 @@ export class ExerciseController {
   @Throttle({ default: { ttl: 60_000, limit: 600 } })
   movements(@Query() query: MovementSearchQueryDto) {
     const filtros = { id: query.id, body: query.body, equipment: query.equipment };
-    return {
-      status: 'success',
-      data: searchMovements(query.q ?? '', query.limit ?? 20, filtros, query.offset ?? 0),
-      total: countMovements(query.q ?? '', filtros),
-    };
+    const { data, total } = pageMovements(query.q ?? '', query.limit ?? 20, filtros, query.offset ?? 0);
+    return { status: 'success', data, total };
   }
 
   /** Las zonas y equipos que existen, para explorar el catálogo sin escribir. */

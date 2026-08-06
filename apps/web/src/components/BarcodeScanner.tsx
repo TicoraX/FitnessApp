@@ -56,23 +56,13 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
             formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'qr_code'],
           });
         } else {
-          // 2. Si no hay BarcodeDetector nativo, intentar cargar ZXing
-          if (!(window as any).ZXing) {
-            try {
-              await new Promise<void>((resolve) => {
-                const script = document.createElement('script');
-                script.src = 'https://unpkg.com/@zxing/library@latest/umd/index.min.js';
-                script.onload = () => resolve();
-                script.onerror = () => resolve();
-                document.head.appendChild(script);
-              });
-            } catch {
-              // Fallback silencioso
-            }
-          }
+          // 2. Sin BarcodeDetector nativo (iOS, Firefox) cae a ZXing, que se
+          // importa acá y no arriba para que no entre al bundle principal:
+          // en Chrome Android nunca se descarga.
+          const ZXing = await import('@zxing/library').catch(() => null);
 
-          if ((window as any).ZXing) {
-            const reader = new (window as any).ZXing.BrowserMultiFormatReader();
+          if (ZXing) {
+            const reader = new ZXing.BrowserMultiFormatReader();
             detector = {
               detect: async (videoEl: HTMLVideoElement) => {
                 try {
