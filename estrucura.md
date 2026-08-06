@@ -1,7 +1,15 @@
-# 🏛️ FitTrack Engine — Blueprint de Arquitectura y Especificación de Sistema (MyFitnessPal Clone)
+# FitTrack Engine: blueprint de arquitectura y especificación de sistema
+
+> **DOCUMENTO HISTÓRICO, NO ES LA ARQUITECTURA DE HOY.** Esto es la intención
+> original de julio de 2026. Casi nada de la sección 2 existe: no hay
+> microservicios, ni Kong, ni Redis, ni Typesense, ni pipeline de IA, ni
+> wearables, ni sincronización offline. Lo que hay es un servicio NestJS, un
+> Postgres y un cliente Vite. Para el estado real leé el
+> [`README.md`](./README.md); este archivo sirve para entender qué se quería
+> construir, nunca como fuente de verdad.
 
 > **Software Requirement Specification (SRS) & Architecture Blueprint**  
-> **Versión:** 1.0.0 Enterprise | **Fecha:** Julio 2026 | **Estatus:** Documento Maestro de Ingeniería
+> **Versión:** 1.0.0 Enterprise | **Fecha:** Julio 2026 | **Estatus:** archivado
 
 ---
 

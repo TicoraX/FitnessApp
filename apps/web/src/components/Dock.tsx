@@ -1,4 +1,4 @@
-import { motion, useMotionValue, useSpring, useTransform, useMotionValueEvent, AnimatePresence, type SpringOptions, type MotionValue } from 'motion/react';
+import { motion, useMotionValue, useReducedMotion, useSpring, useTransform, useMotionValueEvent, AnimatePresence, type SpringOptions, type MotionValue } from 'motion/react';
 import { Children, cloneElement, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import './Dock.css';
 
@@ -33,8 +33,10 @@ function DockItem({ children, className = '', onClick, mouseX, spring, distance,
     return val - rect.x - baseItemSize / 2;
   });
 
+  const sinMovimiento = useReducedMotion();
   const targetSize = useTransform(mouseDistance, [-distance, 0, distance], [baseItemSize, magnification, baseItemSize]);
-  const size = useSpring(targetSize, spring);
+  const animado = useSpring(targetSize, spring);
+  const size = sinMovimiento ? baseItemSize : animado;
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -72,6 +74,7 @@ function DockItem({ children, className = '', onClick, mouseX, spring, distance,
 function DockLabel({ children, className = '', ...rest }: { children: ReactNode; className?: string; [key: string]: unknown }) {
   const isHovered = rest.isHovered as MotionValue<number> | undefined;
   const [isVisible, setIsVisible] = useState(false);
+  const sinMovimiento = useReducedMotion();
 
   useMotionValueEvent(isHovered as MotionValue<number>, 'change', (latest) => {
     setIsVisible(latest === 1);
@@ -82,9 +85,9 @@ function DockLabel({ children, className = '', ...rest }: { children: ReactNode;
       {isVisible && (
         <motion.div
           initial={{ opacity: 0, y: 0 }}
-          animate={{ opacity: 1, y: -8 }}
+          animate={{ opacity: 1, y: sinMovimiento ? 0 : -8 }}
           exit={{ opacity: 0, y: 0 }}
-          transition={{ duration: 0.15 }}
+          transition={{ duration: sinMovimiento ? 0 : 0.15 }}
           className={`dock-label ${className}`}
           role="tooltip"
           style={{ x: '-50%' }}
@@ -118,6 +121,7 @@ export default function Dock({
   distance = 140,
   baseItemSize = 44,
 }: DockProps) {
+  const sinMovimiento = useReducedMotion();
   const mouseX = useMotionValue(Infinity);
   const isHovered = useMotionValue(0);
   const panelY = useSpring(useTransform(isHovered, [0, 1], [0, -6]), spring);
@@ -125,7 +129,7 @@ export default function Dock({
   return (
     <div className="dock-outer">
       <motion.div
-        style={{ y: panelY }}
+        style={{ y: sinMovimiento ? 0 : panelY }}
         onMouseEnter={() => isHovered.set(1)}
         onMouseMove={({ pageX }) => {
           isHovered.set(1);

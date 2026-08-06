@@ -55,11 +55,11 @@ const BATCH = Number(arg('batch') ?? 1000);
 const DRY_RUN = flag('dry-run');
 
 /**
- * --countries argentina,chile,uruguay
+ * --countries colombia
  *
  * Sin esto entra el catálogo mundial: unos 3,5 millones de productos, de los
- * que Argentina son ~15.600. Los otros no aparecen en ninguna góndola de acá y
- * lo único que hacen es competirle a los buenos en el ORDER BY de la búsqueda.
+ * que Colombia son unos pocos miles. Los otros no aparecen en ninguna góndola
+ * de acá y lo único que hacen es competirle a los buenos en el ORDER BY.
  * Lo que el filtro deja afuera igual queda cubierto: si se escanea un código
  * que no está, GET /foods/barcode lo trae de OpenFoodFacts en el momento.
  */

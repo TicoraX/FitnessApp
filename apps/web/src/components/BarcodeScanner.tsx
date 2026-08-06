@@ -29,6 +29,9 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
     let stream: MediaStream | null = null;
     let animationFrameId: number | null = null;
     let active = true;
+    // El tipo sale del import dinámico, que es el que mantiene a ZXing fuera
+    // del bundle principal.
+    let zxingReader: InstanceType<typeof import('@zxing/library').BrowserMultiFormatReader> | null = null;
 
     async function startCamera() {
       try {
@@ -56,27 +59,18 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
             formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'qr_code'],
           });
         } else {
-          // 2. Si no hay BarcodeDetector nativo, intentar cargar ZXing
-          if (!(window as any).ZXing) {
-            try {
-              await new Promise<void>((resolve) => {
-                const script = document.createElement('script');
-                script.src = 'https://unpkg.com/@zxing/library@latest/umd/index.min.js';
-                script.onload = () => resolve();
-                script.onerror = () => resolve();
-                document.head.appendChild(script);
-              });
-            } catch {
-              // Fallback silencioso
-            }
-          }
+          // 2. Sin BarcodeDetector nativo (iOS, Firefox) cae a ZXing, que se
+          // importa acá y no arriba para que no entre al bundle principal:
+          // en Chrome Android nunca se descarga.
+          const ZXing = await import('@zxing/library').catch(() => null);
 
-          if ((window as any).ZXing) {
-            const reader = new (window as any).ZXing.BrowserMultiFormatReader();
+          if (ZXing) {
+            const lector = new ZXing.BrowserMultiFormatReader();
+            zxingReader = lector;
             detector = {
               detect: async (videoEl: HTMLVideoElement) => {
                 try {
-                  const res = await reader.decodeFromVideoElement(videoEl);
+                  const res = lector.decode(videoEl);
                   if (res && res.getText()) {
                     return [{ rawValue: res.getText() }];
                   }
@@ -130,6 +124,11 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
       active = false;
       if (animationFrameId !== null) {
         cancelAnimationFrame(animationFrameId);
+      }
+      if (zxingReader) {
+        try {
+          zxingReader.reset();
+        } catch {}
       }
       if (stream) {
         stream.getTracks().forEach((track) => track.stop());

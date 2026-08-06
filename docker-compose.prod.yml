@@ -29,6 +29,11 @@ services:
       JWT_SECRET: ${JWT_SECRET:?definir JWT_SECRET de 32 caracteres o más}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       PORT: '3100'
+      MAIL_DRIVER: ${MAIL_DRIVER:?definir MAIL_DRIVER de produccion}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      MAIL_FROM: ${MAIL_FROM:-FitTrack <no-reply@fittrack.app>}
+      APP_URL: ${APP_URL:?definir APP_URL publico}
+      OFF_API_URL: ${OFF_API_URL:-https://co.openfoodfacts.org}
     depends_on:
       db:
         condition: service_healthy

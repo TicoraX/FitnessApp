@@ -1,6 +1,6 @@
 # Pendientes
 
-Estado al 3 de agosto de 2026, con todo mergeado en `main`.
+Estado al 5 de agosto de 2026, con todo mergeado en `main`.
 
 ## Lo que entró
 
@@ -21,6 +21,12 @@ Estado al 3 de agosto de 2026, con todo mergeado en `main`.
 | [#13](https://github.com/TicoraX/FitnessApp/pull/13) | El objetivo nuevo rige desde el día del usuario, no el del servidor |
 | [#14](https://github.com/TicoraX/FitnessApp/pull/14) | Un fallo de red se explica y se puede reintentar |
 | [#15](https://github.com/TicoraX/FitnessApp/pull/15) | Las queries mal armadas se rechazan en vez de reinterpretarse |
+| [#16](https://github.com/TicoraX/FitnessApp/pull/16) | Los tres pendientes que se cerraron y el que apareció |
+| [#17](https://github.com/TicoraX/FitnessApp/pull/17) | El movimiento se ve y se explica, más la limpieza del código muerto del rediseño |
+| [#18](https://github.com/TicoraX/FitnessApp/pull/18) | La búsqueda de alimentos apunta al mercado colombiano |
+| [#19](https://github.com/TicoraX/FitnessApp/pull/19) | Las estrategias del perfil son una calculadora, no un botón que miente |
+| [#20](https://github.com/TicoraX/FitnessApp/pull/20) | El gasto se mide desde tus datos en vez de estimarse |
+| [#21](https://github.com/TicoraX/FitnessApp/pull/21) | La carpeta de animaciones queda fuera de git |
 
 Los cuatro primeros iban encadenados, cada uno sobre el anterior. Mergear el #1
 con `--delete-branch` no reapuntó el #2 a `main`: GitHub cierra el PR cuando
@@ -30,7 +36,7 @@ rama. Hubo que restaurarla en el remoto para recuperarlo.
 **En una cadena de PRs, reapuntá la base del siguiente antes de mergear el
 anterior, y dejá el borrado de ramas para el final.**
 
-Migraciones, las seis aditivas y sin backfill:
+Migraciones, las cinco aditivas y sin backfill:
 
 - `20260730000000_exercise_entries`
 - `20260730010000_favorites_meals_water_goal`
@@ -273,7 +279,7 @@ actualice filas. Las dos salidas son snapshotear los siete nutrientes en
 `MealEntry`, que es lo caro y lo correcto, o dejar `FoodItem` inmutable de
 verdad y que corregir signifique crear una fila nueva.
 
-**El catálogo curado no declara micronutrientes.** Los 226 alimentos de
+**El catálogo curado no declara micronutrientes.** Los 470 alimentos de
 `apps/api/prisma/foods-dataset.ts` van a la base con `micros_json` en `{}`. La
 pantalla de Nutrientes avisa cuando faltan datos, así que no miente, pero solo
 se llena con alimentos de OpenFoodFacts. Cargar los micros de los curados es
@@ -287,23 +293,24 @@ horizontalmente.
 ahí con cambios de la Fase 0 y de la Fase 1 juntos. El mensaje solo describe la
 Fase 0. No vale la cirugía para arreglarlo.
 
-**No hay tests de controller ni de servicio en el API.** Los 81 tests de Jest
+**No hay tests de controller ni de servicio en el API.** Los 97 tests de Jest
 son de funciones puras. La cobertura de integración son los scripts `smoke.mjs`
 y `probe.mjs` contra un servidor vivo, que sí recorren cada endpoint: validación
 de DTOs, propiedad de las filas y los números que devuelve cada uno. Falta el
 punto medio, montar el módulo de Nest con una base de prueba, y no duele
 todavía.
 
-**El botón de aplicar estrategia del perfil nunca funcionó.** `PerfilView` manda
-`PATCH /profile { daily_calories }`, que no está en el DTO, así que
-`forbidNonWhitelisted` lo rechaza con 400. El `catch` mudo es exactamente la
-razón de que nadie lo notara; el PR #14 lo dejó mostrando el error real, que es
-lo mínimo, no el arreglo.
+**El botón de aplicar estrategia del perfil nunca funcionó, y se resolvió
+sacándolo.** `PerfilView` mandaba `PATCH /profile { daily_calories }`, que no
+está en el DTO, así que `forbidNonWhitelisted` lo rechazaba con 400. El `catch`
+mudo es exactamente la razón de que nadie lo notara; el PR #14 lo dejó mostrando
+el error real y el PR #19 cerró el caso: las estrategias son una calculadora de
+solo lectura y el payload manda únicamente campos del DTO.
 
-Que el API acepte un objetivo puesto a mano no es agregar un campo: `refresh()`
-recalcula desde el peso y lo pisaría en la próxima pesada, así que hace falta
-decidir si un objetivo manual gana sobre el cálculo y hasta cuándo. Decisión de
-producto, no de código.
+Sigue abierta la decisión de fondo, y es de producto, no de código. Que el API
+acepte un objetivo puesto a mano no es agregar un campo: `refresh()` recalcula
+desde el peso y lo pisaría en la próxima pesada, así que hace falta decidir si
+un objetivo manual gana sobre el cálculo y hasta cuándo.
 
 ## Descartado a propósito
 

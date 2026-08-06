@@ -1,7 +1,9 @@
 import {
   bodyOf,
   caloriesBurned,
+  countMovements,
   metOf,
+  movementByName,
   movementFacets,
   searchActivities,
   searchMovements,
@@ -92,6 +94,41 @@ describe('búsqueda de movimientos', () => {
   it('bodyOf resuelve la zona por nombre y no inventa una para lo desconocido', () => {
     expect(bodyOf('3/4 sit-up')).toBe('core');
     expect(bodyOf('malabares con motosierras')).toBe('otros');
+  });
+
+  it('filtra por id exacto', () => {
+    const unMov = searchMovements('', 1)[0];
+    const porId = searchMovements('', 10, { id: unMov.id });
+    expect(porId).toHaveLength(1);
+    expect(porId[0].id).toBe(unMov.id);
+  });
+
+  it('movementByName resuelve por nombre exacto en inglés o español', () => {
+    const porIngles = movementByName('barbell full squat');
+    expect(porIngles?.name).toBe('barbell full squat');
+    expect(porIngles?.name_es).toBe('Sentadilla con barra');
+
+    const porEspanol = movementByName('Sentadilla con barra');
+    expect(porEspanol?.name).toBe('barbell full squat');
+  });
+
+  it('offset salta resultados sin cambiar el orden', () => {
+    const primeros = searchMovements('', 4, { body: 'pecho' });
+    const saltados = searchMovements('', 2, { body: 'pecho' }, 2);
+    expect(saltados.map((m) => m.id)).toEqual(primeros.slice(2).map((m) => m.id));
+  });
+
+  it('countMovements cuenta todos los que matchean, no solo la página', () => {
+    const total = countMovements('', { body: 'pecho' });
+    expect(total).toBeGreaterThan(searchMovements('', 1, { body: 'pecho' }).length);
+    expect(searchMovements('', total + 10, { body: 'pecho' })).toHaveLength(total);
+  });
+
+  it('las facetas de equipo se acotan a la zona elegida', () => {
+    const { equipment } = movementFacets({ body: 'core' });
+    for (const eq of equipment) {
+      expect(searchMovements('', 1, { body: 'core', equipment: eq })).toHaveLength(1);
+    }
   });
 });
 

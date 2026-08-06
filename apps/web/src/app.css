@@ -233,8 +233,8 @@ a {
   position: relative;
   overflow: hidden;
   transition:
-    border-color var(--transition-fast),
-    box-shadow var(--transition-fast);
+    border-color var(--dur-state) var(--ease-out),
+    box-shadow var(--dur-state) var(--ease-out);
 }
 
 .card--raised {
@@ -280,7 +280,7 @@ a {
   /* Dona: el mask evita un pseudo-elemento y un color de fondo que mantener. */
   mask: radial-gradient(farthest-side, transparent calc(100% - 10px), black calc(100% - 9px));
   filter: drop-shadow(0 0 10px oklch(0.82 0.22 145 / 0.35));
-  transition: --pct var(--dur-base) var(--ease-out);
+  transition: --pct var(--dur-enter) var(--ease-out);
 }
 
 .dial__figures {
@@ -376,7 +376,7 @@ a {
   height: 100%;
   border-radius: 999px;
   background: var(--macro-color);
-  transition: width var(--dur-base) var(--ease-out);
+  transition: width var(--dur-enter) var(--ease-out);
 }
 
 .macro__fill[data-over='true'] {
@@ -400,7 +400,7 @@ a {
   border: var(--rule);
   border-radius: var(--radius-md);
   padding: var(--space-md);
-  transition: box-shadow var(--dur-fast) var(--ease-out);
+  transition: box-shadow var(--dur-state) var(--ease-out);
 }
 
 .meal__head {
@@ -465,7 +465,7 @@ a {
   padding: 0 var(--space-xs);
   min-height: 2.75rem;
   cursor: pointer;
-  transition: color var(--dur-fast) var(--ease-out);
+  transition: color var(--dur-state) var(--ease-out);
 }
 
 .entry__delete:hover:not(:disabled) {
@@ -684,7 +684,7 @@ a {
   width: calc(var(--pct) * 1%);
   border-radius: 999px;
   background: var(--color-water);
-  transition: width var(--dur-base) var(--ease-out);
+  transition: width var(--dur-enter) var(--ease-out);
 }
 
 .btn--icon {
@@ -729,8 +729,8 @@ a {
   padding: var(--space-xs) var(--space-sm);
   cursor: pointer;
   transition:
-    background var(--dur-fast) var(--ease-out),
-    border-color var(--dur-fast) var(--ease-out);
+    background var(--dur-state) var(--ease-out),
+    border-color var(--dur-state) var(--ease-out);
 }
 
 .result:hover {
@@ -807,7 +807,7 @@ select {
   border-radius: var(--radius-sm);
   padding: var(--space-xs) var(--space-sm);
   min-width: 0;
-  transition: border-color var(--dur-fast) var(--ease-out);
+  transition: border-color var(--dur-state) var(--ease-out);
 }
 
 input:hover:not(:disabled),
@@ -837,8 +837,8 @@ input[aria-invalid='true'] {
   cursor: pointer;
   white-space: nowrap;
   transition:
-    filter var(--dur-fast) var(--ease-out),
-    transform var(--dur-fast) var(--ease-out);
+    filter var(--dur-state) var(--ease-out),
+    transform var(--dur-state) var(--ease-out);
 }
 
 .btn:hover:not(:disabled) {
@@ -992,7 +992,8 @@ input[aria-invalid='true'] {
   min-height: 2.75rem;
 }
 
-.chip[aria-pressed='true'] {
+.chip[aria-pressed='true'],
+.chip[aria-current='page'] {
   background: var(--color-accent);
   border-color: var(--color-accent);
   color: var(--bg-base);
@@ -1098,4 +1099,22 @@ input[aria-invalid='true'] {
   min-height: 2.75rem;
   font-size: var(--text-sm);
   color: var(--color-accent);
+}
+
+.catalogo-ej__historial {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.catalogo-ej__historial th,
+.catalogo-ej__historial td {
+  text-align: left;
+  padding: var(--space-2xs) var(--space-xs);
+  border-bottom: var(--rule);
+}
+
+.catalogo-ej__historial th {
+  color: var(--color-ink-2);
+  font-weight: 500;
 }

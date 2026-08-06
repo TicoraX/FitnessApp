@@ -20,6 +20,7 @@ import {
   LogExerciseDto,
   LogStrengthDto,
   StrengthHistoryQueryDto,
+  StrengthTrendingQueryDto,
   UpdateExerciseDto,
   UpdateStrengthDto,
 } from './dto/exercise.dto';
@@ -111,6 +112,12 @@ export class LogsController {
   @Get('strength/history')
   strengthHistory(@Req() req: AuthedRequest, @Query() query: StrengthHistoryQueryDto) {
     return this.logs.strengthHistory(req.user.userId, query.name);
+  }
+
+  /** Los movimientos que más se registraron, para el catálogo. */
+  @Get('strength/trending')
+  strengthTrending(@Req() req: AuthedRequest, @Query() query: StrengthTrendingQueryDto) {
+    return this.logs.strengthTrending(req.user.userId, query.limit ?? 10);
   }
 
   @Patch('strength/:id')

@@ -1,6 +1,8 @@
 # FitTrack Engine
 
-Implementación del blueprint en [`estrucura.md`](./estrucura.md).
+App de seguimiento nutricional y de entrenamiento, en español, apuntada al
+mercado colombiano. [`estrucura.md`](./estrucura.md) es el blueprint original y
+quedó histórico: describe una arquitectura que este repo no tiene.
 
 ```
 apps/api/          # Servicio NestJS
@@ -28,9 +30,9 @@ docker compose up -d
 cd apps/api
 cp .env.example .env         # completar JWT_SECRET (>=32 chars)
 npm install
-npx prisma migrate deploy    # extensiones, tablas e índices
+npx prisma migrate dev       # extensiones, tablas e índices
 npx prisma generate
-npm run seed                 # 226 alimentos curados
+npm run seed                 # 470 alimentos curados
 npm run start:dev
 ```
 
@@ -44,25 +46,26 @@ cd apps/web && npm install && npm run dev    # http://localhost:5177
   el mapeo de OpenFoodFacts.
 - `npm run smoke` en `apps/api`: recorre el flujo completo contra el API real
   (registro, login, búsqueda, alta de comidas, totales y casos de error).
-  El limiter de auth es de 5/15min, así que no lo corras más de dos veces
-  seguidas.
+  El limiter de auth es de 5/15min en producción. El compose de dev lo sube a
+  100 con `AUTH_RATE_LIMIT`, para correr las suites varias veces seguidas.
 - `npm run contrast:check` en `apps/web`: contraste WCAG de la paleta en los dos
   temas.
 - `npm run ui:check` en `apps/web`: recorre la interfaz con Playwright como un
-  usuario y deja capturas en `shots/`. Necesita el dev server en `:5177`.
+  usuario y deja capturas en `shots/`. Necesita el dev server en `:5177`. El
+  último paso abre el diario con `prefers-reduced-motion: reduce` y exige que lo
+  que anima `motion` desde JS también se apague.
 - `npm run tabs:check` en `apps/web`: dos pestañas a la vez, para el aviso de
   cambios y el cierre de sesión compartido.
 
-La corrida completa:
+La corrida completa, desde la raíz, parando en la primera que falle:
 
 ```bash
-cd apps/api && npm test && npm run smoke
-cd apps/web && npm run build && npm run ui:check && npm run contrast:check && npm run tabs:check
+npm run check
 ```
 
 ## Catálogo de alimentos
 
-El seed trae 226 alimentos curados. Para un catálogo real se importa el
+El seed trae 470 alimentos curados. Para un catálogo real se importa el
 dump de OpenFoodFacts, que se procesa en streaming:
 
 ```bash
@@ -70,10 +73,15 @@ curl -O https://static.openfoodfacts.org/data/openfoodfacts-products.jsonl.gz
 
 cd apps/api
 npm run import:off -- --file ../../openfoodfacts-products.jsonl.gz \
-  --countries argentina,chile,uruguay --dry-run
+  --countries colombia --dry-run
 npm run import:off -- --file ../../openfoodfacts-products.jsonl.gz \
-  --countries argentina,chile,uruguay
+  --countries colombia
 ```
+
+El mercado objetivo es Colombia. La búsqueda en vivo sale del mismo lado:
+`OFF_API_URL` apunta a `co.openfoodfacts.org`, porque el subdominio de país
+sesga los resultados. Buscar "Alpina" en `world.*` devuelve una marca francesa
+de pasta; en `co.*` devuelve la Alpina colombiana.
 
 El dump son unos 12 GB comprimidos y no se descomprime nunca a disco: se lee en
 streaming. Casi todo ese peso es metadato que no usamos (analítica de escaneos,
@@ -82,10 +90,10 @@ aprovecha menos del 1%.
 
 `--countries` filtra por país mirando la línea cruda antes de parsearla, así que
 descarta el 99% de los productos sin construir el objeto. Sin el flag entra el
-catálogo mundial, unos 3,5 millones de productos contra los ~24.000 del Cono
-Sur, que además le compiten a los buenos en el orden de la búsqueda. Lo que el
-filtro deja afuera queda cubierto igual: escanear un código que no está lo trae
-de OpenFoodFacts en el momento.
+catálogo mundial, unos 3,5 millones de productos contra los pocos miles que se
+ven en una góndola colombiana, que además le compiten a los buenos en el orden
+de la búsqueda. Lo que el filtro deja afuera queda cubierto igual: escanear un
+código que no está lo trae de OpenFoodFacts en el momento.
 
 El `--dry-run` cuenta cuánto entra y cuánto se descarta por cada filtro de
 calidad sin escribir nada. Solo para una carga mundial hay que bajar los dos
@@ -144,12 +152,13 @@ lo encuentra o la consulta tarda más de 2s, responde 404 como siempre.
 | POST | `/api/v1/logs/exercise` | JWT | Registra cardio; estima calorías con el MET y el peso |
 | PATCH | `/api/v1/logs/exercise/:id` | JWT | Corrige minutos o calorías |
 | DELETE | `/api/v1/logs/exercise/:id` | JWT | Quita una sesión |
-| GET | `/api/v1/exercise/movements?q=&body=&equipment=` | JWT | Catálogo de gimnasio, busca en los dos idiomas |
-| GET | `/api/v1/exercise/facets` | JWT | Zonas y equipos que existen, para explorar sin escribir |
+| GET | `/api/v1/exercise/movements?q=&body=&equipment=&id=&limit=&offset=` | JWT | Catálogo de gimnasio, busca en los dos idiomas. Con `id=` trae uno solo; devuelve `total` para paginar |
+| GET | `/api/v1/exercise/facets?body=` | JWT | Zonas y equipos que existen, para explorar sin escribir. Con `body=` el equipo se acota a esa zona |
 | POST | `/api/v1/logs/strength` | JWT | Registra una serie: series, repeticiones, kilos y esfuerzo |
 | PATCH | `/api/v1/logs/strength/:id` | JWT | Confirma o corrige una serie |
 | DELETE | `/api/v1/logs/strength/:id` | JWT | Quita una serie |
-| GET | `/api/v1/logs/strength/history?name=` | JWT | Última vez y récord de un movimiento |
+| GET | `/api/v1/logs/strength/history?name=` | JWT | Última vez, récord y las últimas 50 series de un movimiento |
+| GET | `/api/v1/logs/strength/trending?limit=` | JWT | Los movimientos que más registró el usuario |
 | GET | `/api/v1/routines` | JWT | Rutinas propias con sus objetivos |
 | POST | `/api/v1/routines` | JWT | Crea una rutina |
 | GET | `/api/v1/routines/:id` | JWT | Detalle con sus movimientos |
@@ -197,11 +206,23 @@ contraseña nueva no sirve y el API no puede conectarse.
 | 10 | Micronutrientes contra los valores de referencia | listo |
 | 11 | Cardio con MET, favoritos, comidas guardadas y meta de agua | listo |
 | 12 | Entrenamiento: 1324 movimientos, fuerza, rutinas y esfuerzo | listo |
-| 13 | Sync offline-first, wearables, visión por IA | pendiente |
+| 13 | Catálogo de ejercicios navegable y gasto medido desde los datos | listo |
+| 14 | Sync offline-first, wearables, visión por IA | descartada |
 
-Lo que quedó abierto, lo que se descartó y por qué, en
-[`PENDIENTES.md`](./PENDIENTES.md). El plan original del cliente web, ya
-cerrado, en [`PLAN-FRONTEND.md`](./PLAN-FRONTEND.md).
+La fase 13 cerró dos cosas. El catálogo de movimientos se navega en tres
+pantallas con URL propia, Zonas → Lista → Detalle, con el GIF, las
+instrucciones y el historial de cargas de cada movimiento. Y el objetivo diario
+dejó de salir de Mifflin-St Jeor por un multiplicador de actividad que el
+usuario se autoevalúa: se mide con `ingesta_promedio - delta_peso * 7700 / días`
+sobre los datos que la app ya guarda, descontando el ejercicio logueado para no
+contarlo dos veces. Cuando los datos no alcanzan, o el número medido se va más
+de 40% del estimado, se sigue con la fórmula.
+
+La fase 14 está descartada, no pendiente: cada una de las tres es un proyecto
+propio y ninguna mejora el uso diario de una app personal. El motivo largo en
+[`PENDIENTES.md`](./PENDIENTES.md), junto con lo que quedó abierto. El plan
+original del cliente web, ya cerrado, en
+[`PLAN-FRONTEND.md`](./PLAN-FRONTEND.md).
 
 Redis, Typesense, Kong y los microservicios de §2 no están: con un servicio y
 cero tráfico no aportan nada todavía. Entran cuando la latencia lo pida.

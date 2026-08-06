@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   api,
   getCacheado,
@@ -29,11 +29,17 @@ export function Strength({
   date,
   day,
   onChanged,
+  movimientoInicial,
+  onMovimientoConsumido,
 }: {
   date: string;
   day: DaySummary;
   onChanged: () => void;
+  /** Un movimiento elegido desde el Catálogo, para arrancar el registro sin buscarlo de nuevo. */
+  movimientoInicial?: Movement | null;
+  onMovimientoConsumido?: () => void;
 }) {
+  const inputMovimiento = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
   const [zona, setZona] = useState('');
   const [equipo, setEquipo] = useState('');
@@ -64,6 +70,11 @@ export function Strength({
   // punto de las chips, y exigir además dos letras lo anularía.
   const hayFiltro = Boolean(zona || equipo);
   useEffect(() => {
+    if (isProgrammaticRef.current) {
+      isProgrammaticRef.current = false;
+      setResults([]);
+      return;
+    }
     if (query.trim().length < 2 && !hayFiltro) {
       setResults([]);
       return;
@@ -88,18 +99,32 @@ export function Strength({
     };
   }, [query, zona, equipo, hayFiltro]);
 
+  const elegirRef = useRef(0);
+  const isProgrammaticRef = useRef(false);
+
+  const invalidarPendientes = () => {
+    ++elegirRef.current;
+  };
+
   const elegir = async (m: Movement) => {
+    invalidarPendientes();
+    const id = elegirRef.current;
+    isProgrammaticRef.current = true;
     setSelected(m);
     setQuery(m.name_es ?? m.name);
     setResults([]);
     setError('');
     setHistoria(null);
+    setSeries('3');
+    setReps('10');
+    setKilos('');
+    setEsfuerzo('');
     try {
       const r = await api.get<{ data: StrengthHistory }>(
         `/logs/strength/history?name=${encodeURIComponent(m.name)}`,
       );
+      if (id !== elegirRef.current) return;
       setHistoria(r.data);
-      // Arrancar donde quedó la última vez ahorra tres campos en el 90% de los casos.
       if (r.data.last) {
         setSeries(String(r.data.last.sets));
         setReps(String(r.data.last.reps));
@@ -110,6 +135,16 @@ export function Strength({
       // Un movimiento nuevo no tiene historia y eso no es un error.
     }
   };
+
+  // Un movimiento llegado del Catálogo se elige una sola vez: sin el aviso al
+  // padre, cada re-render con la misma prop lo volvería a seleccionar y
+  // pisaría lo que el usuario ya haya tocado en el formulario.
+  useEffect(() => {
+    if (movimientoInicial) {
+      void elegir(movimientoInicial);
+      onMovimientoConsumido?.();
+    }
+  }, [movimientoInicial]);
 
   async function registrar() {
     const s = Number(series);
@@ -130,6 +165,8 @@ export function Strength({
         ...(esfuerzo ? { rpe: Number(esfuerzo) } : {}),
       });
       notificarCambio('diario-cambiado');
+      invalidarPendientes();
+      isProgrammaticRef.current = false;
       setQuery('');
       setSelected(null);
       setHistoria(null);
@@ -215,18 +252,66 @@ export function Strength({
       <div className="exercise__form">
         <div className="field">
           <label htmlFor="fz-movimiento">Movimiento</label>
-          <input
-            id="fz-movimiento"
-            type="text"
-            value={query}
-            onChange={(ev) => {
-              setQuery(ev.target.value);
-              setSelected(null);
-              setHistoria(null);
-            }}
-            placeholder="bench press, pecho, mancuerna..."
-            autoComplete="off"
-          />
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
+            <input
+              id="fz-movimiento"
+              ref={inputMovimiento}
+              type="text"
+              value={query}
+              onChange={(ev) => {
+                invalidarPendientes();
+                isProgrammaticRef.current = false;
+                setQuery(ev.target.value);
+                setSelected(null);
+                setHistoria(null);
+              }}
+              placeholder="bench press, pecho, mancuerna..."
+              autoComplete="off"
+              style={{ width: '100%', paddingRight: query ? '2.5rem' : undefined }}
+            />
+            {query && (
+              <button
+                type="button"
+                className="btn btn--quiet"
+                onClick={() => {
+                  invalidarPendientes();
+                  isProgrammaticRef.current = false;
+                  setQuery('');
+                  setSelected(null);
+                  setHistoria(null);
+                  setResults([]);
+                  inputMovimiento.current?.focus();
+                }}
+                aria-label="Limpiar búsqueda de movimiento"
+                style={{
+                  position: 'absolute',
+                  right: '0.4rem',
+                  padding: '0.25rem 0.5rem',
+                  minHeight: '44px',
+                  minWidth: '44px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--text-muted)',
+                }}
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
 
         <Chips
@@ -234,8 +319,12 @@ export function Strength({
           valores={facets.body}
           activo={zona}
           onElegir={(v) => {
+            invalidarPendientes();
+            isProgrammaticRef.current = false;
             setZona(v);
             setSelected(null);
+            setQuery('');
+            setHistoria(null);
           }}
         />
         {/* Las zonas son diez y entran a la vista; los equipos son 28 y en el
@@ -247,8 +336,12 @@ export function Strength({
             valores={facets.equipment}
             activo={equipo}
             onElegir={(v) => {
+              invalidarPendientes();
+              isProgrammaticRef.current = false;
               setEquipo(v);
               setSelected(null);
+              setQuery('');
+              setHistoria(null);
             }}
           />
         </details>

@@ -1,7 +1,12 @@
 import type { RefObject } from 'react';
 import type { DaySummary } from '../api';
 import { Weight } from '../Weight';
-import { AddFood, CyberDayStrip, Dial, Macros, Meals, Water } from '../DiaryComponents';
+import { AddFood } from '../components/diario/AddFood';
+import { CyberDayStrip } from '../components/diario/CyberDayStrip';
+import { Dial } from '../components/diario/Dial';
+import { Macros } from '../components/diario/Macros';
+import { Meals } from '../components/diario/Meals';
+import { Water } from '../components/diario/Water';
 
 export function DiarioView({
   date,

@@ -1,7 +1,11 @@
+// ponytail: nombre fijo, así que los bundles viejos de deploys anteriores
+// quedan en el cache. Son unos cientos de KB por deploy; si molesta, el
+// nombre pasa a llevar el hash del build.
 const CACHE_NAME = 'fittrack-v1';
+// './' es la carcasa offline. Se puede precachear porque la navegación va a
+// red primero y solo cae acá cuando no hay conexión.
 const ASSETS_TO_CACHE = [
   './',
-  './index.html',
   './manifest.json',
   './favicon.svg'
 ];
@@ -27,22 +31,46 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Solo interceptar peticiones GET del mismo origen o de fuentes (no peticiones de API)
   if (event.request.method !== 'GET') return;
   if (event.request.url.includes('/api/')) return;
 
+  // La navegación va a red primero: así un deploy se ve enseguida. La copia
+  // en cache es solo el respaldo para abrir la app sin conexión.
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((res) => {
+          if (res && res.status === 200) {
+            const copia = res.clone();
+            return caches
+              .open(CACHE_NAME)
+              .then((cache) => cache.put(event.request, copia))
+              .catch(() => {})
+              .then(() => res);
+          }
+          return res;
+        })
+        .catch(() => caches.match(event.request).then((r) => r || caches.match('./')))
+    );
+    return;
+  }
+
+  // Bundles y fuentes: cache first, y se llena a medida que se piden. Solo
+  // esas dos rutas, que son chicas y no cambian; los GIF de movimientos son
+  // 126MB y llenarían el disco del teléfono sin que nada los pode.
+  const ruta = new URL(event.request.url).pathname;
+  const esAsset = ruta.startsWith('/assets/') || ruta.startsWith('/fonts/');
+
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        // Retornar de cache y actualizar en segundo plano (stale-while-revalidate)
-        fetch(event.request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
-          }
-        }).catch(() => {});
-        return cachedResponse;
-      }
-      return fetch(event.request);
+      if (cachedResponse) return cachedResponse;
+      return fetch(event.request).then((res) => {
+        if (esAsset && res && res.status === 200) {
+          const copia = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copia));
+        }
+        return res;
+      });
     })
   );
 });

@@ -60,17 +60,15 @@ export const conNombreEs = (m: Movement): MovementDto => ({
  * músculo objetivo. El dataset solo trae los nombres en inglés, así que sin eso
  * escribir en español no llegaría a nada.
  */
-export function searchMovements(
-  raw: string,
-  limit = 20,
-  filtros: { body?: string; equipment?: string } = {},
-): MovementDto[] {
+/** Todos los que matchean, en orden de relevancia, sin recortar. */
+function matchMovements(raw: string, filtros: { id?: string; body?: string; equipment?: string }): Movement[] {
   const q = normalizeQuery(raw);
   const pasa = (m: Movement) =>
+    (!filtros.id || m.id === filtros.id) &&
     (!filtros.body || m.body === filtros.body) &&
     (!filtros.equipment || m.equipment === filtros.equipment);
 
-  if (!q) return MOVEMENTS.filter(pasa).slice(0, limit).map(conNombreEs);
+  if (!q) return MOVEMENTS.filter(pasa);
 
   // El exacto va primero: buscar "dominadas" tiene que dar "Dominadas" y no
   // "Dominadas asistidas", que también empieza igual. Se recorre el catálogo
@@ -101,16 +99,53 @@ export function searchMovements(
     }
   }
 
-  return [...exactos, ...empiezan, ...contienen].slice(0, limit).map(conNombreEs);
+  return [...exactos, ...empiezan, ...contienen];
 }
 
-/** Los valores que existen de verdad, para las chips de exploración. */
-export function movementFacets(): { body: string[]; equipment: string[] } {
+export function searchMovements(
+  raw: string,
+  limit = 20,
+  filtros: { id?: string; body?: string; equipment?: string } = {},
+  offset = 0,
+): MovementDto[] {
+  return matchMovements(raw, filtros).slice(offset, offset + limit).map(conNombreEs);
+}
+
+/** Cuántos matchean en total, para el paginador del catálogo. */
+export function countMovements(raw: string, filtros: { id?: string; body?: string; equipment?: string } = {}): number {
+  return matchMovements(raw, filtros).length;
+}
+
+/**
+ * Página y total en un solo escaneo del catálogo. Sin esto, searchMovements
+ * y countMovements cada uno llama matchMovements, que recorre los 1324
+ * movimientos cada vez.
+ */
+export function pageMovements(
+  raw: string,
+  limit = 20,
+  filtros: { id?: string; body?: string; equipment?: string } = {},
+  offset = 0,
+): { data: MovementDto[]; total: number } {
+  const todos = matchMovements(raw, filtros);
+  return { data: todos.slice(offset, offset + limit).map(conNombreEs), total: todos.length };
+}
+
+/**
+ * Los valores que existen de verdad, para las chips de exploración.
+ *
+ * Con una zona elegida, el equipo se filtra a los que de verdad tienen
+ * movimientos ahí: sin esto, elegir "core" y después "banda deslizante"
+ * (que no tiene ningún movimiento de core) daba una lista vacía sin
+ * explicación. La zona no se filtra por equipo: es el primer filtro que se
+ * elige, así que siempre muestra el universo completo.
+ */
+export function movementFacets(filtros: { body?: string } = {}): { body: string[]; equipment: string[] } {
   const zonas = new Set<string>();
   const equipos = new Set<string>();
   for (const m of MOVEMENTS) {
     zonas.add(m.body);
-    equipos.add(m.equipment);
+    if (!filtros.body || m.body === filtros.body) equipos.add(m.equipment);
   }
   return {
     body: [...zonas].sort((a, b) => a.localeCompare(b, 'es')),
@@ -124,14 +159,29 @@ export function movementFacets(): { body: string[]; equipment: string[] } {
  * está en el catálogo cuenta como "otros" en vez de desaparecer del resumen.
  */
 export function bodyOf(name: string): string {
-  return porNombre().get(normalizeQuery(name)) ?? 'otros';
+  return movementByName(name)?.body ?? 'otros';
 }
 
-let indice: Map<string, string> | null = null;
-/** El resumen resuelve una zona por serie: 1324 comparaciones cada vez, no. */
-function porNombre(): Map<string, string> {
-  indice ??= new Map(MOVEMENTS.map((m) => [normalizeQuery(m.name), m.body]));
-  return indice;
+let indiceMovimiento: Map<string, MovementDto> | null = null;
+/** Resuelve un movimiento por su nombre exacto en inglés o español. */
+export function movementByName(name: string): MovementDto | null {
+  if (!indiceMovimiento) {
+    indiceMovimiento = new Map();
+    for (const m of MOVEMENTS) {
+      const dto = conNombreEs(m);
+      indiceMovimiento.set(normalizeQuery(m.name), dto);
+    }
+    for (const m of MOVEMENTS) {
+      const dto = conNombreEs(m);
+      if (dto.name_es) {
+        const keyEs = normalizeQuery(dto.name_es);
+        if (!indiceMovimiento.has(keyEs)) {
+          indiceMovimiento.set(keyEs, dto);
+        }
+      }
+    }
+  }
+  return indiceMovimiento.get(normalizeQuery(name)) ?? null;
 }
 
 /** El MET del catálogo para un nombre exacto, o null si es una actividad libre. */

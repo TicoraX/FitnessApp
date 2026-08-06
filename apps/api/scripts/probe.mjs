@@ -151,9 +151,12 @@ await probe('un nombre con HTML se guarda literal, no interpretado', async () =>
   return body.data.name === name ? null : `el nombre volvió alterado: ${body.data.name}`;
 });
 
-await probe('una búsqueda enorme no tumba el endpoint', async () => {
+// El caso esperaba un 200 desde antes de que `q` tuviera techo. Con el
+// @MaxLength(100) del DTO, 5000 caracteres son una petición mal armada y el 400
+// es la respuesta correcta; lo que se sigue exigiendo es que no sea un 500.
+await probe('una búsqueda enorme se rechaza sin tumbar el endpoint', async () => {
   const { status } = await call('GET', `/foods/search?q=${'a'.repeat(5000)}`);
-  return status === 200 ? null : `devolvió ${status}`;
+  return status === 400 ? null : `devolvió ${status}`;
 });
 
 console.log('\nNúmeros y fechas');
