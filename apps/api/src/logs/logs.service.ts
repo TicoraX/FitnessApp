@@ -650,7 +650,10 @@ export class LogsService {
             orderBy: { loggedAt: 'asc' },
           },
           exercises: { orderBy: { loggedAt: 'asc' } },
-          strength: { orderBy: { loggedAt: 'asc' } },
+          // Las filas de una rutina se crean en la misma transacción y comparten
+          // `logged_at` al milisegundo, así que sin desempate el orden lo elegía
+          // Postgres y la lista podía barajarse entre recargas.
+          strength: { orderBy: [{ loggedAt: 'asc' }, { id: 'asc' }] },
         },
       }),
       this.goalOn(userId, logDate),

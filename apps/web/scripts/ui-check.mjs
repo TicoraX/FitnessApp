@@ -24,6 +24,10 @@ const errors = [];
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
 page.on('pageerror', (e) => errors.push(String(e)));
 
+// Pendientes y hechas viven en la misma lista: una fila hecha es la que no
+// lleva el modificador de pendiente.
+const HECHA = '.fuerza .entry:not(.entry--pendiente)';
+
 const shot = (name) => page.screenshot({ path: `${SHOTS}${name}.png`, fullPage: true });
 const step = async (label, fn) => {
   try {
@@ -561,7 +565,18 @@ try {
       null,
       { timeout: 10_000 },
     );
-    assert.match(await page.locator('.fuerza .entry').first().innerText(), /3 × 8/);
+    // La fila no migra de lista: la que se confirmó era la primera y sigue
+    // siendo la primera, ahora en estado hecha. Con dos listas, confirmar la
+    // sacaba de arriba y la reinsertaba abajo, que es el salto que se quería
+    // arreglar. Se mira el índice y no la coordenada porque el aviso de
+    // deshacer aparece arriba y corre la lista entera, que es otra cosa.
+    const primera = page.locator('.fuerza .entries > li').first();
+    assert.match(await primera.innerText(), /3 × 8/);
+    assert.equal(
+      await primera.evaluate((el) => el.classList.contains('entry--pendiente')),
+      false,
+      'la fila confirmada no quedó en su lugar',
+    );
 
     // Confirmar una serie arranca el descanso, que es lo que uno hace después.
     // Sobrevive a cambiar de vista: mirar el diario en medio de un descanso es
@@ -581,8 +596,8 @@ try {
     // Las otras dos salieron como estaban: un toque para las dos.
     await page.getByRole('button', { name: 'Confirmar las 2 como estaban' }).click();
     await page.waitForSelector('.serie-pendiente', { state: 'detached', timeout: 10_000 });
-    assert.equal(await page.locator('.fuerza .entry').count(), 3);
-    assert.match(await page.locator('.fuerza .entry').nth(1).innerText(), /3 × 10/);
+    assert.equal(await page.locator(HECHA).count(), 3);
+    assert.match(await page.locator(HECHA).nth(1).innerText(), /3 × 10/);
 
     // Cerrar el entreno no deja un descanso corriendo.
     assert.equal(await page.locator('.descanso').count(), 0);
@@ -597,27 +612,27 @@ try {
       null,
       { timeout: 10_000 },
     );
-    assert.equal(await page.locator('.fuerza .entry').count(), 1);
+    assert.equal(await page.locator(HECHA).count(), 1);
   });
 
   await step('borrar una serie se puede deshacer', async () => {
-    const hecha = page.locator('.fuerza .entry').first();
+    const hecha = page.locator(HECHA).first();
     const nombre = await hecha.locator('.entry__label').innerText();
     await hecha.getByRole('button', { name: /^Quitar / }).click();
     await page.waitForFunction(
-      () => document.querySelectorAll('.fuerza .entry').length === 0,
-      null,
+      (sel) => document.querySelectorAll(sel).length === 0,
+      HECHA,
       { timeout: 10_000 },
     );
 
     await page.locator('.fuerza .alert--reintento').getByRole('button', { name: 'Deshacer' }).click();
     await page.waitForFunction(
-      () => document.querySelectorAll('.fuerza .entry').length === 1,
-      null,
+      (sel) => document.querySelectorAll(sel).length === 1,
+      HECHA,
       { timeout: 10_000 },
     );
     // Vuelve con otro id y con el mismo nombre, que es lo que se copia.
-    assert.equal(await page.locator('.fuerza .entry .entry__label').first().innerText(), nombre);
+    assert.equal(await page.locator(`${HECHA} .entry__label`).first().innerText(), nombre);
   });
 
   await step('lo que entrenaste esta semana se ofrece sin escribir nada', async () => {
@@ -979,6 +994,22 @@ try {
       assert.ok(boxDespues, 'no se pudo medir el item del Dock después del hover');
       const despues = boxDespues.width;
       assert.equal(Math.round(despues), Math.round(antes), 'el Dock sigue magnificando');
+
+      // El drill-down del catálogo tampoco se desplaza.
+      await p3.goto(`${BASE}/#/ejercicio/catalogo`);
+      await p3.waitForSelector('.chip', { timeout: 10_000 });
+      await p3.locator('.chip').first().click();
+      await p3.waitForTimeout(300);
+      const drill = await p3.evaluate(() => {
+        const v = document.querySelector('.view-ejercicio [style*="transform"], .view-ejercicio div');
+        return v ? getComputedStyle(v).transform : 'none';
+      });
+      assert.ok(
+        drill === 'none' || drill === 'matrix(1, 0, 0, 1, 0, 0)',
+        `el catálogo entra desplazado en modo reducido: ${drill}`,
+      );
+      await p3.goto(BASE);
+      await p3.waitForSelector('.dock-item');
 
       // La vista aparece en su lugar, sin el desplazamiento de entrada.
       await p3.locator('.dock-item').nth(2).click();

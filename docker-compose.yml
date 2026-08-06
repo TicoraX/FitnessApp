@@ -47,6 +47,8 @@ services:
       # Y el techo global, por lo mismo: las suites comparten IP con el limiter
       # y entre smoke y probe pasan los 100 pedidos del minuto.
       API_RATE_LIMIT: ${API_RATE_LIMIT:-2000}
+      # Y el de /auth/reset, que el probe agota en dos corridas seguidas.
+      RESET_RATE_LIMIT: ${RESET_RATE_LIMIT:-100}
     ports:
       - '3100:3100'
     depends_on:

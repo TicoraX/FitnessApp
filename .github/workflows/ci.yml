@@ -18,6 +18,7 @@ env:
   # smoke (127 pedidos) y probe (68) lo pasan, y el resultado dependia de
   # cuantos cayeran en el mismo minuto.
   API_RATE_LIMIT: '2000'
+  RESET_RATE_LIMIT: '500'
 
 jobs:
   # Rápido y sin navegador: si esto falla, no vale la pena arrancar el resto.

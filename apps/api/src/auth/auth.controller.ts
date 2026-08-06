@@ -45,7 +45,7 @@ export class AuthController {
 
   @Post('reset')
   @HttpCode(200)
-  @Throttle({ default: { limit: 10, ttl: 900_000 } })
+  @Throttle({ default: { limit: Number(process.env.RESET_RATE_LIMIT ?? 10), ttl: 900_000 } })
   reset(@Body() dto: ResetDto) {
     return this.auth.resetPassword(dto);
   }

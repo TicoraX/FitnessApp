@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
 import {
   api,
   getCacheado,
@@ -44,6 +45,7 @@ export function Strength({
   movimientoInicial?: Movement | null;
   onMovimientoConsumido?: () => void;
 }) {
+  const sinMovimiento = useReducedMotion();
   const inputMovimiento = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
   const [zona, setZona] = useState('');
@@ -361,61 +363,78 @@ export function Strength({
         </p>
       )}
 
-      {pendientes.length > 0 && (
-        <div className="stack" style={{ gap: 'var(--space-xs)', marginBottom: 'var(--space-sm)' }}>
-          <p className="eyebrow muted">Del entreno de hoy ({pendientes.length} sin hacer)</p>
-          {pendientes.length > 1 && (
-            <button
-              type="button"
-              className="btn"
-              disabled={busy === 'todas'}
-              onClick={confirmarTodas}
-            >
-              {busy === 'todas' ? '...' : `Confirmar las ${pendientes.length} como estaban`}
-            </button>
-          )}
-          {pendientes.map((e) => (
-            <SeriePendiente
-              key={e.id}
-              entry={e}
-              disabled={busy === 'todas'}
-              onDone={() => {
-                notificarCambio('diario-cambiado');
-                onChanged();
-                // Confirmar la última pendiente cierra el entreno: ahí no hay
-                // nada que descansar. Confirmar la rutina entera tampoco.
-                if (pendientes.length > 1) onDescanso();
-                ofrecerDeshacer(`Confirmaste ${e.name_es ?? e.name}.`, () =>
-                  volverAPendiente(e).then(() => undefined),
-                );
-              }}
-              onError={setError}
-              onQuitar={() => borrar(e.id)}
-            />
-          ))}
-        </div>
+      {pendientes.length > 1 && (
+        <button
+          type="button"
+          className="btn"
+          disabled={busy === 'todas'}
+          onClick={confirmarTodas}
+          style={{ marginBottom: 'var(--space-xs)' }}
+        >
+          {busy === 'todas' ? '...' : `Confirmar las ${pendientes.length} como estaban`}
+        </button>
       )}
 
-      {hechas.length > 0 && (
+      {/*
+        Una sola lista donde cada fila está pendiente o hecha, en vez de dos
+        listas con la fila migrando de una a la otra. Confirmar una serie deja
+        de mover lo que hay debajo del dedo, y el salto que había entre las dos
+        listas desaparece porque no queda nada que saltar.
+
+        Lo único que se anima es la posición de las filas de abajo, que suben
+        cuando una se achica al pasar a hecha. Es FLIP: `motion` mide y anima
+        transform, que es lo mismo que uno haría a mano.
+      */}
+      {entries.length > 0 && (
         <ul className="entries">
-          {hechas.map((e) => (
-            <li key={e.id} className="entry">
-              <NombreMovimiento name={e.name} nameEs={e.name_es} className="entry__label" />
-              <span className="muted num">
-                {e.sets} × {e.reps}
-                {e.weight_kg !== null ? ` · ${e.weight_kg} kg` : ''}
-                {e.rpe !== null ? ` · RPE ${e.rpe}` : ''}
-              </span>
-              <button
-                type="button"
-                className="btn btn--quiet"
-                disabled={busy === e.id}
-                onClick={() => borrar(e.id)}
-                aria-label={`Quitar ${e.name}`}
-              >
-                Quitar
-              </button>
-            </li>
+          {entries.map((e) => (
+            <motion.li
+              key={e.id}
+              layout={sinMovimiento ? false : 'position'}
+              className={e.done ? 'entry' : 'entry entry--pendiente'}
+            >
+              {e.done ? (
+                <>
+                  <NombreMovimiento name={e.name} nameEs={e.name_es} className="entry__label" />
+                  <motion.span
+                    className="muted num"
+                    initial={sinMovimiento ? false : { opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.15 }}
+                  >
+                    {e.sets} × {e.reps}
+                    {e.weight_kg !== null ? ` · ${e.weight_kg} kg` : ''}
+                    {e.rpe !== null ? ` · RPE ${e.rpe}` : ''}
+                  </motion.span>
+                  <button
+                    type="button"
+                    className="btn btn--quiet"
+                    disabled={busy === e.id}
+                    onClick={() => borrar(e.id)}
+                    aria-label={`Quitar ${e.name}`}
+                  >
+                    Quitar
+                  </button>
+                </>
+              ) : (
+                <SeriePendiente
+                  entry={e}
+                  disabled={busy === 'todas'}
+                  onDone={() => {
+                    notificarCambio('diario-cambiado');
+                    onChanged();
+                    // Confirmar la última pendiente cierra el entreno: ahí no
+                    // hay nada que descansar. La rutina entera tampoco.
+                    if (pendientes.length > 1) onDescanso();
+                    ofrecerDeshacer(`Confirmaste ${e.name_es ?? e.name}.`, () =>
+                      volverAPendiente(e).then(() => undefined),
+                    );
+                  }}
+                  onError={setError}
+                  onQuitar={() => borrar(e.id)}
+                />
+              )}
+            </motion.li>
           ))}
         </ul>
       )}
