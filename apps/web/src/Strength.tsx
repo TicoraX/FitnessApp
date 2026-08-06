@@ -230,18 +230,59 @@ export function Strength({
       <div className="exercise__form">
         <div className="field">
           <label htmlFor="fz-movimiento">Movimiento</label>
-          <input
-            id="fz-movimiento"
-            type="text"
-            value={query}
-            onChange={(ev) => {
-              setQuery(ev.target.value);
-              setSelected(null);
-              setHistoria(null);
-            }}
-            placeholder="bench press, pecho, mancuerna..."
-            autoComplete="off"
-          />
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
+            <input
+              id="fz-movimiento"
+              type="text"
+              value={query}
+              onChange={(ev) => {
+                setQuery(ev.target.value);
+                setSelected(null);
+                setHistoria(null);
+              }}
+              placeholder="bench press, pecho, mancuerna..."
+              autoComplete="off"
+              style={{ width: '100%', paddingRight: query ? '2.5rem' : undefined }}
+            />
+            {query && (
+              <button
+                type="button"
+                className="btn btn--quiet"
+                onClick={() => {
+                  setQuery('');
+                  setSelected(null);
+                  setHistoria(null);
+                  setResults([]);
+                }}
+                aria-label="Limpiar movimiento seleccionado"
+                style={{
+                  position: 'absolute',
+                  right: '0.4rem',
+                  padding: '0.25rem 0.5rem',
+                  minHeight: '36px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--text-muted)',
+                }}
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
 
         <Chips
@@ -251,6 +292,8 @@ export function Strength({
           onElegir={(v) => {
             setZona(v);
             setSelected(null);
+            setQuery('');
+            setHistoria(null);
           }}
         />
         {/* Las zonas son diez y entran a la vista; los equipos son 28 y en el
@@ -264,6 +307,8 @@ export function Strength({
             onElegir={(v) => {
               setEquipo(v);
               setSelected(null);
+              setQuery('');
+              setHistoria(null);
             }}
           />
         </details>
