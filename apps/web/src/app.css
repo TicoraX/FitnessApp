@@ -838,14 +838,19 @@ input[aria-invalid='true'] {
   white-space: nowrap;
   transition:
     filter var(--dur-state) var(--ease-out),
-    transform var(--dur-state) var(--ease-out);
+    /* El hundido responde al dedo, no al hover: va en la duración de tap. */
+    transform var(--dur-tap) var(--ease-out);
 }
 
 .btn:hover:not(:disabled) {
   filter: brightness(1.08);
 }
 
-.btn:active:not(:disabled) {
+/* Los tres controles que se tocan responden igual. `.chip` y `.alert__btn` no
+   son `.btn` por su aspecto, pero bajo el dedo son lo mismo. */
+.btn:active:not(:disabled),
+.chip:active:not(:disabled),
+.alert__btn:active:not(:disabled) {
   transform: translateY(1px);
 }
 
@@ -908,6 +913,7 @@ input[aria-invalid='true'] {
   color: inherit;
   white-space: nowrap;
   cursor: pointer;
+  transition: transform var(--dur-tap) var(--ease-out);
 }
 
 .alert__btn:disabled {
@@ -990,6 +996,7 @@ input[aria-invalid='true'] {
   /* Piso táctil de 44px: en el teléfono estas chips son el navegador del
      catálogo y se tocan con el pulgar entre serie y serie. */
   min-height: 2.75rem;
+  transition: transform var(--dur-tap) var(--ease-out);
 }
 
 .chip[aria-pressed='true'],
@@ -997,6 +1004,14 @@ input[aria-invalid='true'] {
   background: var(--color-accent);
   border-color: var(--color-accent);
   color: var(--bg-base);
+}
+
+/* Una fila pendiente y una hecha viven en la misma lista y en el mismo lugar:
+   la pendiente cede su layout de fila al bloque de campos, que ocupa el ancho
+   entero. Así confirmar no mueve nada de lo que hay al lado. */
+.entry--pendiente {
+  display: block;
+  padding: var(--space-xs) 0;
 }
 
 .serie-pendiente {

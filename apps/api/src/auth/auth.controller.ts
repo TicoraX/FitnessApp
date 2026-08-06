@@ -45,7 +45,7 @@ export class AuthController {
 
   @Post('reset')
   @HttpCode(200)
-  @Throttle({ default: { limit: 10, ttl: 900_000 } })
+  @Throttle({ default: { limit: Number(process.env.RESET_RATE_LIMIT ?? 10), ttl: 900_000 } })
   reset(@Body() dto: ResetDto) {
     return this.auth.resetPassword(dto);
   }
@@ -56,7 +56,13 @@ export class AuthController {
     return this.auth.login(dto);
   }
 
+  /**
+   * No es un endpoint de credenciales: pide un JWT válido, no prueba ninguno.
+   * Cuenta con un límite específico por ruta de 100 peticiones por cada 60 segundos
+   * (100/min) para evitar bloqueos por recargas frecuentes.
+   */
   @Get('me')
+  @Throttle({ default: { limit: 100, ttl: 60_000 } })
   @UseGuards(JwtAuthGuard)
   me(@Req() req: { user: { userId: string; email: string } }) {
     return { status: 'success', data: req.user };

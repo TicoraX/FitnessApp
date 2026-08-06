@@ -371,6 +371,7 @@ export class LogsService {
           reps: dto.reps,
           weightKg: dto.weight_kg ?? null,
           rpe: dto.rpe ?? null,
+          ...(dto.done === undefined ? {} : { done: dto.done }),
         },
       });
     });
@@ -501,10 +502,13 @@ export class LogsService {
    * que de verdad se usa en vez de por orden alfabético. Solo cuenta series
    * hechas y solo del propio usuario: no cruza datos entre cuentas.
    */
-  async strengthTrending(userId: string, limit = 10) {
+  async strengthTrending(userId: string, limit = 10, desde?: string) {
     const agrupado = await this.prisma.strengthEntry.groupBy({
       by: ['name'],
-      where: { done: true, dailyLog: { userId } },
+      where: {
+        done: true,
+        dailyLog: { userId, ...(desde ? { logDate: { gte: new Date(`${desde}T00:00:00Z`) } } : {}) },
+      },
       _count: { name: true },
       orderBy: { _count: { name: 'desc' } },
       take: limit,
@@ -516,6 +520,9 @@ export class LogsService {
         const mov = movementByName(g.name);
         return {
           name: g.name,
+          // El español se resuelve al leer, como en todo el resto: curar una
+          // traducción nueva alcanza para que el historial viejo la muestre.
+          name_es: mov?.name_es ?? null,
           count: g._count.name,
           id: mov?.id ?? null,
           body: mov?.body ?? 'otros',
@@ -643,7 +650,10 @@ export class LogsService {
             orderBy: { loggedAt: 'asc' },
           },
           exercises: { orderBy: { loggedAt: 'asc' } },
-          strength: { orderBy: { loggedAt: 'asc' } },
+          // Las filas de una rutina se crean en la misma transacción y comparten
+          // `logged_at` al milisegundo, así que sin desempate el orden lo elegía
+          // Postgres y la lista podía barajarse entre recargas.
+          strength: { orderBy: [{ loggedAt: 'asc' }, { id: 'asc' }] },
         },
       }),
       this.goalOn(userId, logDate),

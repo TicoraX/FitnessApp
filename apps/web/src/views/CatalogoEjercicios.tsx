@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { api, getCacheado, type Movement, type MovementTrending, type StrengthHistory } from '../api';
 import { ErrorConReintento } from '../components/ErrorConReintento';
 import { MediaMovimiento } from '../components/MediaMovimiento';
@@ -22,10 +23,24 @@ export function CatalogoEjercicios({
   // rest[0] es 'catalogo'
   const subpath = rest.slice(1); // [] para Zonas, [body] para Lista, [body, id] para Detalle
 
+  /**
+   * La jerarquía ya está en la URL, así que la animación la refuerza en vez de
+   * decorarla: entrar avanza y volver retrocede. Un fade no distingue las dos
+   * cosas y deja al usuario reconstruyendo solo dónde quedó.
+   */
+  const sinMovimiento = useReducedMotion();
+  const profundidad = subpath.length;
+  const previa = useRef(profundidad);
+  const sentido = profundidad >= previa.current ? 1 : -1;
+  useEffect(() => {
+    previa.current = profundidad;
+  }, [profundidad]);
+
+  let pantalla;
   if (subpath.length >= 2) {
     const [body, id] = subpath;
     const busqueda = route.query.toString() ? `?${route.query}` : '';
-    return (
+    pantalla = (
       <PantallaDetalle
         body={body}
         id={id}
@@ -34,15 +49,44 @@ export function CatalogoEjercicios({
         onRegistrar={onRegistrar}
       />
     );
+  } else if (subpath.length === 1) {
+    pantalla = <PantallaLista body={subpath[0]} query={route.query} navigate={navigate} />;
+  } else {
+    pantalla = <PantallaZonas navigate={navigate} />;
   }
 
-  if (subpath.length === 1) {
-    const body = subpath[0];
-    return <PantallaLista body={body} query={route.query} navigate={navigate} />;
-  }
-
-  return <PantallaZonas navigate={navigate} />;
+  return (
+    <AnimatePresence mode="wait" custom={sentido} initial={false}>
+      <motion.div
+        key={subpath.join('/') || 'zonas'}
+        custom={sentido}
+        variants={sinMovimiento ? pasosQuietos : pasos}
+        initial="entra"
+        animate="centro"
+        exit="sale"
+      >
+        {pantalla}
+      </motion.div>
+    </AnimatePresence>
+  );
 }
+
+/** Entrar viene de la derecha; volver, de la izquierda. */
+const pasos = {
+  entra: (dir: number) => ({ x: dir > 0 ? 24 : -24, opacity: 0 }),
+  centro: { x: 0, opacity: 1, transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] as const } },
+  sale: (dir: number) => ({
+    x: dir > 0 ? -24 : 24,
+    opacity: 0,
+    transition: { duration: 0.15, ease: [0.4, 0, 1, 1] as const },
+  }),
+};
+
+const pasosQuietos = {
+  entra: { x: 0, opacity: 1 },
+  centro: { x: 0, opacity: 1, transition: { duration: 0 } },
+  sale: { x: 0, opacity: 1, transition: { duration: 0 } },
+};
 
 /**
  * Pantalla 1: PantallaZonas

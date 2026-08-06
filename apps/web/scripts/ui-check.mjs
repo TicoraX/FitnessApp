@@ -24,6 +24,10 @@ const errors = [];
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
 page.on('pageerror', (e) => errors.push(String(e)));
 
+// Pendientes y hechas viven en la misma lista: una fila hecha es la que no
+// lleva el modificador de pendiente.
+const HECHA = '.fuerza .entry:not(.entry--pendiente)';
+
 const shot = (name) => page.screenshot({ path: `${SHOTS}${name}.png`, fullPage: true });
 const step = async (label, fn) => {
   try {
@@ -517,16 +521,20 @@ try {
    * pendientes y se confirma con lo que salió de verdad. Hasta que no se
    * confirma no cuenta para el volumen, que es lo que separa planear de entrenar.
    */
-  await step('una rutina se crea, se carga en el día y se confirma serie por serie', async () => {
+  await step('una rutina se crea, se carga en el día y se confirma de un toque', async () => {
     await page.goto(`${BASE}/#/ejercicio`);
     await page.waitForSelector('.view-ejercicio', { timeout: 10_000 });
 
     await page.getByRole('button', { name: 'Crear rutina' }).click();
     await page.waitForSelector('.modal-overlay', { timeout: 5_000 });
     await page.fill('#rt-nombre', 'Empuje A');
-    await page.fill('#rt-buscar', 'bench press');
-    await page.waitForSelector('.modal-overlay .result', { timeout: 10_000 });
-    await page.locator('.modal-overlay .result').first().click();
+    // Tres movimientos: con uno solo no se puede distinguir confirmar la serie
+    // de confirmar la rutina entera, que es lo que este paso verifica.
+    for (const nombre of ['bench press', 'squat', 'deadlift']) {
+      await page.fill('#rt-buscar', nombre);
+      await page.waitForSelector('.modal-overlay .result', { timeout: 10_000 });
+      await page.locator('.modal-overlay .result').first().click();
+    }
     await page.getByRole('button', { name: 'Guardar rutina' }).click();
     await page.waitForSelector('.modal-overlay', { state: 'detached', timeout: 10_000 });
 
@@ -546,9 +554,104 @@ try {
       'una serie pendiente no puede contar como volumen',
     );
 
+    assert.equal(await page.locator('.serie-pendiente').count(), 3);
+
+    // La primera salió distinta y se corrige a mano, que es el caso que
+    // justifica los cuatro campos.
+    await pendiente.getByLabel(/^Repeticiones de /).fill('8');
     await pendiente.getByRole('button', { name: 'Hecho' }).click();
+    await page.waitForFunction(
+      () => document.querySelectorAll('.serie-pendiente').length === 2,
+      null,
+      { timeout: 10_000 },
+    );
+    // La fila no migra de lista: la que se confirmó era la primera y sigue
+    // siendo la primera, ahora en estado hecha. Con dos listas, confirmar la
+    // sacaba de arriba y la reinsertaba abajo, que es el salto que se quería
+    // arreglar. Se mira el índice y no la coordenada porque el aviso de
+    // deshacer aparece arriba y corre la lista entera, que es otra cosa.
+    const primera = page.locator('.fuerza .entries > li').first();
+    assert.match(await primera.innerText(), /3 × 8/);
+    assert.equal(
+      await primera.evaluate((el) => el.classList.contains('entry--pendiente')),
+      false,
+      'la fila confirmada no quedó en su lugar',
+    );
+
+    // Confirmar una serie arranca el descanso, que es lo que uno hace después.
+    // Sobrevive a cambiar de vista: mirar el diario en medio de un descanso es
+    // normal, y el estado vive arriba del router justamente por eso.
+    const descanso = page.locator('.descanso');
+    await descanso.waitFor({ timeout: 5_000 });
+    assert.match(await descanso.innerText(), /1:2\d|1:30/);
+    await page.goto(`${BASE}/#/diario`);
+    await page.waitForSelector('.view-diario', { timeout: 10_000 });
+    assert.equal(await page.locator('.descanso').count(), 1, 'el descanso no sobrevivió a cambiar de vista');
+    await page.getByRole('button', { name: 'Cerrar el descanso' }).click();
+    await page.waitForSelector('.descanso', { state: 'detached', timeout: 5_000 });
+
+    await page.goto(`${BASE}/#/ejercicio`);
+    await page.waitForSelector('.serie-pendiente', { timeout: 10_000 });
+
+    // Las otras dos salieron como estaban: un toque para las dos.
+    await page.getByRole('button', { name: 'Confirmar las 2 como estaban' }).click();
     await page.waitForSelector('.serie-pendiente', { state: 'detached', timeout: 10_000 });
-    assert.match(await page.locator('.fuerza .entry').first().innerText(), /3 × 10/);
+    assert.equal(await page.locator(HECHA).count(), 3);
+    assert.match(await page.locator(HECHA).nth(1).innerText(), /3 × 10/);
+
+    // Cerrar el entreno no deja un descanso corriendo.
+    assert.equal(await page.locator('.descanso').count(), 0);
+
+    // Confirmar seis series de un toque deja un solo deshacer que revierte las
+    // seis: la unidad es la acción del usuario, que fue una.
+    const aviso = page.locator('.fuerza .alert--reintento');
+    assert.match(await aviso.innerText(), /Confirmaste 2 series/);
+    await aviso.getByRole('button', { name: 'Deshacer' }).click();
+    await page.waitForFunction(
+      () => document.querySelectorAll('.serie-pendiente').length === 2,
+      null,
+      { timeout: 10_000 },
+    );
+    assert.equal(await page.locator(HECHA).count(), 1);
+  });
+
+  await step('borrar una serie se puede deshacer', async () => {
+    const hecha = page.locator(HECHA).first();
+    const nombre = await hecha.locator('.entry__label').innerText();
+    await hecha.getByRole('button', { name: /^Quitar / }).click();
+    await page.waitForFunction(
+      (sel) => document.querySelectorAll(sel).length === 0,
+      HECHA,
+      { timeout: 10_000 },
+    );
+
+    await page.locator('.fuerza .alert--reintento').getByRole('button', { name: 'Deshacer' }).click();
+    await page.waitForFunction(
+      (sel) => document.querySelectorAll(sel).length === 1,
+      HECHA,
+      { timeout: 10_000 },
+    );
+    // Vuelve con otro id y con el mismo nombre, que es lo que se copia.
+    assert.equal(await page.locator(`${HECHA} .entry__label`).first().innerText(), nombre);
+  });
+
+  await step('lo que entrenaste esta semana se ofrece sin escribir nada', async () => {
+    // El buscador no ofrecía nada hasta la segunda letra. Estas chips salen del
+    // trending acotado a los últimos siete días, que es otro corte que el de
+    // siempre del catálogo.
+    const semana = page.getByRole('group', { name: 'Movimientos de esta semana' });
+    await semana.waitFor({ timeout: 10_000 });
+    assert.ok((await semana.locator('.chip').count()) > 0);
+
+    // Tocarlas selecciona el movimiento, con su historia y sus números.
+    await semana.locator('.chip').first().click();
+    await page.waitForFunction(
+      () => document.querySelector('#fz-movimiento')?.value.length > 0,
+      null,
+      { timeout: 10_000 },
+    );
+    // Y con algo elegido se van: apenas buscás, estorban.
+    assert.equal(await semana.count(), 0);
   });
 
   /**
@@ -891,6 +994,22 @@ try {
       assert.ok(boxDespues, 'no se pudo medir el item del Dock después del hover');
       const despues = boxDespues.width;
       assert.equal(Math.round(despues), Math.round(antes), 'el Dock sigue magnificando');
+
+      // El drill-down del catálogo tampoco se desplaza.
+      await p3.goto(`${BASE}/#/ejercicio/catalogo`);
+      await p3.waitForSelector('.chip', { timeout: 10_000 });
+      await p3.locator('.chip').first().click();
+      await p3.waitForTimeout(300);
+      const drill = await p3.evaluate(() => {
+        const v = document.querySelector('.view-ejercicio [style*="transform"], .view-ejercicio div');
+        return v ? getComputedStyle(v).transform : 'none';
+      });
+      assert.ok(
+        drill === 'none' || drill === 'matrix(1, 0, 0, 1, 0, 0)',
+        `el catálogo entra desplazado en modo reducido: ${drill}`,
+      );
+      await p3.goto(BASE);
+      await p3.waitForSelector('.dock-item');
 
       // La vista aparece en su lugar, sin el desplazamiento de entrada.
       await p3.locator('.dock-item').nth(2).click();

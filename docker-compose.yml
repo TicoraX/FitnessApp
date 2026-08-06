@@ -39,6 +39,16 @@ services:
       # se come un 429 y el comando falla por el entorno. El compose de
       # producción no pasa la variable: ahí rige el default de 5 cada 15 minutos.
       AUTH_RATE_LIMIT: ${AUTH_RATE_LIMIT:-100}
+      # Lo mismo con /auth/forgot, que tiene su propio límite de 3. El probe
+      # verifica que la respuesta no distinga entre una cuenta que existe y una
+      # que no; con 3, la segunda corrida ve un 429 y lee esa diferencia como
+      # una filtración. Producción tampoco pasa esta variable.
+      FORGOT_RATE_LIMIT: ${FORGOT_RATE_LIMIT:-50}
+      # Y el techo global, por lo mismo: las suites comparten IP con el limiter
+      # y entre smoke y probe pasan los 100 pedidos del minuto.
+      API_RATE_LIMIT: ${API_RATE_LIMIT:-2000}
+      # Y el de /auth/reset, que el probe agota en dos corridas seguidas.
+      RESET_RATE_LIMIT: ${RESET_RATE_LIMIT:-100}
     ports:
       - '3100:3100'
     depends_on:
