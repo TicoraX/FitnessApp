@@ -15,7 +15,11 @@ endpoint que necesita **ya existe** o **todavía no**.
 
 ---
 
-## Cómo está hoy
+## De dónde se partía
+
+Esta foto es la del día que se escribió el plan, no la de hoy. `Diary.tsx` mide
+322 líneas ahora, y lo que sigue describe el punto de partida que las cinco
+fases vinieron a cambiar.
 
 Vite 6 + React 18 + TypeScript. Sin router, sin librería de estado, sin framework CSS.
 La única dependencia de runtime además de React es `motion`. Dev server en `:5177` con
@@ -39,10 +43,17 @@ proxy de `/api` a `:3100`.
 `.badge` con `.badge-protein` / `.badge-carbs` / `.badge-fats` está declarado y **no lo
 usa ningún componente**. Es vocabulario gratis.
 
-### Lo que no existe y hay que construir
+### Lo que no existía cuando se escribió el plan
 
 Diálogo con overlay y manejo de foco, sistema de toasts, skeletons, control segmentado
 (tabs), estilos de tabla, y cualquier forma de estado en la URL.
+
+De esa lista se construyó casi todo: `useModalDialog.ts` para el diálogo y el
+foco, `useHashRoute.ts` para el estado en la URL (segmentos y query string), los
+selectores de zona y equipo en `Strength.tsx` y `EjercicioView.tsx` para el
+control segmentado, y `ErrorConReintento.tsx` donde el plan quería toasts.
+Toasts y skeletons se descartaron a propósito, el motivo está en
+[`PENDIENTES.md`](./PENDIENTES.md).
 
 ### Reglas que atraviesan todo
 
