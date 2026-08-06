@@ -295,6 +295,8 @@ export interface StrengthHistory {
 /** Un movimiento del catálogo, ordenado por cuánto se registró. */
 export interface MovementTrending {
   name: string;
+  /** Curado a mano; null si ese movimiento no tiene traducción. */
+  name_es: string | null;
   count: number;
   /** null cuando el nombre registrado no está en el catálogo. */
   id: string | null;

@@ -114,10 +114,14 @@ export class LogsController {
     return this.logs.strengthHistory(req.user.userId, query.name);
   }
 
-  /** Los movimientos que más se registraron, para el catálogo. */
+  /**
+   * Los movimientos que más se registraron. Sin `desde` es el corte de siempre,
+   * que es el del catálogo; con `desde` es el de la semana, que es otro corte y
+   * el que sirve buscando en la mitad de un entreno.
+   */
   @Get('strength/trending')
   strengthTrending(@Req() req: AuthedRequest, @Query() query: StrengthTrendingQueryDto) {
-    return this.logs.strengthTrending(req.user.userId, query.limit ?? 10);
+    return this.logs.strengthTrending(req.user.userId, query.limit ?? 10, query.desde);
   }
 
   @Patch('strength/:id')

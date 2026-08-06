@@ -706,6 +706,22 @@ console.log('\nEntrenamiento');
     assert.equal(body.data.best.weight_kg, 22.5);
   });
 
+  await check('el trending de siempre y el de la semana son cortes distintos', async () => {
+    const siempre = (await call('GET', '/logs/strength/trending?limit=5')).body.data;
+    assert.ok(siempre.some((m) => m.name === movimiento), 'la serie de hoy tiene que contar');
+    // El español se resuelve al leer, igual que en el resto del catálogo.
+    assert.ok('name_es' in siempre[0]);
+
+    // Un corte que empieza mañana no puede incluir lo de hoy.
+    const manana = new Date(`${day}T00:00:00Z`);
+    manana.setUTCDate(manana.getUTCDate() + 1);
+    const futuro = (await call('GET', `/logs/strength/trending?desde=${manana.toISOString().slice(0, 10)}`)).body.data;
+    assert.equal(futuro.length, 0);
+
+    // Y una fecha mal armada se rechaza, no se reinterpreta.
+    assert.equal((await call('GET', '/logs/strength/trending?desde=ayer')).status, 400);
+  });
+
   await check('un movimiento sin historia no es un error', async () => {
     const { status, body } = await call('GET', '/logs/strength/history?name=nunca%20hice%20esto');
     assert.equal(status, 200);

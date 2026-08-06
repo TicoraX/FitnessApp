@@ -3,8 +3,10 @@ import {
   api,
   getCacheado,
   notificarCambio,
+  shiftDate,
   type DaySummary,
   type Movement,
+  type MovementTrending,
   type StrengthEntry,
   type StrengthHistory,
 } from './api';
@@ -51,6 +53,7 @@ export function Strength({
     equipment: [],
   });
   const [results, setResults] = useState<Movement[]>([]);
+  const [semana, setSemana] = useState<MovementTrending[]>([]);
   const [selected, setSelected] = useState<Movement | null>(null);
   const [historia, setHistoria] = useState<StrengthHistory | null>(null);
   const [series, setSeries] = useState('3');
@@ -59,6 +62,15 @@ export function Strength({
   const [esfuerzo, setEsfuerzo] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState('');
+  /**
+   * Borrar una serie es definitivo y el botón está pegado a "Hecho". Un
+   * deshacer de unos segundos cuesta menos que un diálogo de confirmación y
+   * molesta bastante menos.
+   *
+   * La unidad es la acción del usuario, no la fila: confirmar seis series de
+   * un toque deja un solo deshacer que revierte las seis.
+   */
+  const [deshacer, setDeshacer] = useState<{ texto: string; accion: () => Promise<void> } | null>(null);
 
   useEffect(() => {
     // Las zonas y equipos no cambian entre despliegues: una vez por sesión.
@@ -68,6 +80,19 @@ export function Strength({
         // Sin chips se puede buscar igual escribiendo.
       });
   }, []);
+
+  // Lo que venís entrenando estos días. Sin cachear: cambia con cada serie que
+  // registrás, que es justo lo que lo hace útil.
+  useEffect(() => {
+    api
+      .get<{ data: MovementTrending[] }>(
+        `/logs/strength/trending?limit=6&desde=${shiftDate(date, -7)}`,
+      )
+      .then((r) => setSemana(r.data.filter((m) => m.id)))
+      .catch(() => {
+        // Es un atajo: sin él se busca escribiendo, como siempre.
+      });
+  }, [date, day.strength.length]);
 
   // Con un filtro puesto la lista se llena sola: explorar el catálogo es el
   // punto de las chips, y exigir además dos letras lo anularía.
@@ -104,6 +129,7 @@ export function Strength({
 
   const elegirRef = useRef(0);
   const isProgrammaticRef = useRef(false);
+  const deshacerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const invalidarPendientes = () => {
     ++elegirRef.current;
@@ -136,6 +162,22 @@ export function Strength({
       }
     } catch {
       // Un movimiento nuevo no tiene historia y eso no es un error.
+    }
+  };
+
+  /**
+   * El trending trae el id del catálogo, no el movimiento entero. Pedirlo acá
+   * cuesta un request al tocar la chip y a cambio reusa `elegir`, que además
+   * trae la historia y precarga los números de la última vez.
+   */
+  const elegirPorId = async (id: string | null, nombre: string) => {
+    if (!id) return;
+    try {
+      const r = await api.get<{ data: Movement[] }>(`/exercise/movements?id=${encodeURIComponent(id)}`);
+      const m = r.data.find((x) => x.name === nombre) ?? r.data[0];
+      if (m) await elegir(m);
+    } catch {
+      setError('No se pudo abrir el movimiento.');
     }
   };
 
@@ -214,19 +256,78 @@ export function Strength({
     if (fallaron.length) {
       setError(`Quedaron sin confirmar: ${fallaron.map((e) => e.name_es ?? e.name).join(', ')}.`);
     }
+    // El deshacer toca solo las que pasaron: si tres fallaron, esas ya estaban
+    // pendientes y no hay nada que revertir en ellas.
+    const confirmadas = pendientes.filter((_, i) => resultados[i].status === 'fulfilled');
     notificarCambio('diario-cambiado');
     onChanged();
     setBusy(null);
+    if (confirmadas.length) {
+      ofrecerDeshacer(`Confirmaste ${confirmadas.length} series.`, () =>
+        Promise.all(confirmadas.map((e) => volverAPendiente(e))).then(() => undefined),
+      );
+    }
+  }
+
+  /** Devuelve una fila a pendiente con sus números del objetivo. */
+  function volverAPendiente(e: StrengthEntry) {
+    return api.patch(`/logs/strength/${e.id}`, {
+      sets: e.sets,
+      reps: e.reps,
+      ...(e.weight_kg !== null ? { weight_kg: e.weight_kg } : {}),
+      ...(e.rpe !== null ? { rpe: e.rpe } : {}),
+      done: false,
+    });
   }
 
   async function borrar(id: string) {
+    const borrada = day.strength.find((e) => e.id === id);
     setBusy(id);
     try {
       await api.del(`/logs/strength/${id}`);
       notificarCambio('diario-cambiado');
       onChanged();
+      if (borrada) {
+        // Vuelve con otro id, y no importa: `StrengthEntry` copia el nombre en
+        // vez de referenciar el catálogo, así que nada apunta al viejo.
+        ofrecerDeshacer(`Quitaste ${borrada.name_es ?? borrada.name}.`, async () => {
+          await api.post('/logs/strength', {
+            log_date: date,
+            name: borrada.name,
+            sets: borrada.sets,
+            reps: borrada.reps,
+            ...(borrada.weight_kg !== null ? { weight_kg: borrada.weight_kg } : {}),
+            ...(borrada.rpe !== null ? { rpe: borrada.rpe } : {}),
+            done: borrada.done,
+          });
+        });
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo borrar.');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  /** Ocho segundos: lo que tarda en darse cuenta el que se equivocó de fila. */
+  function ofrecerDeshacer(texto: string, accion: () => Promise<void>) {
+    setDeshacer({ texto, accion });
+    clearTimeout(deshacerRef.current);
+    deshacerRef.current = setTimeout(() => setDeshacer(null), 8_000);
+  }
+
+  async function correrDeshacer() {
+    if (!deshacer) return;
+    const { accion } = deshacer;
+    setDeshacer(null);
+    clearTimeout(deshacerRef.current);
+    setBusy('deshacer');
+    try {
+      await accion();
+      notificarCambio('diario-cambiado');
+      onChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo deshacer.');
     } finally {
       setBusy(null);
     }
@@ -246,6 +347,20 @@ export function Strength({
         </span>
       </div>
 
+      {deshacer && (
+        <p className="alert alert--ok alert--reintento" role="status">
+          {deshacer.texto}
+          <button
+            type="button"
+            className="alert__btn"
+            disabled={busy === 'deshacer'}
+            onClick={correrDeshacer}
+          >
+            {busy === 'deshacer' ? '...' : 'Deshacer'}
+          </button>
+        </p>
+      )}
+
       {pendientes.length > 0 && (
         <div className="stack" style={{ gap: 'var(--space-xs)', marginBottom: 'var(--space-sm)' }}>
           <p className="eyebrow muted">Del entreno de hoy ({pendientes.length} sin hacer)</p>
@@ -263,12 +378,16 @@ export function Strength({
             <SeriePendiente
               key={e.id}
               entry={e}
+              disabled={busy === 'todas'}
               onDone={() => {
                 notificarCambio('diario-cambiado');
                 onChanged();
                 // Confirmar la última pendiente cierra el entreno: ahí no hay
                 // nada que descansar. Confirmar la rutina entera tampoco.
                 if (pendientes.length > 1) onDescanso();
+                ofrecerDeshacer(`Confirmaste ${e.name_es ?? e.name}.`, () =>
+                  volverAPendiente(e).then(() => undefined),
+                );
               }}
               onError={setError}
               onQuitar={() => borrar(e.id)}
@@ -365,6 +484,27 @@ export function Strength({
             )}
           </div>
         </div>
+
+        {/* En la mitad de un entreno lo que servís es lo de esta semana, que es
+            otro corte que el trending de siempre del catálogo. Solo cuando no
+            hay nada escrito ni filtrado: apenas el usuario busca, estorba. */}
+        {semana.length > 0 && !query && !zona && !equipo && !selected && (
+          <>
+            <p className="eyebrow muted">Esta semana</p>
+            <div className="chips" role="group" aria-label="Movimientos de esta semana">
+              {semana.map((m) => (
+                <button
+                  key={m.name}
+                  type="button"
+                  className="chip"
+                  onClick={() => elegirPorId(m.id, m.name)}
+                >
+                  {m.name_es ?? m.name}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
 
         <Chips
           label="Zona"
@@ -498,11 +638,13 @@ export function Strength({
  */
 function SeriePendiente({
   entry,
+  disabled = false,
   onDone,
   onError,
   onQuitar,
 }: {
   entry: StrengthEntry;
+  disabled?: boolean;
   onDone: () => void;
   onError: (m: string) => void;
   onQuitar: () => void;
@@ -579,12 +721,13 @@ function SeriePendiente({
         </select>
       </div>
       <div className="serie-pendiente__acciones">
-        <button type="button" className="btn" disabled={busy} onClick={confirmar}>
+        <button type="button" className="btn" disabled={busy || disabled} onClick={confirmar}>
           {busy ? '...' : 'Hecho'}
         </button>
         <button
           type="button"
           className="btn btn--quiet"
+          disabled={disabled}
           onClick={onQuitar}
           aria-label={`Quitar ${entry.name} del entreno`}
         >

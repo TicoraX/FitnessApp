@@ -335,7 +335,7 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
       {descansoHasta !== null && (
         <Descanso
           hasta={descansoHasta}
-          onAjustar={(ms) => setDescansoHasta((h) => (h === null ? h : Math.max(Date.now(), h + ms)))}
+          onAjustar={(ms) => setDescansoHasta((h) => (h === null ? h : Math.max(h, Date.now()) + ms))}
           onCerrar={() => setDescansoHasta(null)}
         />
       )}

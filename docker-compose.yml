@@ -44,6 +44,9 @@ services:
       # que no; con 3, la segunda corrida ve un 429 y lee esa diferencia como
       # una filtración. Producción tampoco pasa esta variable.
       FORGOT_RATE_LIMIT: ${FORGOT_RATE_LIMIT:-50}
+      # Y el techo global, por lo mismo: las suites comparten IP con el limiter
+      # y entre smoke y probe pasan los 100 pedidos del minuto.
+      API_RATE_LIMIT: ${API_RATE_LIMIT:-2000}
     ports:
       - '3100:3100'
     depends_on:

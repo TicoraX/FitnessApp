@@ -23,7 +23,12 @@ import { validateEnv } from './config/env.validation';
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
     // Techo global (§2 del blueprint). Los endpoints de credenciales lo bajan
     // a 5/15min con @Throttle en su controller.
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
+    //
+    // Configurable por la misma razón que los de auth: el smoke dispara 127
+    // pedidos y el probe 68, y comparten IP con el limiter. Con 100 el
+    // resultado dependía de cuántos entraran en el mismo minuto, o sea que la
+    // suite pasaba o fallaba según el reloj. Producción no pasa la variable.
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: Number(process.env.API_RATE_LIMIT ?? 100) }]),
     PrismaModule,
     MailModule,
     AuthModule,

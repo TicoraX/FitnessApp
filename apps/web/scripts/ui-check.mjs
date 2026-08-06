@@ -586,6 +586,57 @@ try {
 
     // Cerrar el entreno no deja un descanso corriendo.
     assert.equal(await page.locator('.descanso').count(), 0);
+
+    // Confirmar seis series de un toque deja un solo deshacer que revierte las
+    // seis: la unidad es la acción del usuario, que fue una.
+    const aviso = page.locator('.fuerza .alert--reintento');
+    assert.match(await aviso.innerText(), /Confirmaste 2 series/);
+    await aviso.getByRole('button', { name: 'Deshacer' }).click();
+    await page.waitForFunction(
+      () => document.querySelectorAll('.serie-pendiente').length === 2,
+      null,
+      { timeout: 10_000 },
+    );
+    assert.equal(await page.locator('.fuerza .entry').count(), 1);
+  });
+
+  await step('borrar una serie se puede deshacer', async () => {
+    const hecha = page.locator('.fuerza .entry').first();
+    const nombre = await hecha.locator('.entry__label').innerText();
+    await hecha.getByRole('button', { name: /^Quitar / }).click();
+    await page.waitForFunction(
+      () => document.querySelectorAll('.fuerza .entry').length === 0,
+      null,
+      { timeout: 10_000 },
+    );
+
+    await page.locator('.fuerza .alert--reintento').getByRole('button', { name: 'Deshacer' }).click();
+    await page.waitForFunction(
+      () => document.querySelectorAll('.fuerza .entry').length === 1,
+      null,
+      { timeout: 10_000 },
+    );
+    // Vuelve con otro id y con el mismo nombre, que es lo que se copia.
+    assert.equal(await page.locator('.fuerza .entry .entry__label').first().innerText(), nombre);
+  });
+
+  await step('lo que entrenaste esta semana se ofrece sin escribir nada', async () => {
+    // El buscador no ofrecía nada hasta la segunda letra. Estas chips salen del
+    // trending acotado a los últimos siete días, que es otro corte que el de
+    // siempre del catálogo.
+    const semana = page.getByRole('group', { name: 'Movimientos de esta semana' });
+    await semana.waitFor({ timeout: 10_000 });
+    assert.ok((await semana.locator('.chip').count()) > 0);
+
+    // Tocarlas selecciona el movimiento, con su historia y sus números.
+    await semana.locator('.chip').first().click();
+    await page.waitForFunction(
+      () => document.querySelector('#fz-movimiento')?.value.length > 0,
+      null,
+      { timeout: 10_000 },
+    );
+    // Y con algo elegido se van: apenas buscás, estorban.
+    assert.equal(await semana.count(), 0);
   });
 
   /**

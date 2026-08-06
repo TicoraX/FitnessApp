@@ -82,6 +82,16 @@ export class LogStrengthDto {
   @Max(10)
   @IsRpe()
   rpe?: number;
+
+  /**
+   * Solo lo usa el deshacer de un borrado, para devolver la fila al estado que
+   * tenía. Lo que se carga a mano nace hecho, que es el default de la columna;
+   * sin esto, deshacer el borrado de una serie pendiente la resucitaba como
+   * hecha y le sumaba volumen a un día que no lo tuvo.
+   */
+  @IsOptional()
+  @IsBoolean()
+  done?: boolean;
 }
 
 /**
@@ -106,6 +116,18 @@ export class StrengthTrendingQueryDto {
   @Min(1)
   @Max(20)
   limit?: number;
+
+  /**
+   * Corta el conteo a partir de esa fecha, inclusive. Sin ella cuenta todo el
+   * historial, que es el corte del catálogo; con ella sale el de la semana, que
+   * es lo que sirve en la mitad de un entreno.
+   *
+   * La fecha viene del cliente: el servidor no sabe en qué día vive quien
+   * pregunta.
+   */
+  @IsOptional()
+  @IsLogDate()
+  desde?: string;
 }
 
 /**
