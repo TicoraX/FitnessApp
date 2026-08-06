@@ -41,7 +41,7 @@
   cursor: pointer;
   outline: none;
   flex: none;
-  transition: border-color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+  transition: border-color var(--dur-state) var(--ease-out), background-color var(--dur-state) var(--ease-out);
 }
 
 .dock-item:hover,

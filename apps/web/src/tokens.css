@@ -70,12 +70,18 @@
   --radius-lg: 22px;
   --radius-full: 9999px;
 
-  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  /* Motion. Cada duración tiene un significado asignado. Si un efecto no encaja
+     en ninguna, se discute la escala antes de escribir un valor nuevo. Ningún
+     `ms` ni `cubic-bezier` vive fuera de este archivo. Los resortes van en JS
+     con `motion`: llevan rigidez y amortiguación, que una variable CSS no puede
+     expresar. */
+  --dur-tap: 100ms;      /* feedback de tocar algo: el botón que se hunde */
+  --dur-state: 150ms;    /* estado local: hover, foco, un chip que se activa */
+  --dur-enter: 250ms;    /* un elemento que entra o sale de la pantalla */
+  --dur-screen: 400ms;   /* cambiar de pantalla */
 
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --dur-fast: 150ms;
-  --dur-base: 250ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);  /* lo que entra: arranca rápido y frena */
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);      /* lo que sale: arranca lento y se va */
 
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;

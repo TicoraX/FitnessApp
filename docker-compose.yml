@@ -25,7 +25,7 @@ services:
       context: ./apps/api
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-fittrack}:${POSTGRES_PASSWORD:-fittrack}@db:5432/${POSTGRES_DB:-fittrack}?schema=public
-      JWT_SECRET: ${JWT_SECRET:-cambiar_jwt_secret_en_produccion}
+      JWT_SECRET: ${JWT_SECRET:?definir JWT_SECRET de 32 caracteres o más}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       PORT: '3100'
       # El subdominio de país sesga la búsqueda de OpenFoodFacts a ese mercado.
@@ -33,6 +33,12 @@ services:
       # co.* devuelve los 183 productos de la Alpina colombiana. Los códigos de
       # barras son globales y se resuelven igual desde cualquier subdominio.
       OFF_API_URL: ${OFF_API_URL:-https://co.openfoodfacts.org}
+      # Solo en dev. `npm run check` corre ui:check y tabs:check seguidos, y
+      # entre los dos gastan más de 5 llamadas a /auth: cada contexto nuevo de
+      # Playwright pide /auth/me, que cae bajo el mismo límite. Con 5, tabs:check
+      # se come un 429 y el comando falla por el entorno. El compose de
+      # producción no pasa la variable: ahí rige el default de 5 cada 15 minutos.
+      AUTH_RATE_LIMIT: ${AUTH_RATE_LIMIT:-100}
     ports:
       - '3100:3100'
     depends_on:

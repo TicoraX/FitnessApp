@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { api, escucharCambios, setToken, today, type DaySummary } from './api';
 import Dock, { type DockItemData } from './components/Dock';
 import { useHashRoute } from './hooks/useHashRoute';
@@ -51,7 +51,17 @@ const pageVariants = {
   }),
 };
 
+/** Con el sistema en modo reducido la vista aparece en su lugar. El bloque de
+ *  `prefers-reduced-motion` de app.css no la cubre: la transición corre en JS,
+ *  con `motion`. */
+const pageVariantsQuietos = {
+  enter: { x: 0, opacity: 1 },
+  center: { x: 0, opacity: 1, transition: { duration: 0 } },
+  exit: { x: 0, opacity: 1, transition: { duration: 0 } },
+};
+
 export function Diary({ onLogout }: { onLogout: () => void }) {
+  const sinMovimiento = useReducedMotion();
   const { route, navigate } = useHashRoute();
   const initialDate = route.view === 'diario' && route.param && /^\d{4}-\d{2}-\d{2}$/.test(route.param)
     ? route.param
@@ -262,7 +272,7 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
           <motion.div
             key={route.view}
             custom={direction}
-            variants={pageVariants}
+            variants={sinMovimiento ? pageVariantsQuietos : pageVariants}
             initial="enter"
             animate="center"
             exit="exit"

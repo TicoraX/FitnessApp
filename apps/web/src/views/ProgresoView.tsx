@@ -93,7 +93,7 @@ export function ProgresoView({ onGoalChanged }: { onGoalChanged: () => void }) {
                   color: isSelected ? 'oklch(0.12 0 0)' : 'var(--text-muted)',
                   border: 'none',
                   cursor: 'pointer',
-                  transition: 'all var(--transition-fast)',
+                  transition: 'background var(--dur-state) var(--ease-out), color var(--dur-state) var(--ease-out), font-weight var(--dur-state) var(--ease-out)',
                 }}
               >
                 {label}

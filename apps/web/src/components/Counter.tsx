@@ -1,4 +1,4 @@
-import { motion, useSpring, useTransform } from 'motion/react';
+import { motion, useReducedMotion, useSpring, useTransform } from 'motion/react';
 import { useEffect, type CSSProperties } from 'react';
 import './Counter.css';
 
@@ -53,8 +53,22 @@ export default function Counter({
   fontSize?: number;
   fontWeight?: CSSProperties['fontWeight'];
 }) {
+  const sinMovimiento = useReducedMotion();
   const digitos = Math.round(value).toString().length;
   const posiciones = Array.from({ length: digitos }, (_, i) => 10 ** (digitos - i - 1));
+
+  // El bloque de `prefers-reduced-motion` de app.css solo anula lo declarado en
+  // CSS y el spring de `motion` corre igual. Con el sistema en modo reducido el
+  // número aparece en su lugar, sin deslizar.
+  if (sinMovimiento) {
+    return (
+      <span className="counter-container">
+        <span className="counter-counter" style={{ fontSize, fontWeight, gap: 2, direction: 'ltr' }}>
+          {Math.round(value)}
+        </span>
+      </span>
+    );
+  }
 
   return (
     <span className="counter-container">

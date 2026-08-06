@@ -46,20 +46,21 @@ cd apps/web && npm install && npm run dev    # http://localhost:5177
   el mapeo de OpenFoodFacts.
 - `npm run smoke` en `apps/api`: recorre el flujo completo contra el API real
   (registro, login, búsqueda, alta de comidas, totales y casos de error).
-  El limiter de auth es de 5/15min, así que no lo corras más de dos veces
-  seguidas.
+  El limiter de auth es de 5/15min en producción. El compose de dev lo sube a
+  100 con `AUTH_RATE_LIMIT`, para correr las suites varias veces seguidas.
 - `npm run contrast:check` en `apps/web`: contraste WCAG de la paleta en los dos
   temas.
 - `npm run ui:check` en `apps/web`: recorre la interfaz con Playwright como un
-  usuario y deja capturas en `shots/`. Necesita el dev server en `:5177`.
+  usuario y deja capturas en `shots/`. Necesita el dev server en `:5177`. El
+  último paso abre el diario con `prefers-reduced-motion: reduce` y exige que lo
+  que anima `motion` desde JS también se apague.
 - `npm run tabs:check` en `apps/web`: dos pestañas a la vez, para el aviso de
   cambios y el cierre de sesión compartido.
 
-La corrida completa:
+La corrida completa, desde la raíz, parando en la primera que falle:
 
 ```bash
-cd apps/api && npm test && npm run smoke
-cd apps/web && npm run build && npm run ui:check && npm run contrast:check && npm run tabs:check
+npm run check
 ```
 
 ## Catálogo de alimentos

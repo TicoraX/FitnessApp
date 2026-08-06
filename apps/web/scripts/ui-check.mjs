@@ -15,6 +15,11 @@ mkdirSync(SHOTS, { recursive: true });
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 
+// Los pasos que abren un contexto aparte no comparten storage y se copian el
+// token. El del final no puede leerlo de `page`: el paso de la sesión vencida
+// lo borra a propósito. Esta variable guarda el último válido.
+let tokenSesion = null;
+
 const errors = [];
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
 page.on('pageerror', (e) => errors.push(String(e)));
@@ -382,6 +387,7 @@ try {
     // Contexto aparte para que el borrado de BarcodeDetector no contamine los
     // pasos siguientes; el token se copia a mano porque no comparten storage.
     const token = await page.evaluate(() => localStorage.getItem('fittrack.token'));
+    tokenSesion = token;
     const contexto = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     const sinLector = await contexto.newPage();
 
@@ -857,6 +863,48 @@ try {
     await p2.screenshot({ path: `${SHOTS}06-oscuro.png`, fullPage: true });
     await dark.close();
     assert.notEqual(bg, 'rgba(0, 0, 0, 0)', 'el body no tomó color de fondo');
+  });
+
+  await step('en modo reducido no anima nada de motion', async () => {
+    // El bloque de prefers-reduced-motion de app.css solo apaga lo declarado en
+    // CSS. Lo que anima `motion` corre en JS y hay que apagarlo a mano. Esta
+    // pasada avisa cuando alguien agrega una animación y se olvida de hacerlo.
+    assert.ok(tokenSesion, 'no se guardó el token de la sesión');
+    const quieto = await browser.newContext({ reducedMotion: 'reduce', viewport: { width: 1280, height: 900 } });
+    await quieto.addInitScript((t) => localStorage.setItem('fittrack.token', t), tokenSesion);
+    const p3 = await quieto.newPage();
+    try {
+      await p3.goto(BASE);
+      await p3.waitForSelector('.dock-item');
+
+      // El Counter cae a un número plano: sin el span que el spring desplaza.
+      assert.equal(await p3.locator('.counter-number').count(), 0, 'el Counter sigue animando dígitos');
+
+      // El Dock no se agranda al pasar por encima.
+      const item = p3.locator('.dock-item').first();
+      const boxAntes = await item.boundingBox();
+      assert.ok(boxAntes, 'no se pudo medir el item del Dock antes del hover');
+      const antes = boxAntes.width;
+      await item.hover();
+      await p3.waitForTimeout(300);
+      const boxDespues = await item.boundingBox();
+      assert.ok(boxDespues, 'no se pudo medir el item del Dock después del hover');
+      const despues = boxDespues.width;
+      assert.equal(Math.round(despues), Math.round(antes), 'el Dock sigue magnificando');
+
+      // La vista aparece en su lugar, sin el desplazamiento de entrada.
+      await p3.locator('.dock-item').nth(2).click();
+      await p3.waitForSelector('.view-container > *');
+      const t = await p3.evaluate(() => {
+        const v = document.querySelector('.view-container > *');
+        return v ? getComputedStyle(v).transform : 'none';
+      });
+      assert.ok(t === 'none' || t === 'matrix(1, 0, 0, 1, 0, 0)', `la vista entra desplazada: ${t}`);
+
+      await p3.screenshot({ path: `${SHOTS}07-reducido.png`, fullPage: true });
+    } finally {
+      await quieto.close();
+    }
   });
 
   assert.deepEqual(errors, [], `errores en consola: ${errors.join(' | ')}`);

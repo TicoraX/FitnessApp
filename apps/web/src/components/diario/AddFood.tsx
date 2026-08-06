@@ -1,511 +1,11 @@
-import { useCallback, useEffect, useState, type CSSProperties, type RefObject } from 'react';
-import { api, formatDateLabel, getWeekDays, MEALS, notificarCambio, shiftDate, today, type DaySummary, type Food } from './api';
-import { getCacheado, invalidarCache } from './api';
-import { useVisible } from './hooks/useVisible';
-import Counter from './components/Counter';
-import { BarcodeScanner } from './components/BarcodeScanner';
-import InfiniteMenu from './components/InfiniteMenu';
-import { NewFood } from './NewFood';
-import { ErrorConReintento } from './components/ErrorConReintento';
-import { teclaModificadora } from './hooks/useTeclaModificadora';
-
-export function CyberDayStrip({ date, setDate }: { date: string; setDate: (d: string) => void }) {
-  const days = getWeekDays(date);
-
-  return (
-    <div
-      className="cyber-day-strip"
-      aria-label="Barra de calendario"
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border-subtle)',
-        borderRadius: 'var(--radius-lg)',
-        padding: '0.4rem 0.6rem',
-        marginBottom: '1.25rem',
-        boxShadow: 'var(--shadow-card)',
-        gap: '0.25rem',
-      }}
-    >
-      <input
-        type="date"
-        id="date"
-        value={date}
-        onChange={(e) => e.target.value && setDate(e.target.value)}
-        className="visually-hidden"
-        aria-label="Fecha"
-      />
-      <button
-        type="button"
-        className="btn btn--quiet"
-        aria-label="Semana anterior"
-        title="Semana anterior"
-        style={{ padding: '0.3rem 0.5rem', borderRadius: 'var(--radius-md)', fontSize: '0.8rem' }}
-        onClick={() => setDate(shiftDate(date, -7))}
-      >
-        ‹‹
-      </button>
-
-      <div style={{ display: 'flex', gap: '0.25rem', flex: 1, justifyContent: 'center', overflowX: 'auto' }}>
-        {days.map((d) => {
-          const isSelected = d.iso === date;
-          return (
-            <button
-              key={d.iso}
-              type="button"
-              disabled={d.isFuture}
-              onClick={() => setDate(d.iso)}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '0.35rem 0.5rem',
-                minWidth: '42px',
-                borderRadius: 'var(--radius-md)',
-                background: isSelected ? 'oklch(0.82 0.22 145 / 0.15)' : 'transparent',
-                color: isSelected ? 'var(--color-primary)' : d.isFuture ? 'var(--text-faint)' : 'var(--text-muted)',
-                border: isSelected ? '1px solid var(--color-primary)' : '1px solid transparent',
-                fontWeight: isSelected ? 700 : 500,
-                cursor: d.isFuture ? 'not-allowed' : 'pointer',
-                opacity: d.isFuture ? 0.35 : 1,
-                transition: 'all var(--transition-fast)',
-                boxShadow: isSelected ? 'var(--shadow-glow)' : 'none',
-                position: 'relative',
-              }}
-            >
-              <span style={{ fontSize: '0.6rem', fontFamily: 'var(--font-mono)', letterSpacing: '0.05em', opacity: isSelected ? 1 : 0.7 }}>
-                {d.dayName}
-              </span>
-              <span style={{ fontSize: '0.95rem', fontWeight: 800, fontFamily: 'var(--font-mono)', lineHeight: 1.1 }}>
-                {d.dayNum}
-              </span>
-              {d.isToday && (
-                <span
-                  style={{
-                    position: 'absolute',
-                    bottom: '2px',
-                    width: '12px',
-                    height: '2px',
-                    borderRadius: 'var(--radius-full)',
-                    background: 'var(--color-primary)',
-                    boxShadow: '0 0 6px var(--color-primary)',
-                  }}
-                />
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      <button
-        type="button"
-        className="btn btn--quiet"
-        aria-label="Semana siguiente"
-        title="Semana siguiente"
-        disabled={shiftDate(date, 7) > today()}
-        style={{
-          padding: '0.3rem 0.5rem',
-          borderRadius: 'var(--radius-md)',
-          fontSize: '0.8rem',
-          opacity: shiftDate(date, 7) > today() ? 0.3 : 1,
-        }}
-        onClick={() => setDate(shiftDate(date, 7))}
-      >
-        ››
-      </button>
-    </div>
-  );
-}
-
-export function Dial({ day }: { day: DaySummary }) {
-  const { totals, remaining } = day;
-  const goal = remaining ? totals.calories + remaining.calories : 0;
-  const pct = goal > 0 ? Math.min((totals.calories / goal) * 100, 100) : 0;
-  const over = remaining ? remaining.calories < 0 : false;
-
-  return (
-    <div className="dial">
-      <div
-        className="ring"
-        role="meter"
-        aria-label="Calorías del día"
-        aria-valuenow={totals.calories}
-        aria-valuemin={0}
-        aria-valuemax={goal || undefined}
-        style={
-          { '--pct': pct, '--ring-color': over ? 'var(--color-danger)' : undefined } as CSSProperties
-        }
-      />
-      <div className="dial__figures">
-        <span className="calories__value num">
-          <Counter value={totals.calories} fontSize={38} fontWeight={700} />
-        </span>
-        <span className="dial__unit">kcal consumidas{goal > 0 && ` de ${goal}`}</span>
-        {remaining ? (
-          <span className="dial__left num" data-over={over}>
-            {over ? `${Math.abs(remaining.calories)} de más` : `${remaining.calories} restantes`}
-          </span>
-        ) : (
-          <span className="dial__left muted">Sin objetivo activo</span>
-        )}
-        {/* Sin esta línea el objetivo aparece más alto que el del perfil y no
-            se entiende por qué: lo que se quema se suma al margen del día. */}
-        {day.exercise.total_burned > 0 && (
-          <span className="muted num" style={{ fontSize: 'var(--text-sm)' }}>
-            incluye {day.exercise.total_burned} kcal de ejercicio
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
-export function Macros({ day }: { day: DaySummary }) {
-  const { totals, remaining } = day;
-  const macros = [
-    { key: 'protein', label: 'Proteína', eaten: totals.protein_g, left: remaining?.protein_g },
-    { key: 'carbs', label: 'Carbohidratos', eaten: totals.carbs_g, left: remaining?.carbs_g },
-    { key: 'fat', label: 'Grasa', eaten: totals.fat_g, left: remaining?.fat_g },
-  ];
-
-  return (
-    <div className="macros">
-      {macros.map((m) => {
-        const goal = m.left === undefined ? 0 : m.eaten + m.left;
-        const pct = goal > 0 ? Math.min((m.eaten / goal) * 100, 100) : 0;
-        const style = { '--macro-color': `var(--color-${m.key})` } as CSSProperties;
-        return (
-          <div className="macro" key={m.key} style={style}>
-            <div className="macro__head">
-              <span className="macro__name">
-                <span className="macro__chip" />
-                {m.label}
-              </span>
-              <span className="macro__value num">
-                {m.eaten} g{goal > 0 && ` / ${Math.round(goal)} g`}
-              </span>
-            </div>
-            <div
-              className="macro__track"
-              role="meter"
-              aria-label={m.label}
-              aria-valuenow={m.eaten}
-              aria-valuemin={0}
-              aria-valuemax={goal || undefined}
-            >
-              <div className="macro__fill" data-over={goal > 0 && m.eaten > goal} style={{ width: `${pct}%` }} />
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-const GLASS_ML = 250;
-
-export function Water({
-  date,
-  day,
-  onChanged,
-}: {
-  date: string;
-  day: DaySummary;
-  onChanged: () => void;
-}) {
-  const [busy, setBusy] = useState(false);
-
-  async function set(ml: number) {
-    setBusy(true);
-    try {
-      await api.patch(`/logs/${date}/water`, { water_ml: Math.max(0, ml) });
-      notificarCambio('diario-cambiado');
-      onChanged();
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="water">
-      <span className="water__label muted">Agua</span>
-      <span className="num water__value">
-        {(day.water_ml / 1000).toFixed(2).replace(/\.?0+$/, '')} L
-        <span className="muted water__goal">
-          {' '}
-          de {(day.water_goal_ml / 1000).toFixed(2).replace(/\.?0+$/, '')}
-        </span>
-        {/* La barra va acá y no en una tarjeta aparte: el vaso se suma con los
-            botones de al lado y el progreso tiene que verse sin mover la vista. */}
-        <span
-          className="water__bar"
-          role="meter"
-          aria-label="Progreso de agua"
-          aria-valuenow={day.water_ml}
-          aria-valuemin={0}
-          aria-valuemax={day.water_goal_ml}
-        >
-          <span
-            className="water__bar-fill"
-            style={
-              {
-                '--pct': Math.min((day.water_ml / day.water_goal_ml) * 100, 100),
-              } as CSSProperties
-            }
-          />
-        </span>
-      </span>
-      <span className="water__buttons">
-        <button
-          type="button"
-          className="btn btn--quiet btn--icon"
-          onClick={() => set(day.water_ml - GLASS_ML)}
-          disabled={busy || day.water_ml === 0}
-          aria-label="Quitar un vaso de agua"
-        >
-          −
-        </button>
-        <button
-          type="button"
-          className="btn btn--quiet btn--icon"
-          onClick={() => set(day.water_ml + GLASS_ML)}
-          disabled={busy}
-          aria-label="Agregar un vaso de agua"
-        >
-          +
-        </button>
-      </span>
-    </div>
-  );
-}
-
-export function Meals({ day, date, onChanged }: { day: DaySummary; date: string; onChanged: () => void }) {
-  const [busy, setBusy] = useState<string | null>(null);
-  const [copyingMeal, setCopyingMeal] = useState<string | null>(null);
-  const [avisoCopia, setAvisoCopia] = useState<{ meal: string; texto: string } | null>(null);
-
-  async function handleCopyYesterday(mealType: string) {
-    setCopyingMeal(mealType);
-    setAvisoCopia(null);
-    try {
-      const yesterday = shiftDate(date, -1);
-      const antes = day.entries.filter((e) => e.meal_type === mealType).length;
-      const res = await api.post<{ data: DaySummary }>('/logs/copy', {
-        from_date: yesterday,
-        to_date: date,
-        meal_type: mealType,
-      });
-      // Copiar un día vacío no es un error: inserta cero filas y devuelve el
-      // día igual que estaba. Sin este chequeo el botón gira y no pasa nada,
-      // que desde afuera se ve idéntico a que la app se haya colgado.
-      const despues = res.data.entries.filter((e) => e.meal_type === mealType).length;
-      if (despues === antes) {
-        setAvisoCopia({ meal: mealType, texto: 'Ayer no registraste nada en este tiempo.' });
-      }
-      notificarCambio('diario-cambiado');
-      onChanged();
-    } catch (e) {
-      setAvisoCopia({
-        meal: mealType,
-        texto: e instanceof Error ? e.message : 'No se pudo copiar de ayer.',
-      });
-    } finally {
-      setCopyingMeal(null);
-    }
-  }
-
-  return (
-    <div className="meals">
-      {MEALS.map(([key, label]) => {
-        const entries = day.entries.filter((e) => e.meal_type === key);
-        const subtotal = Math.round(entries.reduce((sum, e) => sum + e.calories, 0));
-        return (
-          <div key={key} className="meal__card">
-            <div className="meal__head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
-                <p className="eyebrow">{label}</p>
-                <button
-                  type="button"
-                  className="btn btn--quiet"
-                  style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', height: 'auto' }}
-                  disabled={copyingMeal === key}
-                  onClick={() => handleCopyYesterday(key)}
-                  title="Copiar comidas de ayer"
-                >
-                  {copyingMeal === key ? 'Copiando...' : 'Copiar de ayer'}
-                </button>
-              </div>
-              <span className="muted num">{subtotal > 0 ? `${subtotal} kcal` : '—'}</span>
-            </div>
-            {avisoCopia?.meal === key && (
-              <p className="alert" role="status" style={{ marginBottom: 'var(--space-xs)' }}>
-                {avisoCopia.texto}
-              </p>
-            )}
-            {entries.length > 0 ? (
-              <ul className="entries">
-                {entries.map((e) => (
-                  <Entry key={e.id} entry={e} busy={busy === e.id} onChanged={onChanged} setBusy={setBusy} />
-                ))}
-              </ul>
-            ) : (
-              <p className="meal__empty">Sin registros en este tiempo.</p>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-const formatEntryVal = (v: number) => Number(Math.round(v * 100) / 100).toString();
-
-export function Entry({
-  entry,
-  busy,
-  onChanged,
-  setBusy,
-}: {
-  entry: DaySummary['entries'][number];
-  busy: boolean;
-  onChanged: () => void;
-  setBusy: (id: string | null) => void;
-}) {
-  const [servings, setServings] = useState(() => formatEntryVal(entry.servings_consumed));
-  const [expanded, setExpanded] = useState(false);
-  /**
-   * Revertir el número sin decir nada deja al usuario sin saber si se equivocó
-   * él o si falló la red. El caso normal es el segundo y desde el teléfono es
-   * frecuente.
-   */
-  const [error, setError] = useState('');
-
-  useEffect(() => setServings(formatEntryVal(entry.servings_consumed)), [entry.servings_consumed]);
-
-  const isRecipe = entry.kind === 'recipe';
-
-  async function commit() {
-    const value = Math.round(Number(servings) * 100) / 100;
-    if (!Number.isFinite(value) || value <= 0 || value === entry.servings_consumed) {
-      setServings(formatEntryVal(entry.servings_consumed));
-      return;
-    }
-    setBusy(entry.id);
-    setError('');
-    try {
-      if (isRecipe) {
-        await api.patch(`/logs/recipe/${entry.id}`, { servings: value });
-      } else {
-        await api.patch(`/logs/meal/${entry.id}`, { servings_consumed: value });
-      }
-      notificarCambio('diario-cambiado');
-      onChanged();
-    } catch (e) {
-      setServings(formatEntryVal(entry.servings_consumed));
-      setError(e instanceof Error ? e.message : 'No se pudo cambiar las porciones.');
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function remove() {
-    setBusy(entry.id);
-    setError('');
-    try {
-      if (isRecipe) {
-        await api.del(`/logs/recipe/${entry.id}`);
-      } else {
-        await api.del(`/logs/meal/${entry.id}`);
-      }
-      notificarCambio('diario-cambiado');
-      onChanged();
-    } catch (e) {
-      setServings(formatEntryVal(entry.servings_consumed));
-      setError(e instanceof Error ? e.message : 'No se pudo quitar.');
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  return (
-    <li className="entry" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-        <span
-          className="entry__label"
-          style={{ cursor: isRecipe ? 'pointer' : 'default' }}
-          role={isRecipe ? 'button' : undefined}
-          tabIndex={isRecipe ? 0 : undefined}
-          onClick={() => isRecipe && setExpanded(!expanded)}
-          onKeyDown={(e) => {
-            if (isRecipe && (e.key === 'Enter' || e.key === ' ')) {
-              e.preventDefault();
-              setExpanded(!expanded);
-            }
-          }}
-        >
-          <span className="entry__name">
-            {isRecipe && (expanded ? '▼ ' : '▶ ')}
-            {entry.food.name}
-          </span>
-          {entry.food.brand && <span className="muted"> · {entry.food.brand}</span>}
-          {isRecipe && <span className="badge" style={{ marginLeft: '6px', fontSize: '0.65rem' }}>Receta</span>}
-          {entry.kind === 'quick' && <span className="badge" style={{ marginLeft: '6px', fontSize: '0.65rem' }}>Rápido</span>}
-        </span>
-        <span className="entry__right">
-          <input
-            type="number"
-            className="num entry__servings"
-            inputMode="decimal"
-            step="0.25"
-            min="0"
-            value={servings}
-            disabled={busy}
-            aria-label={`Porciones de ${entry.food.name}`}
-            onChange={(e) => setServings(e.target.value)}
-            onBlur={commit}
-            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-          />
-          <span className="muted num entry__meta">
-            {isRecipe
-              ? `× porción · ${Math.round(entry.calories)} kcal`
-              : entry.kind === 'quick'
-              ? `× registro · ${Math.round(entry.calories)} kcal`
-              : `× ${entry.food.serving_size_amount}${entry.food.serving_size_unit} · ${Math.round(entry.calories)} kcal`}
-          </span>
-          <button
-            type="button"
-            className="entry__delete"
-            aria-label={`Quitar ${entry.food.name}`}
-            disabled={busy}
-            onClick={remove}
-          >
-            Quitar
-          </button>
-        </span>
-      </div>
-
-      {error && (
-        <p className="alert" role="alert" style={{ marginTop: 'var(--space-xs)' }}>
-          {error}
-        </p>
-      )}
-
-      {isRecipe && expanded && entry.components && entry.components.length > 0 && (
-        <div style={{ marginTop: '0.5rem', paddingLeft: '1rem', borderLeft: '2px solid var(--border-subtle)', fontSize: '0.8rem' }} className="muted num">
-          {entry.components.map((c) => (
-            <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
-              <span>• {c.food.name}</span>
-              <span>{Math.round(c.calories)} kcal</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </li>
-  );
-}
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import { api, getCacheado, invalidarCache, MEALS, notificarCambio, type Food } from '../../api';
+import { useVisible } from '../../hooks/useVisible';
+import { BarcodeScanner } from '../BarcodeScanner';
+import InfiniteMenu from '../InfiniteMenu';
+import { NewFood } from '../../NewFood';
+import { ErrorConReintento } from '../ErrorConReintento';
+import { teclaModificadora } from '../../hooks/useTeclaModificadora';
 
 export function AddFood({
   date,
@@ -608,6 +108,7 @@ export function AddFood({
 
   const sugeridos = tab === 'favorites' ? favorites : recent;
   const visibles = query.trim().length < 2 ? sugeridos : results;
+  const itemActivo = activo >= 0 && activo < visibles.length ? visibles[activo] : undefined;
 
   useEffect(() => setActivo(-1), [query, results, sugeridos]);
 
@@ -665,24 +166,39 @@ export function AddFood({
     if (panelVisible) void loadRecent();
   }, [loadRecent, panelVisible]);
 
+  const latestQueryRef = useRef(query);
+  useEffect(() => {
+    latestQueryRef.current = query;
+  }, [query]);
+
   /**
    * Aparte del efecto que la dispara, para que el botón de reintentar pueda
    * volver a llamarla sin tocar el texto buscado.
    */
   const buscar = useCallback(async () => {
+    const activeQuery = query;
     try {
       const res = await api.get<{ data: Food[] }>(`/foods/search?q=${encodeURIComponent(query)}`);
+      if (activeQuery !== latestQueryRef.current) return;
       setResults((prev) => {
         if (prev.length === 0 && res.data.length === 0) return prev;
         return res.data;
       });
       setFalloBusqueda(false);
     } catch {
+      if (activeQuery !== latestQueryRef.current) return;
       // Los resultados viejos quedan: son de otra búsqueda, pero borrarlos
       // dejaría la pantalla afirmando que este alimento no existe.
       setFalloBusqueda(true);
     }
   }, [query]);
+
+  const handleSelectFood = useCallback((food: Food) => {
+    setSelected(food);
+    setUnitMode('serving');
+    setQty('1');
+    setServings('1');
+  }, []);
 
   const handleBarcodeDetected = useCallback(async (barcode: string) => {
     setShowScanner(false);
@@ -695,7 +211,7 @@ export function AddFood({
       setQuery(barcode);
       setMessage({ text: `Código ${barcode} no encontrado. Podés darlo de alta.`, ok: false });
     }
-  }, []);
+  }, [handleSelectFood]);
 
   useEffect(() => {
     if (query.trim().length < 2) {
@@ -711,13 +227,6 @@ export function AddFood({
     const id = setTimeout(() => void buscar(), 250);
     return () => clearTimeout(id);
   }, [query, handleBarcodeDetected, buscar]);
-
-  const handleSelectFood = (food: Food) => {
-    setSelected(food);
-    setUnitMode('serving');
-    setQty('1');
-    setServings('1');
-  };
 
   async function add() {
     if (!selected) return;
@@ -797,7 +306,7 @@ export function AddFood({
                 color: isSelected ? 'oklch(0.12 0 0)' : 'var(--text-muted)',
                 border: 'none',
                 cursor: 'pointer',
-                transition: 'all var(--transition-fast)',
+                transition: 'all var(--dur-state) var(--ease-out)',
                 textAlign: 'center',
                 whiteSpace: 'nowrap',
               }}
@@ -894,45 +403,45 @@ export function AddFood({
       )}
 
       <div style={{ display: 'flex', gap: '0.4rem', marginBottom: 'var(--space-xs)' }}>
-        <input
-          ref={searchInputRef}
-          type="search"
-          placeholder={`Buscar alimento o código (${teclaModificadora()}K o /)...`}
-          aria-label="Buscar alimento"
-          role="combobox"
-          aria-expanded={visibles.length > 0}
-          aria-controls="resultados-busqueda"
-          aria-autocomplete="list"
-          aria-activedescendant={activo >= 0 ? `alimento-${visibles[activo].id}` : undefined}
-          style={{ flex: 1 }}
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setMessage(null);
-          }}
-          onKeyDown={(e) => {
-            if (visibles.length === 0) return;
-            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-              e.preventDefault();
-              const paso = e.key === 'ArrowDown' ? 1 : -1;
-              setActivo((i) => (i + paso + visibles.length) % visibles.length);
-            } else if (e.key === 'Enter' && activo >= 0) {
-              e.preventDefault();
-              handleSelectFood(visibles[activo]);
-            } else if (e.key === 'Escape') {
-              setActivo(-1);
-              setSelected(null);
-            }
-          }}
-        />
-        <button
-          type="button"
-          className="btn btn--quiet"
-          aria-label="Escanear código de barras"
-          title="Escanear código de barras (Cámara / EAN-13)"
-          onClick={() => setShowScanner(true)}
-          style={{ padding: '0 0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-        >
+            <input
+              ref={searchInputRef}
+              type="search"
+              placeholder={`Buscar alimento o código (${teclaModificadora()}K o /)...`}
+              aria-label="Buscar alimento"
+              role="combobox"
+              aria-expanded={visibles.length > 0}
+              aria-controls="resultados-busqueda"
+              aria-autocomplete="list"
+              aria-activedescendant={itemActivo?.id ? `alimento-${itemActivo.id}` : undefined}
+              style={{ flex: 1 }}
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setMessage(null);
+              }}
+              onKeyDown={(e) => {
+                if (visibles.length === 0) return;
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  const paso = e.key === 'ArrowDown' ? 1 : -1;
+                  setActivo((i) => (i + paso + visibles.length) % visibles.length);
+                } else if (e.key === 'Enter' && itemActivo) {
+                  e.preventDefault();
+                  handleSelectFood(itemActivo);
+                } else if (e.key === 'Escape') {
+                  setActivo(-1);
+                  setSelected(null);
+                }
+              }}
+            />
+            <button
+              type="button"
+              className="btn btn--quiet"
+              aria-label="Escanear código de barras"
+              title="Escanear código de barras (Cámara / EAN-13)"
+              onClick={() => setShowScanner(true)}
+              style={{ padding: '0 0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+            >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <line x1="4" y1="6" x2="4" y2="18" strokeWidth="2.5" />
             <line x1="8" y1="6" x2="8" y2="18" strokeWidth="1.5" />
