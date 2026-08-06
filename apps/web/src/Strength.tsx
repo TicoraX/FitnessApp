@@ -29,12 +29,15 @@ export function Strength({
   date,
   day,
   onChanged,
+  onDescanso,
   movimientoInicial,
   onMovimientoConsumido,
 }: {
   date: string;
   day: DaySummary;
   onChanged: () => void;
+  /** Confirmar una serie arranca el descanso: es lo que uno hace despues. */
+  onDescanso: () => void;
   /** Un movimiento elegido desde el Catálogo, para arrancar el registro sin buscarlo de nuevo. */
   movimientoInicial?: Movement | null;
   onMovimientoConsumido?: () => void;
@@ -173,11 +176,47 @@ export function Strength({
       setKilos('');
       setEsfuerzo('');
       onChanged();
+      onDescanso();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo registrar.');
     } finally {
       setBusy(null);
     }
+  }
+
+  /**
+   * El caso normal de una rutina es que salga como estaba planeada, y hoy eso
+   * cuesta un toque por serie con cuatro campos al lado tentando a mirarlos.
+   *
+   * Manda los valores del objetivo, no lo que haya tecleado el usuario en una
+   * fila sin confirmar: primero corregís las que salieron distinto con su
+   * propio "Hecho", después confirmás el resto de un toque.
+   *
+   * Sin endpoint nuevo: son N PATCH en paralelo y una rutina son seis u ocho.
+   * Si alguna falla, las que pasaron quedan confirmadas y el error dice cuáles
+   * no. Una serie confirmada es un hecho, no una transacción que revertir.
+   */
+  async function confirmarTodas() {
+    setBusy('todas');
+    setError('');
+    const resultados = await Promise.allSettled(
+      pendientes.map((e) =>
+        api.patch(`/logs/strength/${e.id}`, {
+          sets: e.sets,
+          reps: e.reps,
+          ...(e.weight_kg !== null ? { weight_kg: e.weight_kg } : {}),
+          ...(e.rpe !== null ? { rpe: e.rpe } : {}),
+          done: true,
+        }),
+      ),
+    );
+    const fallaron = pendientes.filter((_, i) => resultados[i].status === 'rejected');
+    if (fallaron.length) {
+      setError(`Quedaron sin confirmar: ${fallaron.map((e) => e.name_es ?? e.name).join(', ')}.`);
+    }
+    notificarCambio('diario-cambiado');
+    onChanged();
+    setBusy(null);
   }
 
   async function borrar(id: string) {
@@ -210,6 +249,16 @@ export function Strength({
       {pendientes.length > 0 && (
         <div className="stack" style={{ gap: 'var(--space-xs)', marginBottom: 'var(--space-sm)' }}>
           <p className="eyebrow muted">Del entreno de hoy ({pendientes.length} sin hacer)</p>
+          {pendientes.length > 1 && (
+            <button
+              type="button"
+              className="btn"
+              disabled={busy === 'todas'}
+              onClick={confirmarTodas}
+            >
+              {busy === 'todas' ? '...' : `Confirmar las ${pendientes.length} como estaban`}
+            </button>
+          )}
           {pendientes.map((e) => (
             <SeriePendiente
               key={e.id}
@@ -217,6 +266,9 @@ export function Strength({
               onDone={() => {
                 notificarCambio('diario-cambiado');
                 onChanged();
+                // Confirmar la última pendiente cierra el entreno: ahí no hay
+                // nada que descansar. Confirmar la rutina entera tampoco.
+                if (pendientes.length > 1) onDescanso();
               }}
               onError={setError}
               onQuitar={() => borrar(e.id)}

@@ -517,16 +517,20 @@ try {
    * pendientes y se confirma con lo que salió de verdad. Hasta que no se
    * confirma no cuenta para el volumen, que es lo que separa planear de entrenar.
    */
-  await step('una rutina se crea, se carga en el día y se confirma serie por serie', async () => {
+  await step('una rutina se crea, se carga en el día y se confirma de un toque', async () => {
     await page.goto(`${BASE}/#/ejercicio`);
     await page.waitForSelector('.view-ejercicio', { timeout: 10_000 });
 
     await page.getByRole('button', { name: 'Crear rutina' }).click();
     await page.waitForSelector('.modal-overlay', { timeout: 5_000 });
     await page.fill('#rt-nombre', 'Empuje A');
-    await page.fill('#rt-buscar', 'bench press');
-    await page.waitForSelector('.modal-overlay .result', { timeout: 10_000 });
-    await page.locator('.modal-overlay .result').first().click();
+    // Tres movimientos: con uno solo no se puede distinguir confirmar la serie
+    // de confirmar la rutina entera, que es lo que este paso verifica.
+    for (const nombre of ['bench press', 'squat', 'deadlift']) {
+      await page.fill('#rt-buscar', nombre);
+      await page.waitForSelector('.modal-overlay .result', { timeout: 10_000 });
+      await page.locator('.modal-overlay .result').first().click();
+    }
     await page.getByRole('button', { name: 'Guardar rutina' }).click();
     await page.waitForSelector('.modal-overlay', { state: 'detached', timeout: 10_000 });
 
@@ -546,9 +550,42 @@ try {
       'una serie pendiente no puede contar como volumen',
     );
 
+    assert.equal(await page.locator('.serie-pendiente').count(), 3);
+
+    // La primera salió distinta y se corrige a mano, que es el caso que
+    // justifica los cuatro campos.
+    await pendiente.getByLabel(/^Repeticiones de /).fill('8');
     await pendiente.getByRole('button', { name: 'Hecho' }).click();
+    await page.waitForFunction(
+      () => document.querySelectorAll('.serie-pendiente').length === 2,
+      null,
+      { timeout: 10_000 },
+    );
+    assert.match(await page.locator('.fuerza .entry').first().innerText(), /3 × 8/);
+
+    // Confirmar una serie arranca el descanso, que es lo que uno hace después.
+    // Sobrevive a cambiar de vista: mirar el diario en medio de un descanso es
+    // normal, y el estado vive arriba del router justamente por eso.
+    const descanso = page.locator('.descanso');
+    await descanso.waitFor({ timeout: 5_000 });
+    assert.match(await descanso.innerText(), /1:2\d|1:30/);
+    await page.goto(`${BASE}/#/diario`);
+    await page.waitForSelector('.view-diario', { timeout: 10_000 });
+    assert.equal(await page.locator('.descanso').count(), 1, 'el descanso no sobrevivió a cambiar de vista');
+    await page.getByRole('button', { name: 'Cerrar el descanso' }).click();
+    await page.waitForSelector('.descanso', { state: 'detached', timeout: 5_000 });
+
+    await page.goto(`${BASE}/#/ejercicio`);
+    await page.waitForSelector('.serie-pendiente', { timeout: 10_000 });
+
+    // Las otras dos salieron como estaban: un toque para las dos.
+    await page.getByRole('button', { name: 'Confirmar las 2 como estaban' }).click();
     await page.waitForSelector('.serie-pendiente', { state: 'detached', timeout: 10_000 });
-    assert.match(await page.locator('.fuerza .entry').first().innerText(), /3 × 10/);
+    assert.equal(await page.locator('.fuerza .entry').count(), 3);
+    assert.match(await page.locator('.fuerza .entry').nth(1).innerText(), /3 × 10/);
+
+    // Cerrar el entreno no deja un descanso corriendo.
+    assert.equal(await page.locator('.descanso').count(), 0);
   });
 
   /**

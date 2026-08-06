@@ -56,7 +56,14 @@ export class AuthController {
     return this.auth.login(dto);
   }
 
+  /**
+   * No es un endpoint de credenciales: pide un JWT válido, no prueba ninguno.
+   * Con el límite de la clase, abrir la app seis veces en quince minutos dejaba
+   * al usuario afuera con un 429, y cada recarga de la página cuenta una. Va
+   * con el mismo techo que el resto del API, que ya lo cubre.
+   */
   @Get('me')
+  @Throttle({ default: { limit: 100, ttl: 60_000 } })
   @UseGuards(JwtAuthGuard)
   me(@Req() req: { user: { userId: string; email: string } }) {
     return { status: 'success', data: req.user };

@@ -18,10 +18,13 @@ export function EjercicioView({
   fechaInicial,
   route,
   navigate,
+  onDescanso,
 }: {
   fechaInicial: string;
   route: ParsedRoute;
   navigate: (path: string) => void;
+  /** Arranca el cronometro de descanso, que vive arriba del router. */
+  onDescanso: () => void;
 }) {
   const [date, setDate] = useState(fechaInicial);
   const [day, setDay] = useState<DaySummary | null>(null);
@@ -137,6 +140,7 @@ export function EjercicioView({
                 date={date}
                 day={day}
                 onChanged={recargar}
+                onDescanso={onDescanso}
                 movimientoInicial={movimientoParaRegistrar}
                 onMovimientoConsumido={() => setMovimientoParaRegistrar(null)}
               />

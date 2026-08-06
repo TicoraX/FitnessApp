@@ -3,6 +3,6 @@
   "private": true,
   "description": "Raíz sin dependencias: existe para que la verificación sea un comando.",
   "scripts": {
-    "check": "npm --prefix apps/api test && npm --prefix apps/api run smoke && npm --prefix apps/api run probe && npm --prefix apps/web run build && npm --prefix apps/web run ui:check && npm --prefix apps/web run contrast:check && npm --prefix apps/web run tabs:check"
+    "check": "npm --prefix apps/api test && npm --prefix apps/api run smoke && npm --prefix apps/api run probe && npm --prefix apps/web test && npm --prefix apps/web run build && npm --prefix apps/web run ui:check && npm --prefix apps/web run contrast:check && npm --prefix apps/web run tabs:check"
   }
 }

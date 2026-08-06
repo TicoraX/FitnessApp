@@ -2,6 +2,8 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { api, escucharCambios, setToken, today, type DaySummary } from './api';
 import Dock, { type DockItemData } from './components/Dock';
+import { Descanso } from './components/Descanso';
+import { DESCANSO_MS } from './descanso';
 import { useHashRoute } from './hooks/useHashRoute';
 import { DiarioView } from './views/DiarioView';
 import { teclaModificadora } from './hooks/useTeclaModificadora';
@@ -62,6 +64,9 @@ const pageVariantsQuietos = {
 
 export function Diary({ onLogout }: { onLogout: () => void }) {
   const sinMovimiento = useReducedMotion();
+  /** Marca absoluta del final del descanso, o null si no hay ninguno corriendo.
+   *  Vive acá, arriba del router, para que mirar el diario no lo corte. */
+  const [descansoHasta, setDescansoHasta] = useState<number | null>(null);
   const { route, navigate } = useHashRoute();
   const initialDate = route.view === 'diario' && route.param && /^\d{4}-\d{2}-\d{2}$/.test(route.param)
     ? route.param
@@ -294,6 +299,7 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
                   fechaInicial={route.param && /^\d{4}-\d{2}-\d{2}$/.test(route.param) ? route.param : date}
                   route={route}
                   navigate={navigate}
+                  onDescanso={() => setDescansoHasta(Date.now() + DESCANSO_MS)}
                 />
               )}
 
@@ -325,6 +331,14 @@ export function Diary({ onLogout }: { onLogout: () => void }) {
           </motion.div>
         </AnimatePresence>
       </main>
+
+      {descansoHasta !== null && (
+        <Descanso
+          hasta={descansoHasta}
+          onAjustar={(ms) => setDescansoHasta((h) => (h === null ? h : Math.max(Date.now(), h + ms)))}
+          onCerrar={() => setDescansoHasta(null)}
+        />
+      )}
 
       <Dock items={dockItems} />
     </div>

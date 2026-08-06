@@ -1,0 +1,50 @@
+/* Se apoya arriba del Dock, que vale 1000, y le cede el z-index: la barra es
+   informativa y la navegación no se tapa nunca. */
+.descanso {
+  position: fixed;
+  left: 50%;
+  bottom: 5.5rem;
+  transform: translateX(-50%);
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  max-width: calc(100vw - 2rem);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-lg);
+  background: var(--color-paper-2);
+  border: var(--rule);
+  box-shadow: var(--shadow-card);
+}
+
+.descanso__etiqueta {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+/* El número se lee de reojo, desde un metro y con el teléfono apoyado en el
+   banco. Eso decide el tamaño, no la estética. */
+.descanso__cuenta {
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.descanso--listo .descanso__cuenta,
+.descanso--listo .descanso__etiqueta {
+  color: var(--color-primary);
+}
+
+.descanso__acciones {
+  display: flex;
+  gap: var(--space-2xs);
+}
+
+.descanso__acciones .btn {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 var(--space-xs);
+}
