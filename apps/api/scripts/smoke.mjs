@@ -787,6 +787,21 @@ console.log('\nEntrenamiento');
     assert.equal(rep.data.totals.volume_kg, 720 + 650);
     assert.equal(rep.data.totals.sets, 8);
     assert.ok(rep.data.by_body.some((b) => b.sets > 0), 'no se resolvió la zona del cuerpo');
+
+    // El corte por zona también va por día: el agregado del rango dice cómo
+    // repartiste el cuerpo, y este dice si una zona viene plana.
+    const hoy = rep.data.days.find((d) => d.log_date === day);
+    assert.ok(hoy.by_body.length > 0, 'el día no trae desglose por zona');
+    assert.equal(
+      hoy.by_body.reduce((s, b) => s + b.sets, 0),
+      hoy.sets,
+      'las series por zona del día no suman las del día',
+    );
+    assert.equal(
+      hoy.by_body.reduce((s, b) => s + b.volume_kg, 0),
+      hoy.volume_kg,
+      'el volumen por zona del día no suma el del día',
+    );
   });
 
   await check('el récord sigue al peso, no al orden', async () => {

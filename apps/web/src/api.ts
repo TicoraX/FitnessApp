@@ -314,7 +314,14 @@ export interface ExerciseReport {
     days_trained: number;
   };
   by_body: { body: string; sets: number }[];
-  days: { log_date: string; volume_kg: number; sets: number; burned: number }[];
+  days: {
+    log_date: string;
+    volume_kg: number;
+    sets: number;
+    burned: number;
+    /** El mismo corte por zona, pero del día: sirve para ver si una viene plana. */
+    by_body: { body: string; sets: number; volume_kg: number }[];
+  }[];
 }
 
 /** Movimiento del catálogo de gimnasio. El nombre viene en inglés del dataset. */

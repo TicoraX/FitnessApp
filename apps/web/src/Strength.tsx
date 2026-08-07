@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { motion, useReducedMotion } from 'motion/react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import {
   api,
   getCacheado,
@@ -14,6 +14,7 @@ import {
 import { CampoEsfuerzo } from './components/CampoEsfuerzo';
 import { NombreMovimiento } from './components/NombreMovimiento';
 import { MediaMovimiento } from './components/MediaMovimiento';
+import { esRecord } from './record';
 
 type Facets = { body: string[]; equipment: string[] };
 
@@ -64,6 +65,8 @@ export function Strength({
   const [esfuerzo, setEsfuerzo] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState('');
+  /** Nombre del movimiento cuyo récord se acaba de romper, o null. */
+  const [record, setRecord] = useState<string | null>(null);
   /**
    * Borrar una serie es definitivo y el botón está pegado a "Hecho". Un
    * deshacer de unos segundos cuesta menos que un diálogo de confirmación y
@@ -211,6 +214,11 @@ export function Strength({
         ...(kilos ? { weight_kg: Number(kilos) } : {}),
         ...(esfuerzo ? { rpe: Number(esfuerzo) } : {}),
       });
+      // La comparación ya estaba hecha y no se mostraba: el récord se descubría
+      // semanas después entrando al detalle del movimiento.
+      if (esRecord(historia?.best, { reps: r, weight_kg: kilos ? Number(kilos) : null })) {
+        setRecord(selected.name_es ?? selected.name);
+      }
       notificarCambio('diario-cambiado');
       invalidarPendientes();
       isProgrammaticRef.current = false;
@@ -348,6 +356,33 @@ export function Strength({
           {volumen > 0 ? `${Math.round(volumen)} kg de volumen` : '—'}
         </span>
       </div>
+
+      {/*
+        El único lugar de la app donde una animación con algo de personalidad se
+        justifica: pasa poco y significa algo. En todo lo demás, contención.
+      */}
+      <AnimatePresence>
+        {record && (
+          <motion.p
+            className="alert alert--ok record"
+            role="status"
+            initial={sinMovimiento ? false : { opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 320, damping: 22 }}
+          >
+            Récord de {record}. No lo habías levantado tan pesado.
+            <button
+              type="button"
+              className="alert__btn"
+              onClick={() => setRecord(null)}
+              aria-label="Cerrar el aviso de récord"
+            >
+              Listo
+            </button>
+          </motion.p>
+        )}
+      </AnimatePresence>
 
       {deshacer && (
         <p className="alert alert--ok alert--reintento" role="status">

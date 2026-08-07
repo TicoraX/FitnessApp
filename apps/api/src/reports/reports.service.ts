@@ -397,10 +397,23 @@ export class ReportsService {
         ORDER BY dl.log_date`,
     ]);
 
-    const porDia = new Map<string, { volume_kg: number; sets: number; burned: number }>();
+    /**
+     * `by_body` da el corte del rango entero, que dice cómo repartiste el
+     * cuerpo esta semana pero no si el volumen de una zona viene plano hace
+     * tres. Eso último es lo que hace cambiar algo, así que el desglose por
+     * zona también va por día.
+     *
+     * Van las series y el volumen: un día de dominadas mueve series y no mueve
+     * kilos, y un gráfico que solo mirara el volumen lo dibujaría en cero.
+     */
+    type Zona = { sets: number; volume_kg: number };
+    const porDia = new Map<
+      string,
+      { volume_kg: number; sets: number; burned: number; zonas: Map<string, Zona> }
+    >();
     const dia = (fecha: string) => {
       let d = porDia.get(fecha);
-      if (!d) porDia.set(fecha, (d = { volume_kg: 0, sets: 0, burned: 0 }));
+      if (!d) porDia.set(fecha, (d = { volume_kg: 0, sets: 0, burned: 0, zonas: new Map() }));
       return d;
     };
 
@@ -419,6 +432,11 @@ export class ReportsService {
 
       const zona = bodyOf(s.name);
       porZona.set(zona, (porZona.get(zona) ?? 0) + s.sets);
+
+      const enElDia = d.zonas.get(zona) ?? { sets: 0, volume_kg: 0 };
+      enElDia.sets += s.sets;
+      enElDia.volume_kg += volumen;
+      d.zonas.set(zona, enElDia);
     }
 
     let quemadasTotal = 0;
@@ -444,7 +462,15 @@ export class ReportsService {
           .map(([body, sets]) => ({ body, sets }))
           .sort((a, b) => b.sets - a.sets),
         days: [...porDia]
-          .map(([log_date, d]) => ({ log_date, ...d, volume_kg: Math.round(d.volume_kg) }))
+          .map(([log_date, d]) => ({
+            log_date,
+            volume_kg: Math.round(d.volume_kg),
+            sets: d.sets,
+            burned: d.burned,
+            by_body: [...d.zonas]
+              .map(([body, z]) => ({ body, sets: z.sets, volume_kg: Math.round(z.volume_kg) }))
+              .sort((a, b) => b.sets - a.sets),
+          }))
           .sort((a, b) => a.log_date.localeCompare(b.log_date)),
       },
     };

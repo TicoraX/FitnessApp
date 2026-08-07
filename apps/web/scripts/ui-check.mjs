@@ -690,7 +690,10 @@ try {
     // acá, que es lo que va a fallar si esto vuelve a crecer. Antes de diferir
     // lo que no se ve y cachear lo que no cambia eran 30.
     assert.ok(
-      pedidos.length <= 24,
+      // 25 y no 24: el resumen de la semana anterior suma un pedido, y uno
+      // solo, porque va por `getCacheado`. Si este número sube sin que nadie
+      // pueda decir qué feature lo pagó, hay una regresión.
+      pedidos.length <= 25,
       `tres idas y vueltas dispararon ${pedidos.length} pedidos:\n    ${pedidos.join('\n    ')}`,
     );
 
@@ -919,6 +922,72 @@ try {
 
     const sinAbort = errors.filter((e) => !/Failed to fetch|ERR_FAILED|net::/i.test(e));
     errors.splice(0, errors.length, ...sinAbort);
+  });
+
+  await step('el resumen compara contra la semana pasada y desglosa por zona', async () => {
+    // El paso se siembra sus dos ventanas por API en vez de apoyarse en lo que
+    // dejaron los anteriores: el delta y el gráfico dependen de qué hay en cada
+    // semana, y encadenarlo a diez pasos previos lo vuelve frágil.
+    //
+    // La fecha se arma en local, como la arma la app. `toISOString()` da la
+    // fecha UTC y en un huso al oeste eso es el día siguiente.
+    const enLocal = (dias) => {
+      const d = new Date();
+      d.setDate(d.getDate() + dias);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+    const sembrar = async (log_date, weight_kg) => {
+      const r = await page.request.post('http://localhost:3100/api/v1/logs/strength', {
+        headers: { Authorization: `Bearer ${tokenSesion}` },
+        data: { log_date, name: 'barbell bench press', sets: 3, reps: 10, weight_kg },
+      });
+      assert.equal(r.status(), 201, `no se pudo sembrar ${log_date}`);
+    };
+    await sembrar(enLocal(-8), 40);
+    await sembrar(enLocal(0), 60);
+
+    // `goto` a la misma URL con hash es navegación del mismo documento y no
+    // recarga: sin el reload el componente se queda con lo de antes de sembrar.
+    await page.goto(`${BASE}/#/ejercicio`);
+    await page.reload();
+    await page.waitForSelector('.resumen-ej', { timeout: 10_000 });
+
+    // El resumen aparece con el primer pedido y el delta llega con el segundo:
+    // se espera al delta, no al resumen.
+    const delta = page.locator('.resumen-ej .delta').first();
+    await delta.waitFor({ timeout: 10_000 });
+    assert.match(await delta.innerText(), /% vs\. semana pasada/);
+
+    // Y el corte por zona se ve en el tiempo, no solo agregado.
+    const zonas = page.locator('.zonas-tiempo');
+    await zonas.waitFor({ timeout: 5_000 });
+    assert.ok((await zonas.locator('svg rect').count()) > 0, 'el gráfico por zona salió vacío');
+    assert.match(await zonas.locator('svg').getAttribute('aria-label'), /series/i);
+    await shot('15-resumen-comparado');
+  });
+
+  await step('un récord se anuncia en el momento en que ocurre', async () => {
+    // La comparación ya estaba hecha: `history` devuelve `best` y el cliente lo
+    // tiene desde que elegís el movimiento. Lo que faltaba era decirlo.
+    await page.fill('#fz-movimiento', 'barbell bench press');
+    await page.waitForSelector('.exercise__form .result', { timeout: 10_000 });
+    await page.locator('.exercise__form .result').first().click();
+    // Elegir un movimiento precarga los números de la última vez, y esa carga
+    // es asíncrona: sin esperarla, pisa los kilos que escribe el paso.
+    await page.waitForFunction(
+      () => document.querySelector('#fz-kilos')?.value === '60',
+      null,
+      { timeout: 10_000 },
+    );
+    await page.fill('#fz-kilos', '200');
+    await page.getByRole('button', { name: 'Registrar serie' }).click();
+    const aviso = page.locator('.record');
+    await aviso.waitFor({ timeout: 10_000 });
+    assert.match(await aviso.innerText(), /Récord/);
+
+    // Los pasos que siguen esperan el diario.
+    await page.goto(`${BASE}/#/diario`);
+    await page.waitForSelector('.view-diario', { timeout: 10_000 });
   });
 
   await step('una sesión vencida vuelve al login, no a un error', async () => {
