@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AJUSTE_MS, formatear, segundosRestantes } from '../descanso';
 import { IconoCerrar } from './IconoCerrar';
 import './Descanso.css';
@@ -22,6 +22,11 @@ export function Descanso({
   onCerrar: () => void;
 }) {
   const [restan, setRestan] = useState(() => segundosRestantes(hasta, Date.now()));
+  const onCerrarRef = useRef(onCerrar);
+
+  useEffect(() => {
+    onCerrarRef.current = onCerrar;
+  }, [onCerrar]);
 
   useEffect(() => {
     const repintar = () => setRestan(segundosRestantes(hasta, Date.now()));
@@ -44,7 +49,7 @@ export function Descanso({
   useEffect(() => {
     if (restan !== 0) return;
     navigator.vibrate?.([200, 100, 200]);
-    const id = setTimeout(onCerrar, 10_000);
+    const id = setTimeout(() => onCerrarRef.current(), 10_000);
     return () => clearTimeout(id);
   }, [restan === 0]);
 
