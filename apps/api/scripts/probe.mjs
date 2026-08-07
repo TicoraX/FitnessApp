@@ -588,6 +588,18 @@ await probe('el export trae los datos y no el hash de la contraseña', async () 
   if (!body.profile || !Array.isArray(body.days) || !Array.isArray(body.weights)) {
     return 'al export le faltan secciones';
   }
+
+  // Una receta se guarda expandida, una fila por ingrediente, porque los macros
+  // del día salen de números congelados. En el export eso se colapsa: de un
+  // guiso salía una lista de ingredientes y ninguna línea decía el nombre.
+  const conReceta = body.days.flatMap((d) => d.entries).filter((e) => e.ingredientes);
+  if (conReceta.length === 0) return 'ninguna entrada del export salió agrupada como receta';
+  const linea = conReceta[0];
+  if (linea.ingredientes.length < 2) return 'la receta agrupada trae un solo ingrediente';
+  const suma = linea.ingredientes.reduce((t, i) => t + i.calories, 0);
+  if (Math.abs(suma - linea.calories) > 0.01) {
+    return `las calorías de la línea (${linea.calories}) no suman las de sus ingredientes (${suma})`;
+  }
   return null;
 });
 

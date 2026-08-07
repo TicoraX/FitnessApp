@@ -1,7 +1,12 @@
-// ponytail: nombre fijo, así que los bundles viejos de deploys anteriores
-// quedan en el cache. Son unos cientos de KB por deploy; si molesta, el
-// nombre pasa a llevar el hash del build.
-const CACHE_NAME = 'fittrack-v1';
+// La version viene en la URL con la que main.tsx registra este archivo, y sale
+// del hash del build. Con un nombre fijo, los bundles de cada deploy se
+// acumulaban para siempre: el handler de `activate` borra todo cache cuyo
+// nombre no sea el actual, pero el nombre nunca cambiaba.
+//
+// Se lee de la query y no de una constante para que este archivo siga siendo
+// estatico en public/, que es lo que lo mantiene simple.
+const VERSION = new URL(self.location.href).searchParams.get('v') ?? 'dev';
+const CACHE_NAME = `fittrack-${VERSION}`;
 // './' es la carcasa offline. Se puede precachear porque la navegación va a
 // red primero y solo cae acá cuando no hay conexión.
 const ASSETS_TO_CACHE = [

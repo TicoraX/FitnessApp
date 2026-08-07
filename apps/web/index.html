@@ -4,12 +4,17 @@
     <meta charset="UTF-8" />
     <!-- viewport-fit=cover habilita env(safe-area-inset-*) en iPhones con isla. -->
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#12171e" />
+    <!-- Una por esquema: con un solo valor oscuro, la barra de estado del tema
+         claro quedaba negra contra una app blanca. -->
+    <meta name="theme-color" content="#f7f7f8" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#12171e" media="(prefers-color-scheme: dark)" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>FitTrack - Diario Nutricional</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <!-- iOS no soporta SVG acá: con el favicon.svg la app quedaba en la
+         pantalla de inicio con un icono en blanco. -->
+    <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png" />
     <link rel="manifest" href="/manifest.json" />
     <!-- Las fuentes se declaran en tokens.css y se sirven desde /fonts/. No hay
          preconnect a Google porque ya no se le pide nada. -->

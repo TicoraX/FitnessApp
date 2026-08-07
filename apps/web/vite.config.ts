@@ -4,6 +4,11 @@ import react from '@vitejs/plugin-react';
 // El proxy evita CORS en desarrollo: el navegador ve todo en el mismo origen.
 export default defineConfig({
   plugins: [react()],
+  // Identifica el build para que el service worker estrene cache en cada
+  // deploy. En dev es una constante: no hay deploys que invalidar.
+  define: {
+    __BUILD_ID__: JSON.stringify(process.env.BUILD_ID ?? String(Date.now())),
+  },
   server: {
     port: 5177,
     proxy: { '/api': 'http://localhost:3100' },

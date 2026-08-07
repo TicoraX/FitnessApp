@@ -42,7 +42,9 @@ function App() {
 
 if ('serviceWorker' in navigator && (import.meta as unknown as { env?: { PROD?: boolean } }).env?.PROD) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    // La version viaja en la query: cambia con cada build y con eso el service
+    // worker estrena cache y borra el del deploy anterior.
+    navigator.serviceWorker.register(`/sw.js?v=${__BUILD_ID__}`).catch(() => {});
   });
 }
 
