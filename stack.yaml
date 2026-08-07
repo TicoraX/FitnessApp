@@ -1,0 +1,41 @@
+# Stack de desarrollo. Sin este archivo PortMaster detecta el compose entero, y
+# ahi entran `web` y `api`: un nginx sirviendo el `dist/` horneado en la imagen,
+# y un Nest corriendo sobre `dist/` tambien horneado. Ninguno de los dos toma
+# cambios hasta que alguien reconstruye la imagen (`docker compose build`), asi
+# que en desarrollo muestran el build del dia que se construyeron.
+#
+# Por eso los dos arrancan por comando en vez de por Docker: `vite` en 5177 con
+# recarga en caliente, y `nest start --watch` en 3100. El proxy de
+# `vite.config.ts` ya manda `/api` a localhost:3100, asi que el navegador sigue
+# viendo un solo origen y no hace falta CORS. `apps/api/.env` (gitignoreado, ya
+# existe con JWT_SECRET y el resto, ver README) le da a la API local los mismos
+# secrets que hoy le pasa el compose por env vars: no hace falta mover nada a
+# un archivo que se commitea.
+#
+# El compose no se toca: `docker compose up` sigue levantando los tres
+# servicios como en produccion.
+
+name: fittrack
+
+services:
+  db:
+    command: docker compose up -d db
+    port: 5433
+    detached: true
+    stop: docker compose stop db
+
+  api:
+    command: npm run start:dev
+    cwd: apps/api
+    port: 3100
+    needs: [db]
+
+  web:
+    command: npm run dev
+    cwd: apps/web
+    port: 5177
+    needs: [api]
+
+profiles:
+  backend: [db, api]
+  db-only: [db]

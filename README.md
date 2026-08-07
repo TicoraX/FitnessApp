@@ -1,8 +1,8 @@
 # FitTrack Engine
 
 App de seguimiento nutricional y de entrenamiento, en español, apuntada al
-mercado colombiano. [`estrucura.md`](./estrucura.md) es el blueprint original y
-quedó histórico: describe una arquitectura que este repo no tiene.
+mercado colombiano. Qué es, para quién, y las convenciones que gobiernan el
+proyecto, en [`docs/CONTEXTO.md`](./docs/CONTEXTO.md).
 
 ```
 apps/api/          # Servicio NestJS
@@ -25,8 +25,15 @@ docker-compose.yml # PostgreSQL 16 local
 Postgres escucha en **5433** y el API en **3100** para no chocar con otros
 proyectos que usen los puertos por defecto.
 
+En desarrollo, la API corre local (`npm run start:dev`, con recarga en
+caliente), no en Docker: por eso acá solo se levanta `db`. Si en cambio hacés
+`docker compose up -d` (sin acotar el servicio), levanta también el
+contenedor `api` en el mismo puerto 3100, y el `npm run start:dev` de abajo
+falla al arrancar porque el puerto ya está tomado. El contenedor `api` sirve
+para probar el build tal como queda en producción, no para desarrollar.
+
 ```bash
-docker compose up -d
+docker compose up -d db
 cd apps/api
 cp .env.example .env         # completar JWT_SECRET (>=32 chars)
 npm install
@@ -227,9 +234,7 @@ de 40% del estimado, se sigue con la fórmula.
 
 La fase 14 está descartada, no pendiente: cada una de las tres es un proyecto
 propio y ninguna mejora el uso diario de una app personal. El motivo largo en
-[`PENDIENTES.md`](./PENDIENTES.md), junto con lo que quedó abierto. El plan
-original del cliente web, ya cerrado, en
-[`PLAN-FRONTEND.md`](./PLAN-FRONTEND.md).
+[`docs/PENDIENTES.md`](./docs/PENDIENTES.md), junto con lo que quedó abierto.
 
 Redis, Typesense, Kong y los microservicios de §2 no están: con un servicio y
 cero tráfico no aportan nada todavía. Entran cuando la latencia lo pida.

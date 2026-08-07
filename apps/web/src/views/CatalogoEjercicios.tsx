@@ -141,11 +141,11 @@ function PantallaZonas({ navigate }: { navigate: (path: string) => void }) {
                     }
                   }}
                 >
-                  {t.name} · {t.count}
+                  {t.name_es ?? t.name} · {t.count}
                 </button>
               ) : (
                 <span key={t.name} className="chip">
-                  {t.name} · {t.count}
+                  {t.name_es ?? t.name} · {t.count}
                 </span>
               )
             )}

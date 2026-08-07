@@ -10,3 +10,7 @@ coverage/
 # app con licencia, y NO se pueden subir a un repo público. Ver apps/web/.env.example
 apps/web/public/movimientos/
 .gstack/
+
+# Documentacion de contexto, planes y auditorias: uso personal, un solo
+# desarrollador. README.md y CLAUDE.md se quedan trackeados en la raiz.
+docs/

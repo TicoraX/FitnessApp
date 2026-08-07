@@ -159,9 +159,9 @@ export function Profile({ onSaved, onClose }: { onSaved: () => void; onClose: ()
 
   return (
     <form className="stack" onSubmit={submit}>
-      <p className="muted">
-        {data.first_name} · {data.email}
-      </p>
+      {/* Una cuenta de invitado no tiene email: sin esto quedaba "QA ·" con el
+          separador colgando y nada después. */}
+      <p className="muted">{[data.first_name, data.email].filter(Boolean).join(' · ')}</p>
 
       {data.objetivo_origen && <DeDondeSale origen={data.objetivo_origen} objetivo={data.daily_calories} />}
 

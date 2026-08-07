@@ -690,9 +690,10 @@ try {
     // acá, que es lo que va a fallar si esto vuelve a crecer. Antes de diferir
     // lo que no se ve y cachear lo que no cambia eran 30.
     assert.ok(
-      // 25 y no 24: el resumen de la semana anterior suma un pedido, y uno
-      // solo, porque va por `getCacheado`. Si este número sube sin que nadie
-      // pueda decir qué feature lo pagó, hay una regresión.
+      // El resumen de la semana anterior y el trending de la semana suman uno
+      // cada uno, y uno solo: los dos van por `getCacheado`. Cuando el trending
+      // no estaba cacheado, este número bailaba entre 25 y 27 según el reloj.
+      // Si sube sin que nadie pueda decir qué feature lo pagó, hay regresión.
       pedidos.length <= 25,
       `tres idas y vueltas dispararon ${pedidos.length} pedidos:\n    ${pedidos.join('\n    ')}`,
     );
