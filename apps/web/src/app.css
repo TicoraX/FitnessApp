@@ -945,7 +945,11 @@ input[aria-invalid='true'] {
   margin-bottom: var(--space-sm);
 }
 
-.resumen-ej__cifras span {
+/* Solo los spans propios de la tarjeta: la etiqueta y el delta. Sin el `>`,
+   la regla alcanzaba también a los spans internos de `Counter`, que apila un
+   span por dígito: con `display: block` un volumen de 1800 kg se dibujaba como
+   cuatro dígitos en vertical, uno por línea. */
+.resumen-ej__cifras > div > span {
   display: block;
   font-size: var(--text-sm);
 }
