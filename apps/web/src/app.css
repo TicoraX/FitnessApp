@@ -954,6 +954,42 @@ input[aria-invalid='true'] {
   font-size: 1.15rem;
 }
 
+/* El delta acompaña al número, no compite con él: es el contexto que hace que
+   la cifra signifique algo, no una cifra más. */
+.delta {
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.zonas-tiempo svg {
+  width: 100%;
+  height: 5rem;
+  display: block;
+}
+
+.zonas-tiempo__leyenda {
+  list-style: none;
+  margin: var(--space-2xs) 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.zonas-tiempo__leyenda li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+}
+
+.zonas-tiempo__punto {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: var(--radius-full);
+}
+
 .resumen-ej__barras {
   list-style: none;
   margin: 0 0 var(--space-sm);
@@ -1132,4 +1168,45 @@ input[aria-invalid='true'] {
 .catalogo-ej__historial th {
   color: var(--color-ink-2);
   font-weight: 500;
+}
+
+/* El desglose del objetivo y la línea del plan: contexto, no cifras nuevas. */
+.origen,
+.plan {
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.origen {
+  padding: var(--space-sm);
+  border: var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--color-paper-2);
+}
+
+.plan[data-va='false'] {
+  color: var(--color-danger);
+}
+
+/*
+  Los gráficos aparecían de golpe. Entran una vez, al montarse: una animación
+  CSS no se reinicia cuando React vuelve a renderizar el mismo nodo, así que el
+  "una sola vez" sale gratis y sin estado.
+
+  Va fade y desplazamiento, no trazo dibujándose. Dibujar la línea pide animar
+  `stroke-dashoffset`, y la regla de la fase es transform y opacity solamente.
+  El trazo es más lindo; no lo suficiente como para hacerle una excepción a la
+  única regla que protege los 60fps en un teléfono de gama media.
+*/
+@keyframes entra-grafico {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.sparkline,
+.zonas-tiempo svg,
+.resumen-ej__barras {
+  animation: entra-grafico var(--dur-enter) var(--ease-out) both;
 }

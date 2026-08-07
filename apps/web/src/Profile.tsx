@@ -9,6 +9,22 @@ const ACTIVITY = [
   [1.9, 'Atleta'],
 ] as const;
 
+/**
+ * De dónde sale el objetivo diario. El gasto se mide de los propios datos
+ * cuando hay suficientes; si no, se estima con la fórmula y el multiplicador
+ * de actividad que el usuario se autoevalúa.
+ */
+interface OrigenObjetivo {
+  origen: 'medido' | 'formula';
+  tdee_kcal: number;
+  tdee_estimado_kcal: number;
+  dias_de_ventana: number;
+  dias_con_registro: number;
+  minimo_dias_de_ventana: number;
+  minimo_dias_con_registro: number;
+  motivo: string | null;
+}
+
 interface ProfileData {
   first_name: string;
   email: string;
@@ -17,9 +33,49 @@ interface ProfileData {
   target_weight_kg: number | null;
   weekly_goal_kg: number | null;
   daily_calories: number | null;
+  objetivo_origen: OrigenObjetivo | null;
   body_fat_pct?: number | null;
   unit_preference?: 'metric' | 'imperial';
   water_goal_ml?: number;
+}
+
+/**
+ * El trabajo más interesante del proyecto era invisible: el gasto se mide de
+ * tus propios datos en vez de estimarse con un multiplicador que vos mismo te
+ * autoevaluás, y el usuario no veía nada. Esto lo dice en dos líneas.
+ *
+ * El número medido se muestra con lo que lo respalda, nunca como un dato
+ * cerrado, que es el principio que el repo adoptó al descartar Nut AI.
+ */
+function DeDondeSale({ origen, objetivo }: { origen: OrigenObjetivo; objetivo: number | null }) {
+  const medido = origen.origen === 'medido';
+  return (
+    <div className="origen">
+      <p className="eyebrow muted">De dónde sale tu objetivo</p>
+      <p>
+        {objetivo !== null && <strong className="num">{objetivo} kcal</strong>}
+        {medido ? (
+          <>
+            {' '}salen de un gasto de <strong className="num">{origen.tdee_kcal} kcal</strong> medido
+            sobre tus últimos {origen.dias_de_ventana} días, {origen.dias_con_registro} de ellos con
+            comida registrada. La fórmula habría estimado {origen.tdee_estimado_kcal}.
+          </>
+        ) : (
+          <>
+            {' '}salen de la fórmula, con el nivel de actividad que elegiste:{' '}
+            <strong className="num">{origen.tdee_estimado_kcal} kcal</strong> de gasto estimado.
+          </>
+        )}
+      </p>
+      {!medido && (
+        <p className="muted" style={{ fontSize: 'var(--text-sm)' }}>
+          Para medirlo de tus datos hacen falta {origen.minimo_dias_de_ventana} días de historial y{' '}
+          {origen.minimo_dias_con_registro} con comida registrada. Vas {origen.dias_de_ventana} y{' '}
+          {origen.dias_con_registro}.
+        </p>
+      )}
+    </div>
+  );
 }
 
 /**
@@ -106,6 +162,8 @@ export function Profile({ onSaved, onClose }: { onSaved: () => void; onClose: ()
       <p className="muted">
         {data.first_name} · {data.email}
       </p>
+
+      {data.objetivo_origen && <DeDondeSale origen={data.objetivo_origen} objetivo={data.daily_calories} />}
 
       <div className="field">
         <label>Sistema de unidades</label>

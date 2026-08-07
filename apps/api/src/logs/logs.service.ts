@@ -400,8 +400,13 @@ export class LogsService {
       if (!rutina) throw new NotFoundException('La rutina no existe');
 
       const dailyLogId = await this.ensureDailyLog(tx, userId, dto.log_date);
+      // `createMany` estampa el mismo `logged_at` en todas, y con la fecha
+      // empatada el orden lo decidía Postgres: la rutina se mostraba barajada y
+      // podía cambiar entre recargas. Un milisegundo por ítem alcanza para que
+      // el orden de la rutina sea el orden de las filas.
+      const base = Date.now();
       await tx.strengthEntry.createMany({
-        data: rutina.items.map((i) => ({
+        data: rutina.items.map((i, indice) => ({
           dailyLogId,
           name: i.name,
           sets: i.sets,
@@ -409,6 +414,7 @@ export class LogsService {
           weightKg: i.weightKg,
           rpe: i.rpe,
           done: false,
+          loggedAt: new Date(base + indice),
         })),
       });
     });

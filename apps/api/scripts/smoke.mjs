@@ -787,6 +787,33 @@ console.log('\nEntrenamiento');
     assert.equal(rep.data.totals.volume_kg, 720 + 650);
     assert.equal(rep.data.totals.sets, 8);
     assert.ok(rep.data.by_body.some((b) => b.sets > 0), 'no se resolvió la zona del cuerpo');
+
+    // El corte por zona también va por día: el agregado del rango dice cómo
+    // repartiste el cuerpo, y este dice si una zona viene plana.
+    const hoy = rep.data.days.find((d) => d.log_date === day);
+    assert.ok(hoy.by_body.length > 0, 'el día no trae desglose por zona');
+    assert.equal(
+      hoy.by_body.reduce((s, b) => s + b.sets, 0),
+      hoy.sets,
+      'las series por zona del día no suman las del día',
+    );
+    assert.equal(
+      hoy.by_body.reduce((s, b) => s + b.volume_kg, 0),
+      hoy.volume_kg,
+      'el volumen por zona del día no suma el del día',
+    );
+  });
+
+  await check('el perfil explica de dónde sale el objetivo', async () => {
+    const { body } = await call('GET', '/profile');
+    const o = body.data.objetivo_origen;
+    assert.ok(o, 'el perfil no dice de dónde sale el objetivo');
+    // Una cuenta recién creada no tiene 14 días de historial: va por fórmula, y
+    // el perfil tiene que decir qué falta para que pase a medirse.
+    assert.equal(o.origen, 'formula');
+    assert.ok(o.tdee_estimado_kcal > 0);
+    assert.ok(o.dias_de_ventana < o.minimo_dias_de_ventana);
+    assert.ok(o.motivo, 'sin motivo, "no medido" no se puede explicar');
   });
 
   await check('el récord sigue al peso, no al orden', async () => {

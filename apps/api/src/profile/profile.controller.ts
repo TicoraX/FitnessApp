@@ -84,9 +84,11 @@ export class ProfileService {
   ) {}
 
   async get(userId: string) {
-    const [user, goal] = await Promise.all([
+    const [user, goal, origen] = await Promise.all([
       this.prisma.user.findUniqueOrThrow({ where: { id: userId } }),
       this.prisma.userGoal.findFirst({ where: { userId, isActive: true }, orderBy: { effectiveFrom: 'desc' } }),
+      // De dónde sale el objetivo de hoy. Solo lectura: no recalcula nada.
+      this.goals.origenDelObjetivo(this.prisma, userId),
     ]);
 
     return {
@@ -105,6 +107,7 @@ export class ProfileService {
         target_weight_kg: goal ? Number(goal.targetWeightKg) : null,
         weekly_goal_kg: goal ? Number(goal.weeklyChangeKg) : null,
         daily_calories: goal?.dailyCalories ?? null,
+        objetivo_origen: origen,
       },
     };
   }
