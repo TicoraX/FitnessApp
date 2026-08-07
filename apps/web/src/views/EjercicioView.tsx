@@ -226,7 +226,12 @@ function ZonasEnElTiempo({
   if (conSeries.length === 0) return null;
 
   const pico = Math.max(1, ...conSeries.map((d) => d.sets));
-  const ancho = 100 / conSeries.length;
+  // La tarjeta es de siete días, así que la grilla también: con un solo día
+  // entrenado, dividir el ancho por la cantidad de días daba una barra que
+  // ocupaba el 70% del gráfico y se leía como un bloque de color, no como un
+  // día. Con más de siete el ancho lo manda el rango.
+  const columnas = Math.max(conSeries.length, 7);
+  const ancho = 100 / columnas;
 
   return (
     <div className="zonas-tiempo">
