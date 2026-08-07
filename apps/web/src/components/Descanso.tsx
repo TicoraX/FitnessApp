@@ -37,8 +37,15 @@ export function Descanso({
 
   // Vibra, no suena: el sonido pide permiso, molesta en un gimnasio y obliga a
   // decidir qué pasa con el teléfono en silencio.
+  //
+  // Y se va sola diez segundos después. La barra sobrevive a cambiar de vista a
+  // propósito, pero una vez en cero ya cumplió: quedarse ahí es tapar contenido
+  // de una pantalla que no tiene nada que ver con el descanso.
   useEffect(() => {
-    if (restan === 0) navigator.vibrate?.([200, 100, 200]);
+    if (restan !== 0) return;
+    navigator.vibrate?.([200, 100, 200]);
+    const id = setTimeout(onCerrar, 10_000);
+    return () => clearTimeout(id);
   }, [restan === 0]);
 
   return (
