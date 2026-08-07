@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, getCacheado, invalidarCache, today } from './api';
+import { api, getCacheado, invalidarCache, shiftDate, today, type WeightReport } from './api';
 import { useVisible } from './hooks/useVisible';
 import { ErrorConReintento } from './components/ErrorConReintento';
 
@@ -9,18 +9,57 @@ export interface WeightPoint {
   ema_kg: number;
 }
 
+/**
+ * ¿El plan está funcionando?
+ *
+ * El API ya calculaba la proyección y el diario no la decía. Va con su banda,
+ * nunca como un dato cerrado: la fecha sale de extrapolar el ritmo de las
+ * últimas semanas, así que un cambio de hábito la mueve entera. El repo adoptó
+ * ese principio cuando descartó Nut AI y se quedó con la idea.
+ */
+function ElPlanFunciona({ trend }: { trend: WeightReport['trend'] }) {
+  if (trend.target_weight_kg === null) return null;
+
+  // Sin ritmo no hay proyección posible, y decir "no se alcanza" sería un
+  // veredicto sobre alguien que recién empieza.
+  if (trend.points < 2) return null;
+
+  const vaHaciaLaMeta =
+    (trend.goal_weekly_kg < 0 && trend.weekly_rate_kg < 0) ||
+    (trend.goal_weekly_kg > 0 && trend.weekly_rate_kg > 0) ||
+    (trend.goal_weekly_kg === 0 && Math.abs(trend.weekly_rate_kg) < 0.1);
+
+  return (
+    <p className="plan muted" data-va={vaHaciaLaMeta}>
+      {trend.projected_target_date
+        ? `A este ritmo llegás a ${trend.target_weight_kg} kg cerca del ${trend.projected_target_date}. Es una extrapolación del ritmo de las últimas semanas, no una fecha.`
+        : vaHaciaLaMeta
+          ? `Vas hacia los ${trend.target_weight_kg} kg, pero tan despacio que la fecha no se puede estimar.`
+          : `A este ritmo no llegás a ${trend.target_weight_kg} kg: vas ${trend.weekly_rate_kg > 0 ? 'subiendo' : 'bajando'} ${Math.abs(trend.weekly_rate_kg)} kg por semana y el plan pide ${trend.goal_weekly_kg}.`}
+    </p>
+  );
+}
+
 export function Weight({ onGoalChanged }: { onGoalChanged: () => void }) {
   const [series, setSeries] = useState<WeightPoint[]>([]);
   const [value, setValue] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [falloCarga, setFalloCarga] = useState(false);
+  const [tendencia, setTendencia] = useState<WeightReport['trend'] | null>(null);
   const [ref, visible] = useVisible<HTMLElement>();
 
   const load = useCallback(async () => {
     try {
       setSeries((await getCacheado<{ data: WeightPoint[] }>('/weight?days=90')).data);
       setFalloCarga(false);
+      // El API ya calcula la proyección y el diario no la decía: mirabas la
+      // tendencia sin saber si el plan estaba funcionando.
+      const hoy = today();
+      const desde = shiftDate(hoy, -89);
+      setTendencia(
+        (await getCacheado<{ data: WeightReport }>(`/reports/weight?from=${desde}&to=${hoy}`)).data.trend,
+      );
     } catch {
       // Vaciar la serie sin más mostraría "Registrá tu peso para ver la
       // tendencia" a quien tiene noventa pesadas: el error de red se leería
@@ -81,6 +120,7 @@ export function Weight({ onGoalChanged }: { onGoalChanged: () => void }) {
               {delta.toFixed(1)} kg en {series.length} pesadas
             </p>
           )}
+          {tendencia && <ElPlanFunciona trend={tendencia} />}
           {/* La leyenda solo tiene sentido si hay gráfico que leer. */}
           {series.length > 1 && (
             <>

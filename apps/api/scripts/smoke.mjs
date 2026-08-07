@@ -804,6 +804,18 @@ console.log('\nEntrenamiento');
     );
   });
 
+  await check('el perfil explica de dónde sale el objetivo', async () => {
+    const { body } = await call('GET', '/profile');
+    const o = body.data.objetivo_origen;
+    assert.ok(o, 'el perfil no dice de dónde sale el objetivo');
+    // Una cuenta recién creada no tiene 14 días de historial: va por fórmula, y
+    // el perfil tiene que decir qué falta para que pase a medirse.
+    assert.equal(o.origen, 'formula');
+    assert.ok(o.tdee_estimado_kcal > 0);
+    assert.ok(o.dias_de_ventana < o.minimo_dias_de_ventana);
+    assert.ok(o.motivo, 'sin motivo, "no medido" no se puede explicar');
+  });
+
   await check('el récord sigue al peso, no al orden', async () => {
     const { body } = await call('GET', `/logs/strength/history?name=${encodeURIComponent(movimiento)}`);
     assert.equal(body.data.best.weight_kg, 32.5);

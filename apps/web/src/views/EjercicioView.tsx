@@ -4,6 +4,7 @@ import { Exercise } from '../Exercise';
 import { Strength } from '../Strength';
 import { Routines } from '../Routines';
 import { ErrorConReintento } from '../components/ErrorConReintento';
+import Counter from '../components/Counter';
 import { CatalogoEjercicios } from './CatalogoEjercicios';
 import type { ParsedRoute } from '../hooks/useHashRoute';
 
@@ -290,14 +291,21 @@ function ResumenSemanal({ reporte, previo }: { reporte: ExerciseReport; previo: 
       </div>
 
       <div className="resumen-ej__cifras num">
+        {/* `Counter` ya existía con su spring y estaba subutilizado: estos dos
+            números son los que cambian al confirmar una serie, así que son los
+            que ganan algo con que el dígito se deslice en vez de saltar. */}
         <div>
           <span className="muted">Volumen</span>
-          <strong>{totals.volume_kg.toLocaleString('es')} kg</strong>
+          <strong>
+            <Counter value={totals.volume_kg} fontSize={18} fontWeight={700} /> kg
+          </strong>
           <Delta ahora={totals.volume_kg} antes={previo?.totals.volume_kg} />
         </div>
         <div>
           <span className="muted">Series</span>
-          <strong>{totals.sets}</strong>
+          <strong>
+            <Counter value={totals.sets} fontSize={18} fontWeight={700} />
+          </strong>
           <Delta ahora={totals.sets} antes={previo?.totals.sets} />
         </div>
         <div>

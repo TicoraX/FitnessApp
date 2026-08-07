@@ -1,7 +1,7 @@
 import { Global, Injectable, Module } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { calculateAge, calculateTargets, calculateBmr, calculateTdee, type Gender } from './metabolic';
-import { tdeeMedido, MIN_DIAS_VENTANA, type DiaMedido } from './tdee-medido';
+import { tdeeMedido, MIN_DIAS_VENTANA, MIN_DIAS_CON_INTAKE, type DiaMedido } from './tdee-medido';
 
 /**
  * Recálculo del objetivo activo. Vive acá y no dentro de un módulo porque lo
@@ -48,8 +48,10 @@ export class GoalsService {
     // El multiplicador de actividad lo elige el usuario de un dropdown y es la
     // fuente de error dominante del objetivo. Cuando hay datos suficientes se
     // reemplaza por gasto medido; si no los hay, la fórmula sigue mandando.
-    const medido = await this.medirTdee(tx, userId, calculateTdee(calculateBmr(base), base.activityLevel));
-    const targets = calculateTargets(medido.confiable ? { ...base, tdeeMedidoKcal: medido.tdee } : base);
+    const { medicion } = await this.medirTdee(tx, userId, calculateTdee(calculateBmr(base), base.activityLevel));
+    const targets = calculateTargets(
+      medicion.confiable ? { ...base, tdeeMedidoKcal: medicion.tdee } : base,
+    );
 
     if (targets.dailyCalories === goal.dailyCalories) return;
 
@@ -111,7 +113,17 @@ export class GoalsService {
     const porPeso = new Map(pesadas.map((r) => [dia(r.loggedOn), Number(r.weightKg)]));
 
     const fechas = [...new Set([...porIntake.keys(), ...porQuemado.keys(), ...porPeso.keys()])].sort();
-    if (fechas.length < MIN_DIAS_VENTANA) return { confiable: false as const };
+    const diasConIntake = fechas.filter((f) => porIntake.has(f)).length;
+    if (fechas.length < MIN_DIAS_VENTANA) {
+      return {
+        medicion: {
+          confiable: false as const,
+          motivo: `Faltan días: ${fechas.length} de ${MIN_DIAS_VENTANA}`,
+        },
+        diasDeVentana: fechas.length,
+        diasConIntake,
+      };
+    }
 
     const ventana: DiaMedido[] = fechas.map((f) => ({
       fecha: f,
@@ -120,7 +132,47 @@ export class GoalsService {
       pesoKg: porPeso.get(f) ?? null,
     }));
 
-    return tdeeMedido(ventana, tdeeEstimado);
+    return { medicion: tdeeMedido(ventana, tdeeEstimado), diasDeVentana: fechas.length, diasConIntake };
+  }
+
+  /**
+   * De dónde sale el objetivo de hoy, para poder mostrarlo.
+   *
+   * El PR #20 dejó de estimar el gasto con un multiplicador que el usuario se
+   * autoevalúa y pasó a medirlo de sus propios datos, y el usuario no ve nada
+   * de eso. Esto es solo lectura: expone lo que `refresh` ya calcula, sin
+   * recalcular objetivos ni tocar una fila.
+   */
+  async origenDelObjetivo(tx: Prisma.TransactionClient, userId: string) {
+    const [user, latest] = await Promise.all([
+      tx.user.findUniqueOrThrow({ where: { id: userId } }),
+      tx.weightEntry.findFirst({ where: { userId }, orderBy: { loggedOn: 'desc' } }),
+    ]);
+    if (!latest) return null;
+
+    const estimado = calculateTdee(
+      calculateBmr({
+        weightKg: Number(latest.emaKg),
+        heightCm: Number(user.heightCm),
+        age: calculateAge(user.dob),
+        gender: user.gender as Gender,
+        bodyFatPct: user.bodyFatPct === null ? undefined : Number(user.bodyFatPct),
+      }),
+      Number(user.activityLevel),
+    );
+
+    const { medicion, diasDeVentana, diasConIntake } = await this.medirTdee(tx, userId, estimado);
+
+    return {
+      origen: medicion.confiable ? ('medido' as const) : ('formula' as const),
+      tdee_kcal: medicion.confiable ? medicion.tdee : estimado,
+      tdee_estimado_kcal: estimado,
+      dias_de_ventana: diasDeVentana,
+      dias_con_registro: diasConIntake,
+      minimo_dias_de_ventana: MIN_DIAS_VENTANA,
+      minimo_dias_con_registro: MIN_DIAS_CON_INTAKE,
+      motivo: medicion.confiable ? null : medicion.motivo,
+    };
   }
 }
 
