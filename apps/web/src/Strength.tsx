@@ -3,6 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import {
   api,
   getCacheado,
+  invalidarCache,
   notificarCambio,
   shiftDate,
   type DaySummary,
@@ -86,13 +87,13 @@ export function Strength({
       });
   }, []);
 
-  // Lo que venís entrenando estos días. Sin cachear: cambia con cada serie que
-  // registrás, que es justo lo que lo hace útil.
+  // Lo que venís entrenando estos días. Cacheado y invalidado en el cambio, que
+  // es el patrón del resto: sin eso, cada montaje de la vista disparaba un
+  // pedido y el techo de `ui:check` pasaba a depender del reloj.
   useEffect(() => {
-    api
-      .get<{ data: MovementTrending[] }>(
-        `/logs/strength/trending?limit=6&desde=${shiftDate(date, -7)}`,
-      )
+    getCacheado<{ data: MovementTrending[] }>(
+      `/logs/strength/trending?limit=6&desde=${shiftDate(date, -7)}`,
+    )
       .then((r) => setSemana(r.data.filter((m) => m.id)))
       .catch(() => {
         // Es un atajo: sin él se busca escribiendo, como siempre.
@@ -220,6 +221,7 @@ export function Strength({
         setRecord(selected.name_es ?? selected.name);
       }
       notificarCambio('diario-cambiado');
+      invalidarCache('/logs/strength/trending');
       invalidarPendientes();
       isProgrammaticRef.current = false;
       setQuery('');
@@ -270,6 +272,7 @@ export function Strength({
     // pendientes y no hay nada que revertir en ellas.
     const confirmadas = pendientes.filter((_, i) => resultados[i].status === 'fulfilled');
     notificarCambio('diario-cambiado');
+    invalidarCache('/logs/strength/trending');
     onChanged();
     setBusy(null);
     if (confirmadas.length) {
@@ -296,6 +299,7 @@ export function Strength({
     try {
       await api.del(`/logs/strength/${id}`);
       notificarCambio('diario-cambiado');
+      invalidarCache('/logs/strength/trending');
       onChanged();
       if (borrada) {
         // Vuelve con otro id, y no importa: `StrengthEntry` copia el nombre en
@@ -335,6 +339,7 @@ export function Strength({
     try {
       await accion();
       notificarCambio('diario-cambiado');
+      invalidarCache('/logs/strength/trending');
       onChanged();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo deshacer.');
@@ -457,6 +462,7 @@ export function Strength({
                   disabled={busy === 'todas'}
                   onDone={() => {
                     notificarCambio('diario-cambiado');
+      invalidarCache('/logs/strength/trending');
                     onChanged();
                     // Confirmar la última pendiente cierra el entreno: ahí no
                     // hay nada que descansar. La rutina entera tampoco.
