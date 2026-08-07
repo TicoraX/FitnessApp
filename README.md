@@ -1,8 +1,8 @@
 # FitTrack Engine
 
 App de seguimiento nutricional y de entrenamiento, en español, apuntada al
-mercado colombiano. [`estrucura.md`](./estrucura.md) es el blueprint original y
-quedó histórico: describe una arquitectura que este repo no tiene.
+mercado colombiano. Qué es, para quién, y las convenciones que gobiernan el
+proyecto, en [`CONTEXTO.md`](./CONTEXTO.md).
 
 ```
 apps/api/          # Servicio NestJS
@@ -234,9 +234,7 @@ de 40% del estimado, se sigue con la fórmula.
 
 La fase 14 está descartada, no pendiente: cada una de las tres es un proyecto
 propio y ninguna mejora el uso diario de una app personal. El motivo largo en
-[`PENDIENTES.md`](./PENDIENTES.md), junto con lo que quedó abierto. El plan
-original del cliente web, ya cerrado, en
-[`PLAN-FRONTEND.md`](./PLAN-FRONTEND.md).
+[`PENDIENTES.md`](./PENDIENTES.md), junto con lo que quedó abierto.
 
 Redis, Typesense, Kong y los microservicios de §2 no están: con un servicio y
 cero tráfico no aportan nada todavía. Entran cuando la latencia lo pida.
