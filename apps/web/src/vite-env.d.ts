@@ -13,3 +13,6 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+/** Identifica el build. Lo inyecta `define` en vite.config.ts. */
+declare const __BUILD_ID__: string;

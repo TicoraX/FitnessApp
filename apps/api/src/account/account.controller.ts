@@ -15,6 +15,70 @@ import { Throttle } from '@nestjs/throttler';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
 import type { Response } from 'express';
 import * as argon2 from 'argon2';
+
+/**
+ * Una receta logueada se guarda expandida, una fila por ingrediente, porque los
+ * macros del día tienen que salir de números congelados y no de releer la
+ * receta. Eso es correcto en la base y es ilegible en un export: de un guiso
+ * salían seis renglones con nombres de ingredientes y ninguno decía "guiso".
+ *
+ * Acá se colapsan por `recipe_group_id`, que es justo lo que ese campo existe
+ * para permitir: una línea con el nombre de la receta, sus porciones y sus
+ * calorías sumadas, con los ingredientes adentro para el que quiera mirarlos.
+ * Las filas sueltas pasan de largo.
+ */
+type FilaExport = {
+  mealType: string;
+  loggedAt: Date;
+  servingsConsumed: unknown;
+  foodItem: { name: string; brand: string | null; calories: number } | null;
+  quickName: string | null;
+  quickCalories: unknown;
+  recipeGroupId: string | null;
+  recipeServings: unknown;
+  recipe: { name: string } | null;
+};
+
+function agruparRecetas(entries: FilaExport[]) {
+  const kcal = (e: FilaExport) =>
+    e.foodItem
+      ? e.foodItem.calories * Number(e.servingsConsumed)
+      : Number(e.quickCalories ?? 0) * Number(e.servingsConsumed);
+
+  const salida: (FilaExport & { calories: number; ingredientes?: unknown[] })[] = [];
+  const grupos = new Map<string, number>();
+
+  for (const e of entries) {
+    if (!e.recipeGroupId) {
+      salida.push({ ...e, calories: kcal(e) });
+      continue;
+    }
+    const ingrediente = {
+      food: e.foodItem?.name ?? e.quickName,
+      brand: e.foodItem?.brand ?? null,
+      servings_consumed: Number(e.servingsConsumed),
+      calories: kcal(e),
+    };
+    const yaEsta = grupos.get(e.recipeGroupId);
+    if (yaEsta === undefined) {
+      grupos.set(e.recipeGroupId, salida.length);
+      salida.push({
+        ...e,
+        // El nombre de la receta, no el del primer ingrediente.
+        foodItem: null,
+        quickName: e.recipe?.name ?? 'Receta',
+        servingsConsumed: e.recipeServings,
+        calories: kcal(e),
+        ingredientes: [ingrediente],
+      });
+    } else {
+      const grupo = salida[yaEsta];
+      grupo.calories += kcal(e);
+      grupo.ingredientes!.push(ingrediente);
+    }
+  }
+  return salida;
+}
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -49,7 +113,10 @@ export class AccountService {
         dailyLogs: {
           orderBy: { logDate: 'asc' },
           include: {
-            entries: { include: { foodItem: true }, orderBy: { loggedAt: 'asc' } },
+            entries: {
+              include: { foodItem: true, recipe: { select: { name: true } } },
+              orderBy: { loggedAt: 'asc' },
+            },
             exercises: { orderBy: { loggedAt: 'asc' } },
             strength: { orderBy: { loggedAt: 'asc' } },
           },
@@ -127,16 +194,16 @@ export class AccountService {
       days: user.dailyLogs.map((d) => ({
         log_date: dia(d.logDate),
         water_ml: d.waterMl,
-        entries: d.entries.map((e) => ({
+        entries: agruparRecetas(d.entries).map((e) => ({
           meal_type: e.mealType,
           logged_at: e.loggedAt.toISOString(),
           servings_consumed: n(e.servingsConsumed),
           // Un quick add no tiene alimento detrás; el nombre está en la fila.
           food: e.foodItem?.name ?? e.quickName,
           brand: e.foodItem?.brand ?? null,
-          calories: e.foodItem
-            ? e.foodItem.calories * Number(e.servingsConsumed)
-            : (e.quickCalories ?? 0) * Number(e.servingsConsumed),
+          calories: e.calories,
+          // Presente solo en las filas que salieron de una receta.
+          ...(e.ingredientes ? { ingredientes: e.ingredientes } : {}),
         })),
         exercises: d.exercises.map((ex) => ({
           name: ex.name,

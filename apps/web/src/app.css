@@ -1210,3 +1210,32 @@ input[aria-invalid='true'] {
 .resumen-ej__barras {
   animation: entra-grafico var(--dur-enter) var(--ease-out) both;
 }
+
+/*
+  Las modales aparecían de golpe, en las cuatro vistas que usan el patrón. Es lo
+  único del barrido de pulido que se paga solo: una modal es lo que más tapa la
+  pantalla, así que es donde más ayuda entender de dónde salió.
+
+  Va en CSS y no en `motion` porque el bloque de `prefers-reduced-motion` de más
+  abajo ya lo cubre, sin código extra en cuatro componentes.
+*/
+@keyframes entra-overlay {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes entra-modal {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+.modal-overlay {
+  animation: entra-overlay var(--dur-state) var(--ease-out) both;
+}
+
+.modal-card {
+  animation: entra-modal var(--dur-enter) var(--ease-out) both;
+}
