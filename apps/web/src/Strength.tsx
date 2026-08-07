@@ -58,6 +58,12 @@ export function Strength({
   });
   const [results, setResults] = useState<Movement[]>([]);
   const [semana, setSemana] = useState<MovementTrending[]>([]);
+  const [trendingRev, setTrendingRev] = useState(0);
+
+  const refreshTrending = () => {
+    invalidarCache('/logs/strength/trending');
+    setTrendingRev((r) => r + 1);
+  };
   const [selected, setSelected] = useState<Movement | null>(null);
   const [historia, setHistoria] = useState<StrengthHistory | null>(null);
   const [series, setSeries] = useState('3');
@@ -91,14 +97,20 @@ export function Strength({
   // es el patrón del resto: sin eso, cada montaje de la vista disparaba un
   // pedido y el techo de `ui:check` pasaba a depender del reloj.
   useEffect(() => {
+    let vigente = true;
     getCacheado<{ data: MovementTrending[] }>(
       `/logs/strength/trending?limit=6&desde=${shiftDate(date, -7)}`,
     )
-      .then((r) => setSemana(r.data.filter((m) => m.id)))
+      .then((r) => {
+        if (vigente) setSemana(r.data.filter((m) => m.id));
+      })
       .catch(() => {
         // Es un atajo: sin él se busca escribiendo, como siempre.
       });
-  }, [date, day.strength.length]);
+    return () => {
+      vigente = false;
+    };
+  }, [date, day.strength.length, trendingRev]);
 
   // Con un filtro puesto la lista se llena sola: explorar el catálogo es el
   // punto de las chips, y exigir además dos letras lo anularía.
@@ -221,7 +233,7 @@ export function Strength({
         setRecord(selected.name_es ?? selected.name);
       }
       notificarCambio('diario-cambiado');
-      invalidarCache('/logs/strength/trending');
+      refreshTrending();
       invalidarPendientes();
       isProgrammaticRef.current = false;
       setQuery('');
@@ -272,13 +284,21 @@ export function Strength({
     // pendientes y no hay nada que revertir en ellas.
     const confirmadas = pendientes.filter((_, i) => resultados[i].status === 'fulfilled');
     notificarCambio('diario-cambiado');
-    invalidarCache('/logs/strength/trending');
+    refreshTrending();
     onChanged();
     setBusy(null);
     if (confirmadas.length) {
-      ofrecerDeshacer(`Confirmaste ${confirmadas.length} series.`, () =>
-        Promise.all(confirmadas.map((e) => volverAPendiente(e))).then(() => undefined),
-      );
+      ofrecerDeshacer(`Confirmaste ${confirmadas.length} series.`, async () => {
+        const res = await Promise.allSettled(confirmadas.map((e) => volverAPendiente(e)));
+        const fallaronUndo = confirmadas.filter((_, i) => res[i].status === 'rejected');
+        const exito = res.some((r) => r.status === 'fulfilled');
+        if (fallaronUndo.length) {
+          setError(`No se pudieron deshacer: ${fallaronUndo.map((e) => e.name_es ?? e.name).join(', ')}.`);
+        }
+        if (!exito) {
+          throw new Error('No se pudo deshacer ninguna serie.');
+        }
+      });
     }
   }
 
@@ -299,7 +319,7 @@ export function Strength({
     try {
       await api.del(`/logs/strength/${id}`);
       notificarCambio('diario-cambiado');
-      invalidarCache('/logs/strength/trending');
+      refreshTrending();
       onChanged();
       if (borrada) {
         // Vuelve con otro id, y no importa: `StrengthEntry` copia el nombre en
@@ -339,7 +359,7 @@ export function Strength({
     try {
       await accion();
       notificarCambio('diario-cambiado');
-      invalidarCache('/logs/strength/trending');
+      refreshTrending();
       onChanged();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo deshacer.');
@@ -462,7 +482,7 @@ export function Strength({
                   disabled={busy === 'todas'}
                   onDone={() => {
                     notificarCambio('diario-cambiado');
-      invalidarCache('/logs/strength/trending');
+                    refreshTrending();
                     onChanged();
                     // Confirmar la última pendiente cierra el entreno: ahí no
                     // hay nada que descansar. La rutina entera tampoco.
